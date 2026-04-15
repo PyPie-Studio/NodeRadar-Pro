@@ -1,0 +1,1 @@
+{"lsp": {"csharp": {"command": "dotnet", "args": ["tool", "run", "csharp-ls"]}}}
