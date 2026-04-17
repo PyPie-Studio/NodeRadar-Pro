@@ -9,36 +9,31 @@ using System.Collections.Generic;
 namespace NodeRadarPro.UI;
 
 /// <summary>
-/// Scrollable sidebar device list. Each row shows:
-/// Status dot (green/red) • Display name • IP • Latency
+/// Scrollable sidebar device list with status indicators, vendor info, and device type.
+/// Each row shows: Status dot • Display name • Vendor/Type • IP • Latency
 /// </summary>
 public class DeviceListPanel : Border
 {
-    private static readonly IBrush BgPanel = SolidColorBrush.Parse("#131322");
-    private static readonly IBrush BgHover = SolidColorBrush.Parse("#1E1E35");
-    private static readonly IBrush BgSelected = SolidColorBrush.Parse("#252545");
+    private static readonly IBrush BgPanel = SolidColorBrush.Parse("#111120");
+    private static readonly IBrush BgHover = SolidColorBrush.Parse("#1C1C35");
+    private static readonly IBrush BgSelected = SolidColorBrush.Parse("#252548");
     private static readonly IBrush TextWhite = Brushes.WhiteSmoke;
-    private static readonly IBrush TextGrey = SolidColorBrush.Parse("#777788");
+    private static readonly IBrush TextGrey = SolidColorBrush.Parse("#6E6E82");
+    private static readonly IBrush TextSubtle = SolidColorBrush.Parse("#555570");
     private static readonly IBrush OnlineGreen = SolidColorBrush.Parse("#00FFcc");
     private static readonly IBrush OfflineRed = SolidColorBrush.Parse("#FF4444");
     private static readonly IBrush RegisteredPurple = SolidColorBrush.Parse("#8A2BE2");
-    private static readonly IBrush SeparatorColor = SolidColorBrush.Parse("#1A1A30");
 
     private readonly StackPanel _listContainer;
-    private readonly ScrollViewer _scrollViewer;
     private readonly TextBlock _emptyLabel;
     private string? _selectedMac = null;
 
-    /// <summary>Fired when a device row is clicked (left click).</summary>
     public event Action<NetworkNode>? DeviceSelected;
-
-    /// <summary>Fired when a device row is right-clicked.</summary>
     public event Action<NetworkNode>? DeviceRightClicked;
 
     public DeviceListPanel()
     {
         Background = BgPanel;
-        CornerRadius = new CornerRadius(0);
 
         _emptyLabel = new TextBlock
         {
@@ -54,22 +49,17 @@ public class DeviceListPanel : Border
 
         _listContainer = new StackPanel
         {
-            Spacing = 1,
+            Spacing = 0,
             Children = { _emptyLabel }
         };
 
-        _scrollViewer = new ScrollViewer
+        Child = new ScrollViewer
         {
             Content = _listContainer,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         };
-
-        Child = _scrollViewer;
     }
 
-    /// <summary>
-    /// Rebuilds the entire device list from the given nodes.
-    /// </summary>
     public void UpdateDevices(List<NetworkNode> nodes)
     {
         _listContainer.Children.Clear();
@@ -80,10 +70,11 @@ public class DeviceListPanel : Border
             return;
         }
 
-        // Sort: online first, then by display name
+        // Sort: online first, registered first within each group, then by display name
         nodes.Sort((a, b) =>
         {
             if (a.IsOnline != b.IsOnline) return b.IsOnline.CompareTo(a.IsOnline);
+            if (a.IsRegistered != b.IsRegistered) return b.IsRegistered.CompareTo(a.IsRegistered);
             return string.Compare(a.DisplayName, b.DisplayName, StringComparison.OrdinalIgnoreCase);
         });
 
@@ -96,7 +87,6 @@ public class DeviceListPanel : Border
     public void SelectDevice(string? macAddress)
     {
         _selectedMac = macAddress;
-        // Re-highlight rows
         foreach (var child in _listContainer.Children)
         {
             if (child is Border border && border.Tag is NetworkNode rowNode)
@@ -110,78 +100,106 @@ public class DeviceListPanel : Border
     {
         bool isSelected = node.MacAddress == _selectedMac;
 
-        // Status dot
+        // ── Status indicator (pulsing dot) ──
         var statusDot = new Border
         {
-            Width = 8,
-            Height = 8,
-            CornerRadius = new CornerRadius(4),
+            Width = 10,
+            Height = 10,
+            CornerRadius = new CornerRadius(5),
             Background = node.IsOnline ? OnlineGreen : OfflineRed,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 10, 0)
+            VerticalAlignment = VerticalAlignment.Top,
+            Margin = new Thickness(0, 4, 10, 0),
+            Opacity = node.IsOnline ? 1.0 : 0.6,
+            // Glow effect for online
+            BoxShadow = node.IsOnline 
+                ? new BoxShadows(new BoxShadow { Blur = 6, Color = Color.Parse("#00FFcc") })
+                : default
         };
 
-        // Device name
+        // ── Device name ──
         var nameText = new TextBlock
         {
             Text = node.DisplayName,
             Foreground = TextWhite,
             FontSize = 13,
             FontWeight = node.IsRegistered ? FontWeight.SemiBold : FontWeight.Normal,
-            VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
-            MaxWidth = 130
+            MaxWidth = 160
         };
 
-        // Registered badge
+        // ── Registered badge ──
         var registeredBadge = new TextBlock
         {
-            Text = node.IsRegistered ? "★" : "",
+            Text = node.IsRegistered ? " ★" : "",
             Foreground = RegisteredPurple,
-            FontSize = 12,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(4, 0, 0, 0)
+            FontSize = 11,
+            VerticalAlignment = VerticalAlignment.Center
         };
 
-        var topRow = new StackPanel
+        var nameRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Children = { statusDot, nameText, registeredBadge }
+            Children = { nameText, registeredBadge }
         };
 
-        // IP + Latency line
-        string subText = node.IpAddress;
+        // ── Subtitle: device type / vendor / model ──
+        string subtitle = node.SubtitleText;
+
+        var subtitleText = new TextBlock
+        {
+            Text = subtitle,
+            Foreground = SolidColorBrush.Parse("#7B6FA0"),
+            FontSize = 10.5,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 1, 0, 0),
+            IsVisible = !string.IsNullOrEmpty(subtitle)
+        };
+
+        // ── IP + Latency + Uptime + Location line ──
+        string infoLine = node.IpAddress;
         if (node.IsOnline && node.PingLatencyMs >= 0)
-            subText += $"  •  {node.PingLatencyMs}ms";
-        if (!string.IsNullOrEmpty(node.Location))
-            subText += $"  •  {node.Location}";
+            infoLine += $"  •  {node.PingLatencyMs}ms";
+        
+        infoLine += $"  •  {node.UptimeDisplay}";
 
-        var ipText = new TextBlock
+        if (!string.IsNullOrEmpty(node.Location))
+            infoLine += $"  •  📍 {node.Location}";
+
+        var infoText = new TextBlock
         {
-            Text = subText,
-            Foreground = TextGrey,
-            FontSize = 11,
-            Margin = new Thickness(18, 0, 0, 0),
-            TextTrimming = TextTrimming.CharacterEllipsis
+            Text = infoLine,
+            Foreground = TextSubtle,
+            FontSize = 10.5,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 1, 0, 0)
         };
 
-        var content = new StackPanel
+        // ── Right-side content ──
+        var textContent = new StackPanel
         {
-            Spacing = 2,
-            Children = { topRow, ipText }
+            Spacing = 0,
+            VerticalAlignment = VerticalAlignment.Center,
+            Children = { nameRow, subtitleText, infoText }
+        };
+
+        var rowContent = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Children = { statusDot, textContent }
         };
 
         var row = new Border
         {
             Background = isSelected ? BgSelected : Brushes.Transparent,
-            Padding = new Thickness(12, 8),
+            Padding = new Thickness(14, 9, 14, 9),
             Tag = node,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            BorderBrush = SolidColorBrush.Parse("#1A1A30"),
+            BorderThickness = new Thickness(0, 0, 0, 1)
         };
+        row.Child = rowContent;
 
-        row.Child = content;
-
-        // Hover effect
+        // ── Hover effect ──
         row.PointerEntered += (s, e) =>
         {
             if (row.Tag is NetworkNode n && n.MacAddress != _selectedMac)
@@ -193,7 +211,7 @@ public class DeviceListPanel : Border
                 row.Background = Brushes.Transparent;
         };
 
-        // Click events
+        // ── Click events ──
         row.PointerPressed += (s, e) =>
         {
             if (row.Tag is not NetworkNode n) return;

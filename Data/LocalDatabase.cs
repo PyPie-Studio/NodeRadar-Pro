@@ -9,6 +9,7 @@ namespace NodeRadarPro.Data;
 
 /// <summary>
 /// Handles offline history and device registration using LiteDB.
+/// Database is stored in Users/My Documents/NodeRadar Pro/.
 /// </summary>
 public class LocalDatabase
 {
@@ -16,12 +17,12 @@ public class LocalDatabase
 
     public LocalDatabase()
     {
-        // Store in the app's local directory (cross-platform safe)
-        string appDataFolder = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        string myFolder = Path.Combine(appDataFolder, "PyPieStudio", "NodeRadarPro");
+        // Store in My Documents for easy user access
+        string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
         
         Directory.CreateDirectory(myFolder); // Ensure folder exists
-        _dbPath = Path.Combine(myFolder, "history.db");
+        _dbPath = Path.Combine(myFolder, "noderadar.db");
     }
 
     /// <summary>
@@ -86,9 +87,11 @@ public class LocalDatabase
     /// <summary>
     /// Updates user registration fields for a device (by MAC address).
     /// These fields persist even if the device's IP changes via DHCP.
+    /// If the device doesn't exist in the DB yet, it gets inserted.
     /// </summary>
     public void UpdateRegistration(string macAddress, string customName, string notes, 
-        string location, string deviceName, string deviceModel, string icon)
+        string location, string deviceName, string deviceModel, string icon,
+        string? ipAddress = null)
     {
         using var db = new LiteDatabase(_dbPath);
         var collection = db.GetCollection<NetworkNode>("devices");
@@ -103,7 +106,29 @@ public class LocalDatabase
             existing.DeviceModel = deviceModel;
             existing.IconPath = icon;
             existing.IsRegistered = true;
+            if (!string.IsNullOrEmpty(ipAddress))
+                existing.IpAddress = ipAddress;
             collection.Update(existing);
+        }
+        else
+        {
+            // New manual entry — insert it
+            var node = new NetworkNode
+            {
+                MacAddress = macAddress,
+                CustomName = customName,
+                Notes = notes,
+                Location = location,
+                DeviceName = deviceName,
+                DeviceModel = deviceModel,
+                IconPath = icon,
+                IpAddress = ipAddress ?? "0.0.0.0",
+                IsRegistered = true,
+                FirstSeen = DateTime.UtcNow,
+                LastSeen = DateTime.UtcNow
+            };
+            collection.Insert(node);
+            collection.EnsureIndex(x => x.MacAddress);
         }
     }
 
@@ -123,6 +148,23 @@ public class LocalDatabase
             if (isOnline) existing.LastSeen = DateTime.UtcNow;
             collection.Update(existing);
         }
+    }
+
+    /// <summary>
+    /// Deletes a device from the database by MAC address.
+    /// </summary>
+    public bool DeleteDevice(string macAddress)
+    {
+        using var db = new LiteDatabase(_dbPath);
+        var collection = db.GetCollection<NetworkNode>("devices");
+
+        var existing = collection.FindOne(x => x.MacAddress == macAddress);
+        if (existing != null)
+        {
+            collection.Delete(existing.Id);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>

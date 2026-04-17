@@ -1,16 +1,17 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace NodeRadarPro.Core;
 
 /// <summary>
 /// Handles cross-platform MAC address resolution (ARP).
 /// Supports Windows natively and Linux by reading /proc/net/arp.
+/// Also provides full ARP table reading to discover WiFi/non-ping devices.
 /// </summary>
 public static class ArpResolver
 {
@@ -36,6 +37,78 @@ public static class ArpResolver
         return "Unknown";
     }
 
+    /// <summary>
+    /// Reads the full ARP table from the OS to discover ALL devices that have
+    /// recently communicated on the network — including WiFi devices and phones
+    /// that don't respond to ICMP ping.
+    /// </summary>
+    public static List<(string Ip, string Mac)> GetFullArpTable()
+    {
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            return GetWindowsArpTable();
+        }
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            return GetLinuxArpTable();
+        }
+
+        return new List<(string, string)>();
+    }
+
+    /// <summary>
+    /// Attempts to resolve a device's NetBIOS name (Windows only).
+    /// Works for Windows PCs, printers, and NAS devices on the LAN.
+    /// </summary>
+    public static string TryResolveNetBiosName(string ipAddress)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return string.Empty;
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "nbtstat",
+                Arguments = $"-A {ipAddress}",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc == null) return string.Empty;
+
+            // Give nbtstat 3 seconds max
+            if (!proc.WaitForExit(3000))
+            {
+                try { proc.Kill(); } catch { }
+                return string.Empty;
+            }
+
+            string output = proc.StandardOutput.ReadToEnd();
+            
+            // Parse nbtstat output for the <00> UNIQUE entry (device name)
+            foreach (var line in output.Split('\n'))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.Contains("<00>") && trimmed.Contains("UNIQUE"))
+                {
+                    // Line format: "DESKTOP-ABC   <00>  UNIQUE  ..."
+                    string name = trimmed.Split('<')[0].Trim();
+                    if (!string.IsNullOrEmpty(name) && name != "")
+                        return name;
+                }
+            }
+        }
+        catch { }
+
+        return string.Empty;
+    }
+
+    // ── Windows: Single IP resolution via SendARP ──
+
     private static string ResolveWindows(string ipAddress)
     {
         try
@@ -59,11 +132,12 @@ public static class ArpResolver
         }
     }
 
+    // ── Linux: Single IP resolution from /proc/net/arp ──
+
     private static string ResolveLinux(string ipAddress)
     {
         try
         {
-            // Linux stores ARP tables in /proc/net/arp
             string arpTable = System.IO.File.ReadAllText("/proc/net/arp");
             
             string[] lines = arpTable.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
@@ -82,5 +156,93 @@ public static class ArpResolver
         {
             return "Unknown";
         }
+    }
+
+    // ── Windows: Full ARP table via `arp -a` ──
+
+    private static List<(string Ip, string Mac)> GetWindowsArpTable()
+    {
+        var results = new List<(string, string)>();
+
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "arp",
+                Arguments = "-a",
+                RedirectStandardOutput = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var proc = Process.Start(psi);
+            if (proc == null) return results;
+            
+            string output = proc.StandardOutput.ReadToEnd();
+            proc.WaitForExit(5000);
+
+            // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
+            foreach (var line in output.Split('\n'))
+            {
+                string trimmed = line.Trim();
+                if (string.IsNullOrEmpty(trimmed)) continue;
+
+                string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 3)
+                {
+                    string ip = parts[0];
+                    string mac = parts[1];
+                    string type = parts[2].ToLower();
+
+                    // Validate IP format and skip broadcast/multicast
+                    if (!IPAddress.TryParse(ip, out var addr)) continue;
+                    if (addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
+                    
+                    // Skip invalid MACs
+                    if (mac.Length < 11) continue; // "aa-bb-cc-dd-ee-ff" = 17 chars
+                    if (mac == "ff-ff-ff-ff-ff-ff") continue; // Broadcast
+                    if (mac.StartsWith("01-00-5e")) continue; // Multicast
+                    if (type == "static" && mac == "ff-ff-ff-ff-ff-ff") continue;
+
+                    // Normalize MAC format: aa-bb-cc → AA:BB:CC
+                    string normalizedMac = mac.Replace("-", ":").ToUpper();
+                    results.Add((ip, normalizedMac));
+                }
+            }
+        }
+        catch { }
+
+        return results;
+    }
+
+    // ── Linux: Full ARP table from /proc/net/arp ──
+
+    private static List<(string Ip, string Mac)> GetLinuxArpTable()
+    {
+        var results = new List<(string, string)>();
+
+        try
+        {
+            string arpTable = System.IO.File.ReadAllText("/proc/net/arp");
+            string[] lines = arpTable.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (string line in lines.Skip(1)) // Skip header
+            {
+                string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 4)
+                {
+                    string ip = parts[0];
+                    string mac = parts[3].ToUpper().Replace("-", ":");
+
+                    if (mac == "00:00:00:00:00:00") continue;
+                    if (!IPAddress.TryParse(ip, out _)) continue;
+
+                    results.Add((ip, mac));
+                }
+            }
+        }
+        catch { }
+
+        return results;
     }
 }

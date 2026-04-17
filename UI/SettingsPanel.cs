@@ -103,6 +103,7 @@ public class SettingsPanel : Border
             CornerRadius = new CornerRadius(8),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
             FontSize = 13
         };
         _saveBtn.Click += OnSaveClicked;
