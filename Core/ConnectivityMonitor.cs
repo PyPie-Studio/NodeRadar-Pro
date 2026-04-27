@@ -6,38 +6,45 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using NodeRadarPro.Data;
 
 namespace NodeRadarPro.Core;
 
 /// <summary>
 /// Background service that periodically checks all tracked devices
-/// using ARP + ICMP + TCP fallback, and fires events on status changes.
+/// using ARP + ICMP + TCP fallback, records uptime snapshots,
+/// calculates packet loss, and fires alert events.
 /// </summary>
 public class ConnectivityMonitor
 {
-    private const int PingTimeoutMs = 2000;
-    
     private readonly ConcurrentDictionary<string, NetworkNode> _trackedDevices = new();
     private bool _isRunning = false;
-    
-    /// <summary>Fired when a previously-online device stops responding.</summary>
+    private LocalDatabase? _db;
+
+    // ── Alert cooldown trackers (prevent flooding) ──
+    private readonly ConcurrentDictionary<string, DateTime> _lastLatencyAlert = new();
+    private readonly ConcurrentDictionary<string, DateTime> _lastPacketLossAlert = new();
+    private static readonly TimeSpan AlertCooldown = TimeSpan.FromMinutes(5);
+
+    // ── Events ──
     public event Action<NetworkNode>? DeviceWentOffline;
-    
-    /// <summary>Fired when a previously-offline device starts responding.</summary>
     public event Action<NetworkNode>? DeviceCameOnline;
-    
-    /// <summary>Fired after each complete ping cycle with the full device list.</summary>
     public event Action<List<NetworkNode>>? StatusUpdated;
+    public event Action<AlertEvent>? AlertTriggered;
 
-    /// <summary>Current monitor interval in seconds.</summary>
+    // ── Configuration ──
     public int IntervalSeconds { get; set; } = 60;
-
-    /// <summary>Returns true if monitoring loop is already running.</summary>
+    public int TimeoutMs { get; set; } = 2000;
+    public int LatencyThresholdMs { get; set; } = 200;
+    public double PacketLossThresholdPct { get; set; } = 5.0;
+    public bool EnableSynScan { get; set; } = false;
+    public bool EnableToastAlerts { get; set; } = true;
+    public bool EnableSoundAlerts { get; set; } = true;
+    public bool EnableEmailAlerts { get; set; } = false;
     public bool IsRunning => _isRunning;
 
-    /// <summary>
-    /// Replaces or adds devices to the tracked pool (keyed by MAC).
-    /// </summary>
+    public void SetDatabase(LocalDatabase db) => _db = db;
+
     public void UpdateTrackedDevices(List<NetworkNode> devices)
     {
         foreach (var device in devices)
@@ -52,39 +59,22 @@ public class ConnectivityMonitor
                 device.DeviceModel = string.IsNullOrEmpty(device.DeviceModel) ? existing.DeviceModel : device.DeviceModel;
                 device.IsRegistered = existing.IsRegistered || device.IsRegistered;
                 device.FirstSeen = existing.FirstSeen;
+                device.PingHistory = existing.PingHistory;
                 return device;
             });
         }
     }
 
-    /// <summary>
-    /// Adds a single device (e.g., manually added by the user).
-    /// </summary>
     public void AddDevice(NetworkNode device)
     {
         if (device.MacAddress != "Unknown")
-        {
             _trackedDevices.AddOrUpdate(device.MacAddress, device, (_, _) => device);
-        }
     }
 
-    /// <summary>
-    /// Removes a device from tracking.
-    /// </summary>
-    public void RemoveDevice(string macAddress)
-    {
-        _trackedDevices.TryRemove(macAddress, out _);
-    }
+    public void RemoveDevice(string macAddress) => _trackedDevices.TryRemove(macAddress, out _);
 
-    /// <summary>
-    /// Returns a snapshot of all tracked devices.
-    /// </summary>
     public List<NetworkNode> GetAllDevices() => _trackedDevices.Values.ToList();
 
-    /// <summary>
-    /// Starts the background monitoring loop. Runs until the token is cancelled.
-    /// Performs an initial check immediately before entering the periodic loop.
-    /// </summary>
     public async Task StartMonitoringAsync(CancellationToken token)
     {
         if (_isRunning) return;
@@ -92,31 +82,17 @@ public class ConnectivityMonitor
 
         try
         {
-            // Initial check immediately on startup (no waiting)
             if (_trackedDevices.Count > 0 && !token.IsCancellationRequested)
-            {
                 await CheckAllDevicesAsync(token);
-            }
 
-            // Periodic monitoring loop
             while (!token.IsCancellationRequested)
             {
-                try
-                {
-                    await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), token);
-                }
-                catch (TaskCanceledException)
-                {
-                    break;
-                }
-
+                try { await Task.Delay(TimeSpan.FromSeconds(IntervalSeconds), token); }
+                catch (TaskCanceledException) { break; }
                 await CheckAllDevicesAsync(token);
             }
         }
-        finally
-        {
-            _isRunning = false;
-        }
+        finally { _isRunning = false; }
     }
 
     private async Task CheckAllDevicesAsync(CancellationToken token)
@@ -124,42 +100,49 @@ public class ConnectivityMonitor
         var devices = _trackedDevices.Values.ToList();
         if (devices.Count == 0) return;
 
+        var uptimeSnapshots = new List<UptimeSnapshot>();
+
         var tasks = devices.Select(async device =>
         {
             if (token.IsCancellationRequested) return;
             if (device.IpAddress == "0.0.0.0" || string.IsNullOrEmpty(device.IpAddress)) return;
 
             bool wasOnline = device.IsOnline;
-            bool nowOnline = false;
+            bool arpOnline = false;
+            bool icmpOnline = false;
             long latency = -1;
+            int pingTimeout = Math.Min(TimeoutMs, 2000);
 
-            // Method 1: ARP check (works for phones that block ICMP)
+            // ARP check
             try
             {
                 string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
-                if (mac != "Unknown") nowOnline = true;
+                if (mac != "Unknown") arpOnline = true;
             }
             catch { }
 
-            // Method 2: ICMP ping for latency
+            // ICMP ping
             try
             {
                 using var pinger = new Ping();
-                var reply = await pinger.SendPingAsync(device.IpAddress, PingTimeoutMs);
-
+                var reply = await pinger.SendPingAsync(device.IpAddress, pingTimeout);
                 if (reply.Status == IPStatus.Success)
                 {
-                    nowOnline = true;
+                    icmpOnline = true;
                     latency = reply.RoundtripTime;
                 }
             }
             catch { }
 
-            // Method 3: TCP connect fallback (for strict firewall devices)
-            if (!nowOnline)
-            {
-                nowOnline = await TryTcpProbeAsync(device.IpAddress);
-            }
+            // TCP fallback
+            bool tcpOnline = false;
+            if (!arpOnline && !icmpOnline)
+                tcpOnline = await TryTcpProbeAsync(device.IpAddress);
+
+            bool nowOnline = arpOnline || icmpOnline || tcpOnline;
+
+            // Record ping result
+            device.RecordPing(nowOnline);
 
             if (nowOnline)
             {
@@ -178,30 +161,126 @@ public class ConnectivityMonitor
                 }
             }
 
-            // Detect state transitions
+            // Record uptime snapshot
+            lock (uptimeSnapshots)
+            {
+                uptimeSnapshots.Add(new UptimeSnapshot
+                {
+                    MacAddress = device.MacAddress,
+                    IsOnline = device.IsOnline,
+                    LatencyMs = device.PingLatencyMs,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
+            // ── Alert checks ──
+
+            // Connection Lost
             if (wasOnline && !device.IsOnline)
             {
                 device.WasOnlinePreviously = true;
                 DeviceWentOffline?.Invoke(device);
+
+                if (device.AlertOnConnectionLost)
+                {
+                    var alert = new AlertEvent
+                    {
+                        MacAddress = device.MacAddress,
+                        DeviceName = device.DisplayName,
+                        IpAddress = device.IpAddress,
+                        AlertType = AlertType.ConnectionLost,
+                        Message = $"{device.DisplayName} ({device.IpAddress}) went offline"
+                    };
+                    try { _db?.InsertAlert(alert); } catch { }
+                    try { _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress); } catch { }
+                    AlertTriggered?.Invoke(alert);
+                }
             }
+            // Device came online — fire alert event, not just log entry (I8)
             else if (!wasOnline && device.IsOnline)
             {
                 device.WasOnlinePreviously = true;
                 DeviceCameOnline?.Invoke(device);
+
+                var reconnectAlert = new AlertEvent
+                {
+                    MacAddress = device.MacAddress,
+                    DeviceName = device.DisplayName,
+                    IpAddress = device.IpAddress,
+                    AlertType = AlertType.DeviceReconnected,
+                    Message = $"{device.DisplayName} ({device.IpAddress}) came back online",
+                    IsResolved = true,
+                    ResolvedAt = DateTime.UtcNow
+                };
+                try { _db?.InsertAlert(reconnectAlert); } catch { }
+                try { _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress); } catch { }
+                AlertTriggered?.Invoke(reconnectAlert);
+            }
+
+            // High Latency — with 5-minute cooldown per device (B12)
+            if (device.IsOnline && device.AlertOnHighLatency && latency > LatencyThresholdMs && latency > 0)
+            {
+                bool shouldAlert = !_lastLatencyAlert.TryGetValue(device.MacAddress, out var lastTime)
+                    || (DateTime.UtcNow - lastTime) > AlertCooldown;
+
+                if (shouldAlert)
+                {
+                    _lastLatencyAlert[device.MacAddress] = DateTime.UtcNow;
+                    var alert = new AlertEvent
+                    {
+                        MacAddress = device.MacAddress,
+                        DeviceName = device.DisplayName,
+                        IpAddress = device.IpAddress,
+                        AlertType = AlertType.HighLatency,
+                        Message = $"{device.DisplayName} latency spike: {latency}ms (threshold: {LatencyThresholdMs}ms)"
+                    };
+                    try { _db?.InsertAlert(alert); } catch { }
+                    AlertTriggered?.Invoke(alert);
+                }
+            }
+
+            // Packet Loss — with 5-minute cooldown per device (B11)
+            if (device.PingHistory.Count >= 10 && device.PacketLossPct > PacketLossThresholdPct)
+            {
+                bool shouldAlert = !_lastPacketLossAlert.TryGetValue(device.MacAddress, out var lastTime)
+                    || (DateTime.UtcNow - lastTime) > AlertCooldown;
+
+                if (shouldAlert)
+                {
+                    _lastPacketLossAlert[device.MacAddress] = DateTime.UtcNow;
+                    var alert = new AlertEvent
+                    {
+                        MacAddress = device.MacAddress,
+                        DeviceName = device.DisplayName,
+                        IpAddress = device.IpAddress,
+                        AlertType = AlertType.PacketLoss,
+                        Message = $"{device.DisplayName} packet loss: {device.PacketLossPct:F1}% (threshold: {PacketLossThresholdPct}%)"
+                    };
+                    try { _db?.InsertAlert(alert); } catch { }
+                    AlertTriggered?.Invoke(alert);
+                }
             }
         });
 
         await Task.WhenAll(tasks);
+
+        // Persist uptime snapshots
+        try { _db?.InsertUptimeSnapshots(uptimeSnapshots); } catch { }
+
         StatusUpdated?.Invoke(_trackedDevices.Values.ToList());
     }
 
-    /// <summary>
-    /// Tries to connect to a few common TCP ports as a last-resort reachability check.
-    /// </summary>
-    private static async Task<bool> TryTcpProbeAsync(string ip)
+    private async Task<bool> TryTcpProbeAsync(string ip)
     {
+        // Standard quick ports
         int[] ports = { 80, 443, 22, 53, 8080 };
-        foreach (int port in ports)
+
+        // S1: Enhanced TCP probe when SYN scan mode is enabled
+        int[] extendedPorts = EnableSynScan
+            ? new[] { 80, 443, 22, 53, 8080, 135, 139, 445, 3389, 5353, 62078, 548, 5900, 8443, 9100 }
+            : ports;
+
+        foreach (int port in extendedPorts)
         {
             try
             {

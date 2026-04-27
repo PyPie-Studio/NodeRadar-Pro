@@ -1,5 +1,6 @@
 using LiteDB;
 using System;
+using System.Collections.Generic;
 
 namespace NodeRadarPro.Core;
 
@@ -35,13 +36,45 @@ public class NetworkNode
     public DateTime FirstSeen { get; set; } = DateTime.UtcNow;
     public DateTime LastSeen { get; set; } = DateTime.UtcNow;
 
-    // ── Was this device online in the previous monitor cycle? ──
+    // ── Port Scanning Results ──
+    public List<int> OpenPorts { get; set; } = new();
+    public string OsGuess { get; set; } = "";
+
+    // ── Per-Device Alert Preferences ──
+    public bool AlertOnConnectionLost { get; set; } = true;
+    public bool AlertOnHighLatency { get; set; } = false;
+
+    // ── Runtime-only fields (not persisted) ──
+
     [BsonIgnore]
     public bool WasOnlinePreviously { get; set; } = false;
 
-    // ── Number of consecutive failed checks before declaring offline ──
     [BsonIgnore]
     public int FailedCheckCount { get; set; } = 0;
+
+    /// <summary>Ring buffer of last 100 ping results (true=success, false=failure) for packet loss calculation.</summary>
+    [BsonIgnore]
+    public Queue<bool> PingHistory { get; set; } = new();
+
+    /// <summary>Calculated packet loss percentage from PingHistory.</summary>
+    [BsonIgnore]
+    public double PacketLossPct
+    {
+        get
+        {
+            if (PingHistory.Count == 0) return 0;
+            int failed = 0;
+            foreach (var p in PingHistory) if (!p) failed++;
+            return (double)failed / PingHistory.Count * 100.0;
+        }
+    }
+
+    /// <summary>Records a ping result into the ring buffer (max 100 entries).</summary>
+    public void RecordPing(bool success)
+    {
+        PingHistory.Enqueue(success);
+        while (PingHistory.Count > 100) PingHistory.Dequeue();
+    }
 
     [BsonIgnore]
     public string DisplayName 
@@ -51,7 +84,6 @@ public class NetworkNode
             if (!string.IsNullOrEmpty(CustomName)) return CustomName;
             if (!string.IsNullOrEmpty(DeviceName)) return DeviceName;
             if (Hostname != "Unknown Device" && Hostname != "Manual Entry") return Hostname;
-            // Show "Vendor (IP)" when we know the vendor — far more useful than just IP
             if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor")
                 return $"{Vendor} ({IpAddress})";
             return IpAddress;
@@ -77,20 +109,4 @@ public class NetworkNode
         }
     }
 
-    [BsonIgnore]
-    public string UptimeDisplay
-    {
-        get
-        {
-            if (!IsOnline) return "Offline";
-            var sessionUptime = DateTime.UtcNow - FirstSeen;
-            if (sessionUptime.TotalSeconds < 0 || sessionUptime.TotalMinutes < 1) return "Just now";
-            if (sessionUptime.TotalDays >= 1) return $"{(int)sessionUptime.TotalDays}d {sessionUptime.Hours}h";
-            if (sessionUptime.TotalHours >= 1) return $"{(int)sessionUptime.TotalHours}h {sessionUptime.Minutes}m";
-            return $"{(int)sessionUptime.TotalMinutes}m";
-        }
-    }
-
-    [BsonIgnore]
-    public string StatusText => IsOnline ? $"Online • {PingLatencyMs}ms" : "Offline";
 }

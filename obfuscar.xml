@@ -1,0 +1,11 @@
+<?xml version='1.0'?>
+<Obfuscator>
+  <Var name="InPath" value="C:\Users\tryku\OneDrive\Desktop\Coding\Projects\C#\Cross-Platform\NodeRadar Pro\bin\Release\net10.0-windows10.0.19041.0" />
+  <Var name="OutPath" value="C:\Users\tryku\OneDrive\Desktop\Coding\Projects\C#\Cross-Platform\NodeRadar Pro\bin\Release\net10.0-windows10.0.19041.0\Obfuscated" />
+  <Var name="KeepPublicApi" value="true" />
+  <Var name="HidePrivateApi" value="true" />
+  <Var name="RenameProperties" value="true" />
+  <Var name="RenameEvents" value="true" />
+  <Var name="RenameFields" value="true" />
+  <Module file="$(InPath)\NodeRadar Pro.dll" />
+</Obfuscator>

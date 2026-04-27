@@ -1,46 +1,45 @@
-# NodeRadar Pro - Grand Plan
+# NodeRadar Pro - Grand Plan (Revised)
 
 **Developer:** PyPie Studio
-**Target Audience:** IT Admins, Sysadmins, Homelab Enthusiasts (Windows & Linux)
 **Business Model:** One-time global purchase (<$100)
-**Tech Stack:** C# 14, .NET 10, Avalonia UI (Pure C#, No XAML), LiteDB
-**UI/UX Theme:** Modern dark purple (`#1A1A2E`) and dark grey accents
+**Tech Stack:** C# 14, .NET 10, Avalonia UI (Pure C#), LiteDB, Visual Studio
+**UI/UX Theme:** Modern Dark Purple (`#2D004D`) and Dark Gray (`#121212`)
 
 ---
 
-## 🚀 Phase 1: The Core Foundation (No UI yet)
-1. **The Engine (`NodeRadar.Core`):** 
-   - Pure C# 14 class library for heavy lifting.
-   - Use `System.Net.NetworkInformation` to ping subnets asynchronously.
-   - Resolve MAC addresses natively (ARP on Windows, `/proc/net/arp` parsing on Linux).
-2. **The Brain (`NodeRadar.Data`):** 
-   - Integrate LiteDB to store historical device records locally.
-   - Remember devices across sessions (custom names, icons, IP history).
+## ✅ Completed Foundations
+- **Core Engine:** Subnet scanning, ARP resolution (Windows/Linux), and connectivity monitoring.
+- **Data Layer:** Basic LiteDB integration for device history, logs, and alerts.
+- **UI Shell:** Pure C# Avalonia implementation of Sidebar, TopNav, and Page switching.
+- **Prototyping:** Dark theme established with Stitch; pages for Dashboard, Scanner, Inventory, and Alerts are functional.
+- **Vendor Intelligence:** Integrated OUI lookup database for hardware identification.
 
-## 🎨 Phase 2: The Modern UI (Avalonia C#)
-1. **The Canvas (`NodeRadar.UI`):** 
-   - Delete all default Avalonia XAML files. 
-   - Write a pure C# fluent UI builder.
-2. **The Aesthetic:** 
-   - Implement PyPie Studio's signature dark purple and dark grey themes.
-3. **The Radar:** 
-   - Write a custom Avalonia `DrawingContext` control.
-   - Physically draw a sweeping radar animation with glowing dots for active IPs.
+---
 
-## ⚙️ Phase 3: The Pro Features (The $49 Value)
-1. **Intrusion Alerts:** 
-   - Run silently in the background. 
-   - Desktop notification when a new, unknown MAC address joins the LAN.
-2. **Vendor Lookup:** 
-   - Embed an offline OUI database (JSON file of MAC prefixes).
-   - Instantly identify device manufacturers (e.g., "Apple", "Cisco", "Sony").
-3. **Port Scanning:** 
-   - Right-click option on any node to scan common ports (80, 443, 22, 3389) to identify running services.
+## 🛠️ Production Readiness (Current Focus)
 
-## 📦 Phase 4: Deployment
-1. **Windows:** 
-   - Compile standalone `.exe`.
-   - Wrap in an Inno Setup installer (`.iss`).
-2. **Linux:** 
-   - Compile standalone Linux binary (`AppImage` or `.deb`).
-   - Ready for Arch, Kali, Debian, and Ubuntu sysadmins.
+### 1. Stability & Performance (Critical)
+- [x] **Singleton Database:** Refactor `LocalDatabase` to use a shared connection to eliminate file-locking crashes.
+- [x] **Async Init:** Ensure all service starts (Scanner/Monitor) are non-blocking for instant UI launch.
+- [x] **Global Error Handling:** Implement a crash-reporting system that logs to `PyPie Studio\NodeRadar Pro\logs`.
+
+### 2. Branding & UI Polish
+- [x] **Logo Integration:** 
+  - Set the app icon in `AppBuilder`.
+  - Display the PyPie Studio logo in the Sidebar or About page.
+- [x] **Mica/Acrylic:** Apply Windows 11 transparency effects to the `DarkPurpleTheme`.
+- [x] **DPI Awareness:** Audit custom controls (`RadarCanvas`, `UptimeChart`) for perfect scaling on 4K monitors.
+
+### 3. Feature Completion
+- [x] **Intrusion Logic:** Finalize the background logic that triggers `IntrusionAlerter` when a new MAC is seen.
+- [x] **Sound Alerts:** Implement "Premium" alert sounds for critical disconnections.
+- [x] **Email Alerts:** Add SMTP configuration and sending logic to `AppSettings`.
+- [x] **Security:** Implement SHA256 integrity checks for the database and core logic.
+
+---
+
+## 📦 Deployment & Sale
+- [x] **Code Protection:** Apply obfuscation to prevent reverse-engineering of the core scanning logic.
+- [x] **Installer:** 
+  - Choice B: Modern **Velopack** (Implemented for seamless auto-updates).
+- [x] **Production Build:** Optimize for **ReadyToRun** and **Single-File** for fast startup and zero dependencies.

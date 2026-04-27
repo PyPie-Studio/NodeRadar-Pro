@@ -1,0 +1,51 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
+using NodeRadarPro.Data;
+
+namespace NodeRadarPro.Core;
+
+/// <summary>
+/// Background service that periodically sweeps the network to detect new devices.
+/// </summary>
+public class IntrusionDetector
+{
+    private readonly SubnetScanner _scanner = new();
+
+    public async Task StartAsync(CancellationToken token)
+    {
+        while (!token.IsCancellationRequested)
+        {
+            try
+            {
+                string baseIp = SubnetScanner.GetLocalBaseIp();
+                var results = await _scanner.ScanSubnetAsync(baseIp, token);
+
+                foreach (var node in results)
+                {
+                    if (token.IsCancellationRequested) break;
+
+                    var (_, isNew) = LocalDatabase.Instance.MergeWithHistory(node);
+                    if (isNew)
+                    {
+                        IntrusionAlerter.AlertNewDevice(node);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LocalDatabase.Instance.Log(LogLevel.Error, "IntrusionDetector", $"Sweep failed: {ex.Message}");
+            }
+
+            try
+            {
+                // Wait for 5 minutes between sweeps as per Task 2 requirements.
+                await Task.Delay(TimeSpan.FromMinutes(5), token);
+            }
+            catch (TaskCanceledException)
+            {
+                break;
+            }
+        }
+    }
+}
