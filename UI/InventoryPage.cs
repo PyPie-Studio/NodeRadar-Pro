@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Avalonia.Threading;
+using System.Diagnostics;
 
 namespace NodeRadarPro.UI;
 
@@ -34,6 +35,7 @@ public class InventoryPage : Border
     private readonly Border _emptyDetail;
     private NetworkNode? _currentNode;
     private readonly UptimeChartControl _uptimeChart;
+    private readonly Grid _timeAxis;
     private int _uptimeHours = 24;
 
     // Detail controls
@@ -319,19 +321,14 @@ public class InventoryPage : Border
             Margin = new Thickness(0, 16, 0, 8)
         };
 
-        // Time axis labels
-        var timeAxis = new Grid { Margin = new Thickness(0, 0, 0, 0) };
-        string[] times = { "00:00", "06:00", "12:00", "18:00", "Now" };
+        // Time axis labels — now dynamic based on current time (B13)
+        _timeAxis = new Grid { Margin = new Thickness(0, 0, 0, 0) };
         for (int i = 0; i < 5; i++)
-            timeAxis.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        for (int i = 0; i < 5; i++)
-        {
-            var t = new TextBlock { Text = times[i], FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = i == 4 ? HorizontalAlignment.Right : (i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center) };
-            Grid.SetColumn(t, i);
-            timeAxis.Children.Add(t);
-        }
+            _timeAxis.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        
+        RefreshTimeAxis();
 
-        var uptimeContent = new StackPanel { Children = { uptimeHeader, _uptimeChart, timeAxis } };
+        var uptimeContent = new StackPanel { Children = { uptimeHeader, _uptimeChart, _timeAxis } };
         var uptimeCard = ThemeTokens.Card(uptimeContent, ThemeTokens.SurfaceContainerHigh, 24);
 
         // ═══════════════════════
@@ -440,22 +437,45 @@ public class InventoryPage : Border
         // REGISTRATION FORM (below bento)
         // ═══════════════════════
         _nameInput = ThemeTokens.Input("Custom Name...");
+        ThemeTokens.SetToolTip(_nameInput, "Assign a unique nickname to this device for easier identification.");
+        
         _deviceNameInput = ThemeTokens.Input("Device Name...");
+        _deviceNameInput.IsReadOnly = true;
+        _deviceNameInput.Opacity = 0.6;
+        ThemeTokens.SetToolTip(_deviceNameInput, "The official hostname reported by the device (Read-only).");
+
         _deviceModelInput = ThemeTokens.Input("Device Model...");
+        ThemeTokens.SetToolTip(_deviceModelInput, "The hardware model or version identified during scanning.");
+
         _locationInput = ThemeTokens.Input("Location...");
+        ThemeTokens.SetToolTip(_locationInput, "Specify the physical location of this device (e.g., Office, Server Room).");
+
         _notesInput = ThemeTokens.Input("Notes...");
         _notesInput.AcceptsReturn = true;
         _notesInput.Height = 60;
         _notesInput.TextWrapping = TextWrapping.Wrap;
+        ThemeTokens.SetToolTip(_notesInput, "Additional technical details or administrative notes.");
 
         _saveBtn = ThemeTokens.PrimaryButton("💾  Save & Register");
+        ThemeTokens.SetToolTip(_saveBtn, "Commit these changes and permanently register this device in the database.");
         _saveBtn.Click += OnSaveClicked;
 
         _pingBtn = ThemeTokens.SecondaryButton("◎  Ping Device");
+        ThemeTokens.SetToolTip(_pingBtn, "Send a live ICMP ping to check device responsiveness.");
         _pingBtn.Click += OnPingClicked;
 
         _deleteBtn = ThemeTokens.DangerButton("🗑  Delete Device");
+        ThemeTokens.SetToolTip(_deleteBtn, "Remove this device permanently from the database.");
         _deleteBtn.Click += OnDeleteClicked;
+
+        var webBtn = ThemeTokens.TertiaryButton("🌐  Open Web UI");
+        ThemeTokens.SetToolTip(webBtn, "Open this device's IP in your default web browser.");
+        webBtn.Click += (s, e) => {
+            if (_currentNode != null) {
+                try { Process.Start(new ProcessStartInfo { FileName = $"http://{_currentNode.IpAddress}", UseShellExecute = true }); }
+                catch { }
+            }
+        };
 
         _pingResult = ThemeTokens.Body("", 12);
         _portResult = ThemeTokens.Body("", 11);
@@ -479,6 +499,7 @@ public class InventoryPage : Border
                 new Panel { Height = 6 },
                 _saveBtn,
                 diagLabel,
+                webBtn, // Added Web UI button
                 _pingBtn,
                 _pingResult,
                 _portResult,
@@ -561,12 +582,22 @@ public class InventoryPage : Border
         UpdatePill(_detailMacPill, node.MacAddress);
         UpdateStatusDot(node.IsOnline);
 
-        string iconStr = node.DeviceType switch { "Router" => "⊞", "Phone" or "Mobile" => "📱", "Computer" or "Desktop" => "🖥", _ => "⊟" };
+        string iconStr = node.DeviceType switch
+        {
+            "Router" or "Router/Network" => "⊞",
+            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => "📱",
+            "Computer" or "Desktop" or "PC / Windows" or "Workstation" => "🖥",
+            "Laptop" or "Mac" => "💻",
+            _ => "⊟"
+        };
         _deviceIconText.Text = iconStr;
 
         _latencyStatText.Text = node.IsOnline && node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{node.PacketLossPct:F1}";
         _lastScanText.Text = node.LastSeen != default ? GetTimeAgo(node.LastSeen) : "—";
+
+        _detailSubtitle.Text = !string.IsNullOrEmpty(node.OsGuess) ? $"{node.OsGuess} • {node.Vendor}" : node.SubtitleText;
+        if (_detailSubtitle.Text.Contains("Unknown Vendor")) _detailSubtitle.Text = _detailSubtitle.Text.Replace("Unknown Vendor", "Generic Device");
 
         _nameInput.Text = node.CustomName;
         _deviceNameInput.Text = node.DeviceName;
@@ -603,6 +634,33 @@ public class InventoryPage : Border
         _packetLossText.Text = $"{_currentNode.PacketLossPct:F1}";
         _lastScanText.Text = _currentNode.LastSeen != default ? GetTimeAgo(_currentNode.LastSeen) : "—";
         RefreshUptimeChart();
+    }
+
+    private void RefreshTimeAxis()
+    {
+        _timeAxis.Children.Clear();
+        var now = DateTime.Now;
+        string[] labels = new string[5];
+        
+        for (int i = 0; i < 4; i++)
+        {
+            var time = now.AddHours(-(_uptimeHours / 4.0 * (4 - i)));
+            labels[i] = time.ToString("HH:mm");
+        }
+        labels[4] = "Now";
+
+        for (int i = 0; i < 5; i++)
+        {
+            var t = new TextBlock 
+            { 
+                Text = labels[i], 
+                FontSize = 10, 
+                Foreground = ThemeTokens.OnSurfaceVariant, 
+                HorizontalAlignment = i == 4 ? HorizontalAlignment.Right : (i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center) 
+            };
+            Grid.SetColumn(t, i);
+            _timeAxis.Children.Add(t);
+        }
     }
 
     private void RefreshUptimeChart()
@@ -882,23 +940,29 @@ public class InventoryPage : Border
         return chip;
     }
 
-    private static Border MakeInfoPill(string label, string value) => new()
+    private static Border MakeInfoPill(string label, string value)
     {
-        Background = ThemeTokens.SurfaceContainerLowest,
-        CornerRadius = new CornerRadius(6),
-        Padding = new Thickness(12, 6),
-        BorderBrush = ThemeTokens.GhostBorder,
-        BorderThickness = new Thickness(1),
-        Child = new StackPanel
+        var valTb = new TextBlock { Text = value, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, Tag = "value" };
+        ThemeTokens.AddCopyAction(valTb); // Fix: Remove hardcoded value, let AddCopyAction resolve live text
+
+        return new Border
         {
-            Orientation = Orientation.Horizontal, Spacing = 6,
-            Children =
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(12, 6),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
+            Child = new StackPanel
             {
-                new TextBlock { Text = label, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") },
-                new TextBlock { Text = value, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, Tag = "value" }
+                Orientation = Orientation.Horizontal, Spacing = 6,
+                Children =
+                {
+                    new TextBlock { Text = label, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") },
+                    valTb
+                }
             }
-        }
-    };
+        };
+    }
 
     private static void UpdatePill(Border pill, string value)
     {

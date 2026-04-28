@@ -86,6 +86,7 @@ public class ScannerPage : Border
             VerticalContentAlignment = VerticalAlignment.Center,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
+        ThemeTokens.SetToolTip(_startBtn, "Initiate an active network scan on the specified IP range.");
         _startBtn.Click += OnStartScan;
 
         _stopBtn = new Button
@@ -110,6 +111,7 @@ public class ScannerPage : Border
             VerticalContentAlignment = VerticalAlignment.Center,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
+        ThemeTokens.SetToolTip(_stopBtn, "Gracefully abort the current network sweep.");
         _stopBtn.Click += OnStopScan;
 
         var btnGroup = new StackPanel
@@ -466,12 +468,16 @@ public class ScannerPage : Border
             if (existing >= 0) _activeNodes[existing] = node;
             else _activeNodes.Add(node);
 
-            // Issue 3: Ensure we only add and count unique MACs discovered in this specific scan
+            // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
             if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
             {
                 _scanResults.Add(node);
-                _discoveredCount.Text = $"DISCOVERED: {_scanResults.Count}";
-                _resultsBody.Children.Add(MakeTableRow(node, _scanResults.Count % 2 == 0));
+                int count = _scanResults.Count;
+                _discoveredCount.Text = $"DISCOVERED: {count}";
+                // Keep status text synced with real discovery list
+                if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
+                
+                _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
                 DataChanged?.Invoke();
             }
         });
@@ -498,7 +504,8 @@ public class ScannerPage : Border
         // Wire checkboxes to scanner settings
         _scanner.FastScanMode = _fastScanCheck.IsChecked == true;
         _scanner.EnableOsDetection = _osDetectCheck.IsChecked == true;
-        _scanner.EnableInlinePortScan = _fastScanCheck.IsChecked == true; // Enable port scan when Fast Scan is checked
+        // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
+        _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true; 
 
         string[] startParts = startIp.Split('.');
         string[] endParts = endIp.Split('.');
@@ -564,14 +571,15 @@ public class ScannerPage : Border
     private static Border MakeTableHeader()
     {
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(60)));   // Status
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));  // IP
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(170)));  // MAC
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Device
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(160)));  // Open Ports
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(70)));   // Action
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(50)));   // Status
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));  // IP
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(160)));  // MAC
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Device Identity
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(180)));  // Open Ports
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(80)));   // Action
 
-        string[] headers = { "STATUS", "IP ADDRESS", "MAC ADDRESS", "DEVICE IDENTITY", "OPEN PORTS", "ACTION" };
+        string[] headers = { "ST", "IP ADDRESS", "MAC ADDRESS", "DEVICE IDENTITY", "OPEN PORTS", "ACTION" };
+        string[] tooltips = { "Status", "IP Address", "Physical Hardware Address", "Resolved Hardware & OS", "Discovered Services", "Register Device" };
         for (int i = 0; i < headers.Length; i++)
         {
             var tb = ThemeTokens.Label(headers[i], 10, ThemeTokens.OnSurfaceVariant);
@@ -579,6 +587,7 @@ public class ScannerPage : Border
             tb.FontWeight = FontWeight.Medium;
             tb.Margin = new Thickness(16, 0);
             tb.VerticalAlignment = VerticalAlignment.Center;
+            ThemeTokens.SetToolTip(tb, tooltips[i]);
             Grid.SetColumn(tb, i);
             grid.Children.Add(tb);
         }
@@ -594,12 +603,12 @@ public class ScannerPage : Border
     private Border MakeTableRow(NetworkNode node, bool alternate)
     {
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(60)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(170)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(50)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(160)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(70)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(180)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(80)));
 
         // Status dot
         var dot = ThemeTokens.StatusDot(node.IsOnline, 10);
@@ -608,28 +617,42 @@ public class ScannerPage : Border
 
         // IP
         var ipText = new TextBlock { Text = node.IpAddress, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        ThemeTokens.AddCopyAction(ipText); // Fix: Resolve live IP
 
         // MAC
         var macText = new TextBlock { Text = node.MacAddress, FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        ThemeTokens.AddCopyAction(macText); // Fix: Resolve live MAC
 
-        // Device identity with icon
+        // Device identity with icon and OS/Vendor details
         string devIcon = node.DeviceType switch
         {
-            "Router" => "⊞",
-            "Phone" or "Mobile" => "📱",
-            "Computer" or "Desktop" => "🖥",
+            "Router" or "Router/Network" => "⊞",
+            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => "📱",
+            "Computer" or "Desktop" or "PC / Windows" or "Workstation" => "🖥",
+            "Laptop" or "Mac" => "💻",
             _ => "⊟"
         };
+        
+        string identitySubtitle = !string.IsNullOrEmpty(node.OsGuess) ? node.OsGuess : node.Vendor;
+        if (identitySubtitle == "Unknown Vendor") identitySubtitle = "Unknown Device";
+
         var devPanel = new StackPanel
         {
-            Orientation = Orientation.Horizontal,
-            Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(16, 0),
             Children =
             {
-                new TextBlock { Text = devIcon, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center },
-                new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis }
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 6,
+                    Children =
+                    {
+                        new TextBlock { Text = devIcon, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center },
+                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
+                    }
+                },
+                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Opacity = 0.7 }
             }
         };
 

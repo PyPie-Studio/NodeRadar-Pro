@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
@@ -36,11 +38,22 @@ public class SupportPage : Border
         // ═══════════════════════
 
         // App Info Card
+        var logoImage = new Image
+        {
+            Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
+            Width = 56, Height = 56,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        RenderOptions.SetBitmapInterpolationMode(logoImage, BitmapInterpolationMode.HighQuality);
+
         var logoIcon = new Border
         {
-            Width = 72, Height = 72, CornerRadius = new CornerRadius(16),
-            Background = new LinearGradientBrush { StartPoint = new RelativePoint(0, 0, RelativeUnit.Relative), EndPoint = new RelativePoint(1, 1, RelativeUnit.Relative), GradientStops = { new GradientStop(Color.Parse("#7C3AED"), 0), new GradientStop(Color.Parse("#4CD7F6"), 1) } },
-            Child = new TextBlock { Text = "◎", FontSize = 32, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            Width = 72, Height = 72, CornerRadius = new CornerRadius(0), // Issue 7 fix: Force square corners
+            Background = ThemeTokens.SurfaceContainerLowest,
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
+            Child = logoImage,
             Margin = new Thickness(0, 0, 20, 0)
         };
 
@@ -66,9 +79,10 @@ public class SupportPage : Border
                 sysTitle,
                 MakeInfoRow("Operating System", RuntimeInformation.OSDescription),
                 MakeInfoRow("Architecture", RuntimeInformation.OSArchitecture.ToString()),
-                MakeInfoRow("Framework", RuntimeInformation.FrameworkDescription),
-                MakeInfoRow("Avalonia UI", "11.x"),
-                MakeInfoRow("Database", "LiteDB (Embedded)")
+                MakeInfoRow("Framework", ".NET 10 (NativeAOT)"),
+                MakeInfoRow("UI Engine", "Avalonia UI 12.x"),
+                MakeInfoRow("Database", "LiteDB 5.x (Singleton)"),
+                MakeInfoRow("Security", "SHA256 Integrity Shield")
             }
         };
         var sysCard = ThemeTokens.Card(sysContent, ThemeTokens.SurfaceContainerLow, 24);
@@ -111,6 +125,7 @@ public class SupportPage : Border
         };
 
         var checkUpdateBtn = ThemeTokens.PrimaryButton("🔄  Check for Updates");
+        ThemeTokens.SetToolTip(checkUpdateBtn, "Contact PyPie Studio releases server to check for a newer version of NodeRadar Pro.");
         checkUpdateBtn.Margin = new Thickness(0, 16, 0, 0);
         checkUpdateBtn.Click += async (s, e) =>
         {
@@ -199,10 +214,10 @@ public class SupportPage : Border
             Children =
             {
                 contactTitleRow,
-                MakeLinkRow("🏢", "Developer", "PyPie Studio"),
-                MakeLinkRow("📸", "Instagram", "@pypiestudio", "https://instagram.com/pypiestudio"),
-                MakeLinkRow("📧", "Email", "support@pypiestudio.com"),
-                MakeLinkRow("🌐", "Website", "pypiestudio.com")
+                MakeLinkRow("🏢", "Developer", "PyPie Studio", null, "The creators of NodeRadar Pro."),
+                MakeLinkRow("📸", "Instagram", "@pypiestudio", "https://instagram.com/pypiestudio", "Follow our journey and updates on Instagram."),
+                MakeLinkRow("📧", "Email", "support@pypiestudio.com", null, "Send us a direct technical support request."),
+                MakeLinkRow("🌐", "Website", "pypiestudio.com", null, "Visit our official homepage.")
             }
         };
         var contactCard = ThemeTokens.GlassCard(contactContent, 24);
@@ -291,7 +306,7 @@ public class SupportPage : Border
         }
     };
 
-    private static Border MakeLinkRow(string icon, string label, string value, string? url = null)
+    private static Border MakeLinkRow(string icon, string label, string value, string? url = null, string? tip = null)
     {
         var valueTb = new TextBlock { Text = value, FontSize = 15, Foreground = url != null ? ThemeTokens.Tertiary : ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium };
 
@@ -318,6 +333,8 @@ public class SupportPage : Border
                 }
             }
         };
+
+        if (tip != null) ThemeTokens.SetToolTip(row, tip);
 
         if (url != null)
         {

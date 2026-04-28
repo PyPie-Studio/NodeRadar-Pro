@@ -15,10 +15,15 @@
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>Resources\NodeRadar Pro Icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <AvaloniaResource Include="Resources\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\NodeRadar Pro Icon.ico" />
   </ItemGroup>
 
   <ItemGroup>
@@ -44,6 +49,10 @@
 
   <ItemGroup>
     <None Update="Resources\NodeRadar Pro Icon.png">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Update="Resources\NodeRadar Pro.png">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>

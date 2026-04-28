@@ -44,6 +44,7 @@ public class SystemLogsPage : Border
 
         // Export button
         var exportBtn = ThemeTokens.SecondaryButton("⬇  Export Logs");
+        ThemeTokens.SetToolTip(exportBtn, "Export up to 2000 log entries to a CSV file in your Documents folder.");
         exportBtn.Width = 160;
         exportBtn.HorizontalAlignment = HorizontalAlignment.Right;
         exportBtn.VerticalAlignment = VerticalAlignment.Bottom;
@@ -153,7 +154,12 @@ public class SystemLogsPage : Border
             _logBody.Children.Add(BuildLogRow(log));
 
         if (_autoScrollToggle.IsChecked == true && _logBody.Children.Count > 0)
-            _logScroll.ScrollToEnd();
+        {
+            // Delay scroll until after Avalonia has rendered the new rows (Issue 4 fix)
+            Dispatcher.UIThread.Post(() => {
+                _logScroll.Offset = new Vector(0, _logScroll.Extent.Height);
+            }, DispatcherPriority.Render);
+        }
     }
 
     public void FilterByDevice(string macAddress)

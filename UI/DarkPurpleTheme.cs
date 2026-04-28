@@ -153,20 +153,24 @@ public class DarkPurpleTheme
 
         IntrusionAlerter.Initialize(window);
 
-        void RefreshAll()
+        void SyncGlobalStats()
         {
             Dispatcher.UIThread.Post(() =>
             {
-                if (dashboardPage.IsVisible) dashboardPage.RefreshData();
-                if (inventoryPage.IsVisible) inventoryPage.RefreshData();
-
-                // Update top nav status
                 int online = activeNodes.Count(n => n.IsOnline);
                 var onlineWithLatency = activeNodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
                 long avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
+                
                 int alertCount = 0;
                 try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+
+                // Update Top Nav
                 topNav.UpdateStatus(online, avgLat, alertCount);
+                
+                // Refresh visible pages
+                if (dashboardPage.IsVisible) dashboardPage.RefreshData();
+                if (inventoryPage.IsVisible) inventoryPage.RefreshData();
+                if (alertsPage.IsVisible) alertsPage.RefreshAlerts();
             });
         }
 
@@ -174,7 +178,12 @@ public class DarkPurpleTheme
         scannerPage.DataChanged += () =>
         {
             try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {activeNodes.Count(n => n.IsOnline)} devices"); } catch { }
-            RefreshAll();
+            SyncGlobalStats();
+        };
+
+        alertsPage.AlertsChanged += () =>
+        {
+            SyncGlobalStats();
         };
 
         // ── Inventory page events ──
@@ -182,20 +191,20 @@ public class DarkPurpleTheme
         {
             monitor.AddDevice(node);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
-            RefreshAll();
+            SyncGlobalStats();
         };
 
         inventoryPage.DeviceDeleted += (node) =>
         {
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
-            RefreshAll();
+            SyncGlobalStats();
         };
 
         inventoryPage.DeviceStatusChanged += (node) =>
         {
             var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
             if (idx >= 0) activeNodes[idx] = node;
-            RefreshAll();
+            SyncGlobalStats();
         };
 
         // ── Dashboard device selection → switch to inventory ──
@@ -234,7 +243,7 @@ public class DarkPurpleTheme
         {
             monitor.AddDevice(node);
             try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' saved from scan results", node.MacAddress); } catch { }
-            RefreshAll();
+            SyncGlobalStats();
         };
 
         // ── Settings saved → push to services ──
@@ -243,7 +252,7 @@ public class DarkPurpleTheme
             settings = newSettings;
             ApplySettings(newSettings, monitor, scanner);
             try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
-            RefreshAll();
+            SyncGlobalStats();
         };
 
         // ── Monitor alert events → update alerts page ──
@@ -252,7 +261,7 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 if (alertsPage.IsVisible) alertsPage.RefreshAlerts();
-                RefreshAll();
+                SyncGlobalStats();
             });
         };
 
@@ -267,7 +276,7 @@ public class DarkPurpleTheme
                 IntrusionAlerter.AlertDeviceOffline(node);
                 var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
                 if (idx >= 0) activeNodes[idx] = node;
-                RefreshAll();
+                SyncGlobalStats();
             });
         };
 
@@ -278,7 +287,7 @@ public class DarkPurpleTheme
                 IntrusionAlerter.AlertDeviceReconnected(node);
                 var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
                 if (idx >= 0) activeNodes[idx] = node;
-                RefreshAll();
+                SyncGlobalStats();
             });
         };
 
@@ -291,7 +300,7 @@ public class DarkPurpleTheme
                     var idx = activeNodes.FindIndex(n => n.MacAddress == updated.MacAddress);
                     if (idx >= 0) activeNodes[idx] = updated;
                 }
-                RefreshAll();
+                SyncGlobalStats();
             });
         };
 
@@ -338,7 +347,7 @@ public class DarkPurpleTheme
                 int online = activeNodes.Count(n => n.IsOnline);
                 topNav.UpdateStatus(online, -1, alertCount);
                 dashboardPage.RefreshData();
-                RefreshAll();
+                SyncGlobalStats();
             });
 
             // Start services

@@ -2,6 +2,10 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using System;
+using System.Threading.Tasks;
+using Avalonia.Input;
+using Avalonia.Input.Platform;
 
 namespace NodeRadarPro.UI;
 
@@ -89,6 +93,36 @@ public static class ThemeTokens
     public const double CardRadius = 12;
     public const double ButtonRadius = 6;
     public const double InputRadius = 8;
+
+    public static void SetToolTip(Control control, string tip)
+    {
+        ToolTip.SetTip(control, tip);
+    }
+
+    public static void AddCopyAction(Control control, string? initialValue = null)
+    {
+        control.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+        
+        control.PointerPressed += async (s, e) =>
+        {
+            // Resolve live value from control if possible, otherwise use initialValue
+            string? liveValue = initialValue;
+            if (control is TextBlock tb) liveValue = tb.Text;
+            else if (control is TextBox tbox) liveValue = tbox.Text;
+
+            if (string.IsNullOrEmpty(liveValue) || liveValue == "Unknown" || liveValue == "—") return;
+
+            var topLevel = TopLevel.GetTopLevel(control);
+            var clipboard = topLevel?.Clipboard;
+            if (clipboard != null)
+            {
+                await clipboard.SetTextAsync(liveValue);
+                SetToolTip(control, "Copied!");
+                await Task.Delay(1500);
+                SetToolTip(control, $"Click to copy: {liveValue}");
+            }
+        };
+    }
 
     // ═══════════════════════════════════════════
     // ██  FACTORY: Text

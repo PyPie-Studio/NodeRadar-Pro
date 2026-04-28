@@ -31,19 +31,22 @@ public class SideNavBar : Border
             Color = Color.FromArgb(77, 0, 0, 0)
         });
 
+        var logoImage = new Image
+        {
+            Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
+            Width = 32, Height = 32,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        RenderOptions.SetBitmapInterpolationMode(logoImage, BitmapInterpolationMode.HighQuality);
+
         // ── Header: Icon + Title ──
         var iconBg = new Border
         {
             Width = 40, Height = 40,
             CornerRadius = new CornerRadius(10),
             Background = ThemeTokens.SurfaceContainerHigh,
-            Child = new Image
-            {
-                Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
-                Width = 32, Height = 32,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            }
+            Child = logoImage
         };
 
         var titleBlock = new StackPanel

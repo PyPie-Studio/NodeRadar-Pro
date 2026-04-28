@@ -19,7 +19,7 @@ namespace NodeRadarPro.Core
         {
             if (!File.Exists(filePath))
             {
-                return null;
+                return null!;
             }
 
             using (var sha256 = SHA256.Create())

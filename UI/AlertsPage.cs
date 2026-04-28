@@ -24,6 +24,8 @@ public class AlertsPage : Border
     private readonly StackPanel _filterRow;
     private string _filterMode = "active";
 
+    public event Action? AlertsChanged;
+
     public AlertsPage(LocalDatabase db)
     {
         _db = db;
@@ -55,8 +57,9 @@ public class AlertsPage : Border
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 16) };
 
         var resolveAllBtn = ThemeTokens.SecondaryButton("✓  Resolve All");
+        ThemeTokens.SetToolTip(resolveAllBtn, "Clear all active alerts and mark them as resolved.");
         resolveAllBtn.Width = 160; resolveAllBtn.HorizontalAlignment = HorizontalAlignment.Right;
-        resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); };
+        resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); AlertsChanged?.Invoke(); };
 
         var filterGrid = new Grid();
         filterGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -141,7 +144,8 @@ public class AlertsPage : Border
         {
             row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
             var resolveBtn = new Button { Content = "✓", Background = Brushes.Transparent, Foreground = ThemeTokens.Tertiary, Width = 36, Height = 36, CornerRadius = new CornerRadius(6), HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 16, Margin = new Thickness(8, 0, 0, 0), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
-            resolveBtn.Click += (s, e) => { _db.ResolveAlert(alert.Id); RefreshAlerts(); };
+            ThemeTokens.SetToolTip(resolveBtn, "Mark this specific alert as resolved and clear it from the active list.");
+            resolveBtn.Click += (s, e) => { _db.ResolveAlert(alert.Id); RefreshAlerts(); AlertsChanged?.Invoke(); };
             Grid.SetColumn(resolveBtn, 3); row.Children.Add(resolveBtn);
         }
         else
