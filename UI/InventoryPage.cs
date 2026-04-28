@@ -67,6 +67,7 @@ public class InventoryPage : Border
     public event Action<NetworkNode>? DeviceSaved;
     public event Action<NetworkNode>? DeviceDeleted;
     public event Action<NetworkNode>? DeviceStatusChanged;
+    public event Action<NetworkNode>? DeviceSelected;
     public event Action<string>? ViewLogsRequested;
 
     public InventoryPage(LocalDatabase db, ConnectivityMonitor monitor, List<NetworkNode> activeNodes)
@@ -582,11 +583,17 @@ public class InventoryPage : Border
         ResetDeleteButton();
         RefreshUptimeChart();
         RefreshDeviceList();
+        DeviceSelected?.Invoke(node);
     }
 
     // ══════════════════════════════════
     // PRIVATE HELPERS
     // ══════════════════════════════════
+
+    public void UpdateUptimeChart(List<UptimeSnapshot> history)
+    {
+        Dispatcher.UIThread.Post(() => _uptimeChart.SetData(history));
+    }
 
     private void RefreshDetailView()
     {

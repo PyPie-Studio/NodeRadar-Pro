@@ -123,8 +123,11 @@ public static class PortScanner
             var connectTask = tcpClient.ConnectAsync(ipAddress, port);
             var timeoutTask = Task.Delay(timeoutMs);
             var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-            return completedTask != timeoutTask && tcpClient.Connected;
+            
+            if (completedTask == timeoutTask) return false;
+            return tcpClient.Connected;
         }
+        catch (OperationCanceledException) { return false; }
         catch { return false; }
     }
 }

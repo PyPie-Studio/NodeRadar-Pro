@@ -100,6 +100,30 @@ public class SubnetScanner
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
+        // Pre-Sweep: Rapid ARP check for silent devices (Issue 8)
+        try
+        {
+            var arpTable = ArpResolver.GetFullArpTable();
+            foreach (var (ip, mac) in arpTable)
+            {
+                if (token.IsCancellationRequested) break;
+                if (ip == "127.0.0.1" || mac == "00:00:00:00:00:00") continue;
+                
+                string[] parts = ip.Split('.');
+                if (parts.Length == 4 && $"{parts[0]}.{parts[1]}.{parts[2]}" == baseIp)
+                {
+                    if (discoveredMacs.TryAdd(mac, true))
+                    {
+                        var node = BuildNode(ip, mac);
+                        await ResolveNodeMetadataAsync(node, token);
+                        activeNodes.Add(node);
+                        NodeDiscovered?.Invoke(node);
+                    }
+                }
+            }
+        }
+        catch { }
+
         var allSubnets = GetAllLocalBaseIps();
         if (!allSubnets.Contains(baseIp))
             allSubnets.Insert(0, baseIp);

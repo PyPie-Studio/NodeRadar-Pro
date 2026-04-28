@@ -11,6 +11,8 @@ using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using Avalonia.Threading;
 
+using Avalonia.Platform;
+
 namespace NodeRadarPro.UI;
 
 /// <summary>
@@ -36,7 +38,7 @@ public class DarkPurpleTheme
                 WindowTransparencyLevel.Blur 
             },
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Icon = new WindowIcon("Resources/NodeRadar Pro Icon.png"),
+            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
         };
 
         // ═══════════════════════════════════════════
@@ -111,7 +113,12 @@ public class DarkPurpleTheme
             if (name == "inventory") inventoryPage.RefreshData();
             if (name == "settings") settingsPage.Refresh();
             if (name == "alerts") alertsPage.RefreshAlerts();
-            if (name == "logs") logsPage.RefreshLogs();
+            if (name == "logs") 
+            {
+                 // Issue 9: Clear filters when navigating directly to logs page
+                 logsPage.ClearAllFilters(); 
+                 logsPage.RefreshLogs();
+            }
         }
 
         sideNav.PageChanged += ShowPage;
@@ -209,9 +216,17 @@ public class DarkPurpleTheme
         // ── Inventory View Logs → navigate to logs page with device filter (B7/U12) ──
         inventoryPage.ViewLogsRequested += (mac) =>
         {
+            logsPage.ClearDeviceFilter(); // Reset first to ensure clean state
             logsPage.FilterByDevice(mac);
             sideNav.SetActive("logs");
             ShowPage("logs");
+        };
+
+        inventoryPage.DeviceSelected += (node) =>
+        {
+             // Fix Issue 4: Fetch history when device is selected in inventory
+             var history = db.GetUptimeHistory(node.MacAddress, 24);
+             inventoryPage.UpdateUptimeChart(history);
         };
 
         // ── Scanner device save → register device (I9) ──
@@ -290,21 +305,21 @@ public class DarkPurpleTheme
             var savedDevices = await Task.Run(() => db.GetRegisteredDevices());
             var alertCount = await Task.Run(() => db.GetUnresolvedAlertCount());
 
-            // Task 2: Database Integrity Check
-            try
-            {
-                string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                string dbPath = System.IO.Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-                string hash = SecurityService.ComputeFileHash(dbPath);
-                if (hash != null)
-                {
+            // Task 2: Database Integrity Check (Non-Blocking + Shared Read)
+            _ = Task.Run(() => {
+                try {
+                    string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                    string dbPath = System.IO.Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+                    // Using FileShare.ReadWrite allows us to hash while LiteDB has the file open
+                    using var stream = new System.IO.FileStream(dbPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
+                    using var sha256 = System.Security.Cryptography.SHA256.Create();
+                    var hashBytes = sha256.ComputeHash(stream);
+                    string hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
                     db.Log(LogLevel.Info, "Security", $"Database Integrity Hash: {hash}");
+                } catch (Exception ex) {
+                    db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
                 }
-            }
-            catch (Exception ex)
-            {
-                db.Log(LogLevel.Error, "Security", $"Integrity check failed: {ex.Message}");
-            }
+            });
 
             // Apply settings to services (Non-UI)
             ApplySettings(settings, monitor, scanner);

@@ -230,46 +230,58 @@ public static class VendorLookup
         string h = hostname.ToLower();
 
         if (v.Contains("mikrotik") || v.Contains("cisco") || v.Contains("juniper") || 
-            v.Contains("fortinet") || v.Contains("aruba"))
-            return "Router/Switch";
-        if (v.Contains("ubiquiti"))
-            return "Access Point";
-        if (v.Contains("tp-link") || v.Contains("netgear") || v.Contains("d-link"))
-            return "Network Device";
-        if (v.Contains("hikvision") || v.Contains("dahua"))
-            return "IP Camera";
+            v.Contains("fortinet") || v.Contains("aruba") || v.Contains("ubiquiti") ||
+            h.Contains("router") || h.Contains("gateway"))
+            return "Router/Network";
+
         if (v.Contains("apple"))
-            return h.Contains("iphone") ? "iPhone" : h.Contains("ipad") ? "iPad" : "Apple Device";
-        if (v.Contains("samsung"))
-            return "Samsung Device";
-        if (v.Contains("xiaomi") || v.Contains("huawei") || v.Contains("oneplus") || 
-            v.Contains("oppo") || v.Contains("vivo") || v.Contains("motorola"))
+        {
+            if (h.Contains("iphone")) return "iPhone";
+            if (h.Contains("ipad")) return "iPad";
+            if (h.Contains("watch")) return "Apple Watch";
+            if (h.Contains("macbook") || h.Contains("mac-mini") || h.Contains("imac")) return "Mac";
+            return "Mobile (Apple)";
+        }
+
+        if (v.Contains("samsung") || v.Contains("xiaomi") || v.Contains("huawei") || 
+            v.Contains("oneplus") || v.Contains("oppo") || v.Contains("vivo") || 
+            v.Contains("motorola") || v.Contains("google") || v.Contains("hmd") || v.Contains("nokia"))
+        {
+            if (h.Contains("tv")) return "Smart TV";
             return "Mobile Phone";
+        }
+
         if (v.Contains("sony") && !v.Contains("mobile"))
             return "PlayStation";
         if (v.Contains("nintendo"))
             return "Nintendo Console";
         if (v.Contains("microsoft"))
-            return "Xbox/PC";
+            return h.Contains("xbox") ? "Xbox" : "PC / Windows";
+        
         if (v.Contains("amazon"))
-            return "Echo/Ring";
-        if (v.Contains("google"))
-            return "Google Device";
-        if (v.Contains("synology") || v.Contains("qnap"))
-            return "NAS";
-        if (v.Contains("sonos"))
-            return "Speaker";
-        if (v.Contains("roku") || v.Contains("lg"))
+            return h.Contains("fire") ? "Fire TV" : "Echo / Alexa";
+        
+        if (v.Contains("synology") || v.Contains("qnap") || v.Contains("wd") || v.Contains("terramaster"))
+            return "NAS Storage";
+            
+        if (v.Contains("sonos") || v.Contains("bose") || v.Contains("yamaha") || v.Contains("denon"))
+            return "Audio Speaker";
+            
+        if (v.Contains("roku") || v.Contains("lg") || v.Contains("vizio") || v.Contains("panasonic"))
             return "Smart TV";
-        if (v.Contains("vmware"))
+            
+        if (v.Contains("hikvision") || v.Contains("dahua") || v.Contains("reolink") || v.Contains("axis") || v.Contains("bosch"))
+            return "IP Camera";
+
+        if (v.Contains("vmware") || v.Contains("virtual") || v.Contains("oracle"))
             return "Virtual Machine";
-        if (v.Contains("dell") || v.Contains("hp") || v.Contains("lenovo") || v.Contains("asus"))
-            return "Computer";
+            
+        if (v.Contains("dell") || v.Contains("hp") || v.Contains("lenovo") || v.Contains("asus") || v.Contains("acer") || v.Contains("msi") || v.Contains("gigabyte"))
+            return "Workstation";
+
         if (v.Contains("intel") || v.Contains("realtek") || v.Contains("broadcom"))
             return "Computer";
-        if (v.Contains("gigabyte") || v.Contains("asrock") || v.Contains("msi"))
-            return "Desktop PC";
 
-        return "";
+        return "Network Device";
     }
 }

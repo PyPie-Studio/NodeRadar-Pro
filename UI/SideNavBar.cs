@@ -6,6 +6,8 @@ using Avalonia.Media.Imaging;
 using System;
 using System.Collections.Generic;
 
+using Avalonia.Platform;
+
 namespace NodeRadarPro.UI;
 
 /// <summary>
@@ -37,7 +39,7 @@ public class SideNavBar : Border
             Background = ThemeTokens.SurfaceContainerHigh,
             Child = new Image
             {
-                Source = new Bitmap("Resources/NodeRadar Pro Icon.png"),
+                Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
                 Width = 32, Height = 32,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center

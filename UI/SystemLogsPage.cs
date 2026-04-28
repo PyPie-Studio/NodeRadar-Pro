@@ -73,7 +73,18 @@ public class SystemLogsPage : Border
         // Filter Row — chips are rebuilt in RefreshLogs() (B4)
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 12) };
 
-        var searchIcon = new TextBlock { Text = "🔍", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+        var clearBtn = new Button
+        {
+            Content = "Reset All Filters",
+            FontSize = 12,
+            Background = Brushes.Transparent,
+            Foreground = ThemeTokens.Error,
+            Padding = new Thickness(10, 4),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        clearBtn.Click += (s, e) => ClearAllFilters();
+
+        var searchIcon = new TextBlock { Text = "🔍", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 8, 0) };
         _searchBox = ThemeTokens.Input("Search logs..."); _searchBox.Width = 200; _searchBox.FontSize = 14; _searchBox.Padding = new Thickness(10, 6); _searchBox.Background = Brushes.Transparent;
         _searchBox.TextChanged += (s, e) => RefreshLogs();
         var searchWrap = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 0), Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { searchIcon, _searchBox } } };
@@ -87,8 +98,12 @@ public class SystemLogsPage : Border
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(_filterRow, 0); Grid.SetColumn(searchWrap, 1); Grid.SetColumn(_autoScrollToggle, 2); Grid.SetColumn(_entryCount, 3);
-        filterBarGrid.Children.Add(_filterRow); filterBarGrid.Children.Add(searchWrap); filterBarGrid.Children.Add(_autoScrollToggle); filterBarGrid.Children.Add(_entryCount);
+        filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        
+        var leftControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { _filterRow, clearBtn } };
+
+        Grid.SetColumn(leftControls, 0); Grid.SetColumn(searchWrap, 1); Grid.SetColumn(_autoScrollToggle, 2); Grid.SetColumn(_entryCount, 3);
+        filterBarGrid.Children.Add(leftControls); filterBarGrid.Children.Add(searchWrap); filterBarGrid.Children.Add(_autoScrollToggle); filterBarGrid.Children.Add(_entryCount);
 
         // Log Entries
         _logBody = new StackPanel { Spacing = 2 };
@@ -150,6 +165,14 @@ public class SystemLogsPage : Border
     public void ClearDeviceFilter()
     {
         _deviceFilter = null;
+        RefreshLogs();
+    }
+
+    public void ClearAllFilters()
+    {
+        _levelFilter = null;
+        _deviceFilter = null;
+        if (_searchBox != null) _searchBox.Text = "";
         RefreshLogs();
     }
 

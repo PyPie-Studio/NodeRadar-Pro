@@ -454,6 +454,9 @@ public class ScannerPage : Border
 
     private void OnNodeDiscovered(NetworkNode node)
     {
+        // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
+        if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
+
         Dispatcher.UIThread.Post(() =>
         {
             var (mergedNode, isNew) = _db.MergeWithHistory(node);
@@ -463,10 +466,14 @@ public class ScannerPage : Border
             if (existing >= 0) _activeNodes[existing] = node;
             else _activeNodes.Add(node);
 
-            _scanResults.Add(node);
-            _discoveredCount.Text = $"DISCOVERED: {_scanResults.Count}";
-            _resultsBody.Children.Add(MakeTableRow(node, _scanResults.Count % 2 == 0));
-            DataChanged?.Invoke();
+            // Issue 3: Ensure we only add and count unique MACs discovered in this specific scan
+            if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
+            {
+                _scanResults.Add(node);
+                _discoveredCount.Text = $"DISCOVERED: {_scanResults.Count}";
+                _resultsBody.Children.Add(MakeTableRow(node, _scanResults.Count % 2 == 0));
+                DataChanged?.Invoke();
+            }
         });
     }
 
