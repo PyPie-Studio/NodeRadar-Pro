@@ -394,16 +394,6 @@ public class DarkPurpleTheme
         IntrusionAlerter.Settings = settings;
         AudioService.Enabled = settings.EnableSoundAlerts;
 
-        // S5/S6: Log stubs for unimplemented notification channels
-        if (settings.EnableSoundAlerts)
-        {
-            // TODO: Implement sound alert playback using platform audio API
-        }
-        if (settings.EnableEmailAlerts && !string.IsNullOrEmpty(settings.SmtpHost))
-        {
-            // TODO: Implement SMTP email alert sending
-        }
-
         // S3: Pass preferred interface to scanner
         scanner.PreferredInterfaceName = settings.SelectedInterfaceName;
 
