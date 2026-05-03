@@ -45,4 +45,7 @@ public class AppSettings
     public string SmtpEmail { get; set; } = "admin@node.local";
     public string SmtpUser { get; set; } = "";
     public string SmtpPassword { get; set; } = "";
+
+    // â”€â”€ Security â”€â”€
+    public string? LastKnownGoodHash { get; set; }
 }

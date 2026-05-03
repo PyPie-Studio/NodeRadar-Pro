@@ -57,8 +57,4 @@
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
-
-  <Target Name="Obfuscation" AfterTargets="AfterBuild" Condition="'$(Configuration)' == 'Release'">
-    <Exec Command="$(Obfuscar) $(ProjectDir)obfuscar.xml" />
-  </Target>
 </Project>

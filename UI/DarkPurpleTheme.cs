@@ -52,6 +52,7 @@ public class DarkPurpleTheme
 
         AppSettings settings = null!;
         var activeNodes = new List<NetworkNode>();
+        var _nodesLock = new object();
         var cts = new CancellationTokenSource();
 
         // Log startup
@@ -67,7 +68,7 @@ public class DarkPurpleTheme
         // ██  PAGES (Real implementations)
         // ═══════════════════════════════════════════
         var dashboardPage = new DashboardPage(activeNodes);
-        var scannerPage = new ScannerPage(db, scanner, activeNodes);
+        var scannerPage = new ScannerPage(db, scanner, activeNodes, _nodesLock);
         var inventoryPage = new InventoryPage(db, monitor, activeNodes);
         var settingsPage = new SettingsPage(db);
         var portScansPage = new PortScansPage();
@@ -157,9 +158,14 @@ public class DarkPurpleTheme
         {
             Dispatcher.UIThread.Post(() =>
             {
-                int online = activeNodes.Count(n => n.IsOnline);
-                var onlineWithLatency = activeNodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
-                long avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
+                int online;
+                long avgLat;
+                lock (_nodesLock)
+                {
+                    online = activeNodes.Count(n => n.IsOnline);
+                    var onlineWithLatency = activeNodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
+                    avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
+                }
                 
                 int alertCount = 0;
                 try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
@@ -177,7 +183,9 @@ public class DarkPurpleTheme
         // ── Scanner page data changes → refresh dashboard ──
         scannerPage.DataChanged += () =>
         {
-            try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {activeNodes.Count(n => n.IsOnline)} devices"); } catch { }
+            int count = 0;
+            lock (_nodesLock) { count = activeNodes.Count(n => n.IsOnline); }
+            try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
             SyncGlobalStats();
         };
 
@@ -202,8 +210,11 @@ public class DarkPurpleTheme
 
         inventoryPage.DeviceStatusChanged += (node) =>
         {
-            var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-            if (idx >= 0) activeNodes[idx] = node;
+            lock (_nodesLock)
+            {
+                var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
+                if (idx >= 0) activeNodes[idx] = node;
+            }
             SyncGlobalStats();
         };
 
@@ -274,8 +285,11 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceOffline(node);
-                var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                if (idx >= 0) activeNodes[idx] = node;
+                lock (_nodesLock)
+                {
+                    var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
+                    if (idx >= 0) activeNodes[idx] = node;
+                }
                 SyncGlobalStats();
             });
         };
@@ -285,8 +299,11 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceReconnected(node);
-                var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                if (idx >= 0) activeNodes[idx] = node;
+                lock (_nodesLock)
+                {
+                    var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
+                    if (idx >= 0) activeNodes[idx] = node;
+                }
                 SyncGlobalStats();
             });
         };
@@ -295,10 +312,13 @@ public class DarkPurpleTheme
         {
             Dispatcher.UIThread.Post(() =>
             {
-                foreach (var updated in updatedNodes)
+                lock (_nodesLock)
                 {
-                    var idx = activeNodes.FindIndex(n => n.MacAddress == updated.MacAddress);
-                    if (idx >= 0) activeNodes[idx] = updated;
+                    foreach (var updated in updatedNodes)
+                    {
+                        var idx = activeNodes.FindIndex(n => n.MacAddress == updated.MacAddress);
+                        if (idx >= 0) activeNodes[idx] = updated;
+                    }
                 }
                 SyncGlobalStats();
             });
@@ -324,7 +344,21 @@ public class DarkPurpleTheme
                     using var sha256 = System.Security.Cryptography.SHA256.Create();
                     var hashBytes = sha256.ComputeHash(stream);
                     string hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-                    db.Log(LogLevel.Info, "Security", $"Database Integrity Hash: {hash}");
+
+                    if (string.IsNullOrEmpty(settings.LastKnownGoodHash))
+                    {
+                        settings.LastKnownGoodHash = hash;
+                        db.SaveSettings(settings);
+                        db.Log(LogLevel.Info, "Security", $"Initial Database Hash stored: {hash}");
+                    }
+                    else if (settings.LastKnownGoodHash != hash)
+                    {
+                        db.Log(LogLevel.Error, "Security", "[SECURITY] Database integrity mismatch detected!");
+                    }
+                    else
+                    {
+                        db.Log(LogLevel.Info, "Security", "Database Integrity verified.");
+                    }
                 } catch (Exception ex) {
                     db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
                 }
@@ -334,26 +368,33 @@ public class DarkPurpleTheme
             ApplySettings(settings, monitor, scanner);
 
             // Process devices
-            foreach (var device in savedDevices)
+            lock (_nodesLock)
             {
-                device.IsOnline = false;
-                if (!activeNodes.Any(n => n.MacAddress == device.MacAddress))
-                    activeNodes.Add(device);
+                foreach (var device in savedDevices)
+                {
+                    device.IsOnline = false;
+                    if (!activeNodes.Any(n => n.MacAddress == device.MacAddress))
+                        activeNodes.Add(device);
+                }
             }
 
             // UI Status Updates
             Dispatcher.UIThread.Post(() =>
             {
-                int online = activeNodes.Count(n => n.IsOnline);
+                int online;
+                lock (_nodesLock) { online = activeNodes.Count(n => n.IsOnline); }
                 topNav.UpdateStatus(online, -1, alertCount);
                 dashboardPage.RefreshData();
                 SyncGlobalStats();
             });
 
             // Start services
-            if (activeNodes.Count > 0)
+            int activeCount = 0;
+            lock (_nodesLock) { activeCount = activeNodes.Count; }
+
+            if (activeCount > 0)
             {
-                monitor.UpdateTrackedDevices(activeNodes);
+                lock (_nodesLock) { monitor.UpdateTrackedDevices(activeNodes); }
                 _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token));
             }
 
@@ -367,6 +408,8 @@ public class DarkPurpleTheme
         window.Closing += (s, e) =>
         {
             cts.Cancel();
+            cts.Dispose();
+            scannerPage.Cleanup();
             try { db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
         };
 

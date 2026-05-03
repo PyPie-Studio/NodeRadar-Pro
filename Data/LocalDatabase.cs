@@ -25,7 +25,7 @@ public class LocalDatabase : IDisposable
         string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
         Directory.CreateDirectory(myFolder);
         _dbPath = Path.Combine(myFolder, "noderadar.db");
-        _db = new LiteDatabase(_dbPath);
+        _db = new LiteDatabase($"Filename={_dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared;");
     }
 
     public void Dispose()

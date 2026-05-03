@@ -22,6 +22,7 @@ public class ScannerPage : Border
     private readonly LocalDatabase _db;
     private readonly SubnetScanner _scanner;
     private readonly List<NetworkNode> _activeNodes;
+    private readonly object _nodesLock;
     private readonly List<NetworkNode> _scanResults = new();
 
     private readonly TextBox _startIp;
@@ -47,11 +48,12 @@ public class ScannerPage : Border
     public event Action? DataChanged;
     public event Action<NetworkNode>? DeviceSaved;
 
-    public ScannerPage(LocalDatabase db, SubnetScanner scanner, List<NetworkNode> activeNodes)
+    public ScannerPage(LocalDatabase db, SubnetScanner scanner, List<NetworkNode> activeNodes, object nodesLock)
     {
         _db = db;
         _scanner = scanner;
         _activeNodes = activeNodes;
+        _nodesLock = nodesLock;
         Background = ThemeTokens.Surface;
 
         // ═══════════════════════
@@ -443,6 +445,13 @@ public class ScannerPage : Border
         _scanner.NodeDiscovered += OnNodeDiscovered;
     }
 
+    public void Cleanup()
+    {
+        _scanner.ProgressUpdated -= OnProgress;
+        _scanner.NodeDiscovered -= OnNodeDiscovered;
+        _scanCts?.Cancel();
+    }
+
     private void OnProgress(double pct)
     {
         Dispatcher.UIThread.Post(() =>
@@ -454,19 +463,23 @@ public class ScannerPage : Border
         });
     }
 
-    private void OnNodeDiscovered(NetworkNode node)
+    private async void OnNodeDiscovered(NetworkNode node)
     {
         // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
         if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
 
+        // Offload database I/O to background thread before updating UI
+        var (mergedNode, isNew) = await Task.Run(() => _db.MergeWithHistory(node));
+        node = mergedNode;
+
         Dispatcher.UIThread.Post(() =>
         {
-            var (mergedNode, isNew) = _db.MergeWithHistory(node);
-            node = mergedNode;
-
-            var existing = _activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-            if (existing >= 0) _activeNodes[existing] = node;
-            else _activeNodes.Add(node);
+            lock (_nodesLock)
+            {
+                var existing = _activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
+                if (existing >= 0) _activeNodes[existing] = node;
+                else _activeNodes.Add(node);
+            }
 
             // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
             if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
@@ -490,28 +503,28 @@ public class ScannerPage : Border
         string endIp = _endIp.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(startIp) || string.IsNullOrEmpty(endIp)) return;
 
-        _isScanning = true;
-        _scanCts = new CancellationTokenSource();
-        _scanResults.Clear();
-        _resultsBody.Children.Clear();
-        _progressBar.Value = 0;
-        _scanStartTime = DateTime.UtcNow;
-        _statusText.Text = $"Probing {startIp}...";
-        _scanningBadgeText.Text = "Scanning";
-        _scanningBadge.Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.4);
-        _scanningBadgeText.Foreground = ThemeTokens.Primary;
-
-        // Wire checkboxes to scanner settings
-        _scanner.FastScanMode = _fastScanCheck.IsChecked == true;
-        _scanner.EnableOsDetection = _osDetectCheck.IsChecked == true;
-        // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
-        _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true; 
-
-        string[] startParts = startIp.Split('.');
-        string[] endParts = endIp.Split('.');
-
         try
         {
+            _isScanning = true;
+            _scanCts = new CancellationTokenSource();
+            _scanResults.Clear();
+            _resultsBody.Children.Clear();
+            _progressBar.Value = 0;
+            _scanStartTime = DateTime.UtcNow;
+            _statusText.Text = $"Probing {startIp}...";
+            _scanningBadgeText.Text = "Scanning";
+            _scanningBadge.Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.4);
+            _scanningBadgeText.Foreground = ThemeTokens.Primary;
+
+            // Wire checkboxes to scanner settings
+            _scanner.FastScanMode = _fastScanCheck.IsChecked == true;
+            _scanner.EnableOsDetection = _osDetectCheck.IsChecked == true;
+            // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
+            _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true; 
+
+            string[] startParts = startIp.Split('.');
+            string[] endParts = endIp.Split('.');
+
             if (startParts.Length == 4 && endParts.Length == 4 &&
                 int.TryParse(startParts[3], out int rStart) && int.TryParse(endParts[3], out int rEnd))
             {
@@ -529,6 +542,11 @@ public class ScannerPage : Border
         catch (OperationCanceledException)
         {
             _statusText.Text = "Scan cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _db.Log(LogLevel.Error, "Scanner", ex.Message);
+            _statusText.Text = $"Scan failed: {ex.Message}";
         }
         finally
         {
@@ -746,23 +764,31 @@ public class ScannerPage : Border
         };
     }
 
-    private void OnExportResults(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnExportResults(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_scanResults.Count == 0) return;
         try
         {
-            var sb = new System.Text.StringBuilder();
-            sb.AppendLine("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess");
-            foreach (var node in _scanResults)
+            string path = "";
+            int count = _scanResults.Count;
+
+            await Task.Run(async () =>
             {
-                string ports = node.OpenPorts?.Count > 0 ? string.Join(";", node.OpenPorts) : "";
-                sb.AppendLine($"\"{node.IpAddress}\",\"{node.MacAddress}\",\"{node.Hostname}\",\"{node.Vendor}\",\"{node.DeviceType}\",\"{(node.IsOnline ? "Online" : "Offline")}\",\"{node.PingLatencyMs}\",\"{ports}\",\"{node.OsGuess}\"");
-            }
-            string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
-            System.IO.Directory.CreateDirectory(folder);
-            string path = System.IO.Path.Combine(folder, $"scan_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-            System.IO.File.WriteAllText(path, sb.ToString());
-            _statusText.Text = $"Exported {_scanResults.Count} devices to {path}";
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess");
+                foreach (var node in _scanResults)
+                {
+                    string ports = node.OpenPorts?.Count > 0 ? string.Join(";", node.OpenPorts) : "";
+                    sb.AppendLine($"\"{node.IpAddress}\",\"{node.MacAddress}\",\"{node.Hostname}\",\"{node.Vendor}\",\"{node.DeviceType}\",\"{(node.IsOnline ? "Online" : "Offline")}\",\"{node.PingLatencyMs}\",\"{ports}\",\"{node.OsGuess}\"");
+                }
+
+                string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
+                System.IO.Directory.CreateDirectory(folder);
+                path = System.IO.Path.Combine(folder, $"scan_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                await System.IO.File.WriteAllTextAsync(path, sb.ToString());
+            });
+
+            _statusText.Text = $"Exported {count} devices to {path}";
         }
         catch (Exception ex) { _statusText.Text = $"Export failed: {ex.Message}"; }
     }
