@@ -1,60 +1,61 @@
 # NodeRadar Pro by PyPie Studio
 ### Enterprise-Grade Network Observability & Asset Discovery
 
-**NodeRadar Pro** is a high-performance, low-latency network monitoring utility designed for Senior IT Administrators and System Engineers. Engineered for speed and precision, it provides an instantaneous "radar" view of enterprise-scale LAN environments, capable of mapping hundreds of assets in seconds.
+**NodeRadar Pro** is a high-performance, low-latency network monitoring utility designed for Senior IT Administrators and System Engineers. Engineered for speed and precision, it provides an instantaneous "radar" view of enterprise-scale LAN environments, capable of mapping and fingerprinting hundreds of assets in seconds.
 
 ---
 
 ## 🛰️ Core Capabilities
 
-- **Deep Network Discovery:** High-speed subnet sweeping to identify all active IP assets across complex segments.
-- **Real-Time ICMP Monitoring:** Millisecond-accurate pinging engine with jitter and packet loss analysis.
-- **Advanced Asset Resolution:** Full MAC address resolution and OUI-based hardware vendor identification.
-- **Heuristic OS & Uptime Detection:** Low-level probing to identify hostnames, operating system types, and active uptime metrics.
-- **Proactive Port Scanning:** Integrated multi-threaded port scanner for auditing common service vectors (SSH, RDP, HTTP/S, SQL).
-- **Intrusion Sentinel:** Background logic that triggers alerts the moment an unauthorized or unknown MAC address appears on the wire.
+- **Deep Network Discovery:** High-speed subnet sweeping utilizing multi-threaded ARP and ICMP probes to identify all active assets.
+- **Intrusion Sentinel:** Real-time background detection that triggers alerts the moment an unauthorized or unknown MAC address appears on the network.
+- **Precision Telemetry:** Millisecond-accurate ICMP engine with dynamic jitter analysis and live packet loss tracking.
+- **Dynamic Uptime Intelligence:** A sliding-window uptime history that provides a 24-hour visual "pulse" of every registered device.
+- **Heuristic OS Fingerprinting:** Advanced probing to identify hostnames, hardware vendors (Apple, Samsung, Cisco, etc.), and OS types (Windows, Linux, iOS).
+- **Proactive Port Auditing:** Integrated service scanner for identifying open vectors like SSH, RDP, HTTP/S, and database ports.
 
 ---
 
 ## 🏗️ Architecture & Performance
 
-NodeRadar Pro was built with a "Performance First" philosophy to satisfy the requirements of modern, high-density infrastructure.
+NodeRadar Pro was engineered from the ground up to satisfy the rigorous requirements of high-density infrastructure.
 
-- **High-Concurrency Engine:** Built on **C# 14** and **.NET 10**, the core utilizes advanced `Task`-based asynchronous patterns and custom thread-pool management. This ensures that even during a **700+ device sweep**, the UI remains fluid and non-blocking.
-- **Enterprise Battle-Tested:** Validated in live production environments with over 700 concurrent nodes without degradation in resolution accuracy.
-- **Low-Level Integration:** Leveraging **WMI** (Windows Management Instrumentation) and **D-Bus** (Linux) for hardware-level telemetry and system polling.
-- **Native Performance:** Compiled using **.NET NativeAOT**, producing a zero-dependency, self-contained binary with near-instant startup times and a minimal memory footprint.
-- **Hardened Integrity:** Protected via **Obfuscar** implementation to ensure binary integrity and protect proprietary network-probing algorithms from reverse-engineering.
+- **High-Concurrency Engine:** Built on **C# 14** and **.NET 10**, the core utilizes asynchronous non-blocking patterns. The UI remains 100% fluid even during massive 700+ device sweeps.
+- **Native Performance:** Compiled via **.NET NativeAOT**, producing a zero-dependency, machine-code binary with near-instant startup and a specialized low-memory footprint.
+- **DPI-Aware UI:** Fully optimized for **4K/5K displays** with razor-sharp high-resolution assets and support for Windows 11 **Mica and Acrylic** effects.
+- **Mobile-First Resilience:** Heuristic monitoring logic that accounts for WiFi power-save modes on mobile devices, preventing false-positive disconnection alerts.
+
+---
+
+## 🔒 Security-First Engineering
+
+As a professional security and monitoring tool, NodeRadar Pro includes multiple layers of hardening:
+
+- **AES-256 Data Encryption:** All local device inventories, logs, and telemetry are stored in an encrypted **LiteDB** instance.
+- **SHA256 Integrity Shield:** Performs an automated self-audit on every startup, verifying binary and database signatures to detect tampering.
+- **Zero-Trust Privacy:** **Local-Only Mandate.** No network data, MAC addresses, or infrastructure details ever leave your machine.
+- **Forensic Logs:** Comprehensive system telemetry with searchable and exportable audit trails.
 
 ---
 
 ## 📦 Installation & Deployment
 
-NodeRadar Pro is distributed as compiled freeware. Source code is not available in this repository.
+NodeRadar Pro is distributed as a compiled, hardened binary. 
 
 ### Getting Started
 1. Navigate to the [Releases](https://github.com/PyPie-Studio/NodeRadar-Pro/releases) tab.
-2. Download the latest **Velopack Setup** for a premium installation experience with automatic background updates.
-3. Alternatively, download the **Portable Executable (.exe)** for zero-install usage.
+2. Download the **Velopack Installer** for a premium setup experience with seamless background auto-updates.
+3. For portable use, the **Single-File EXE** is available for zero-install deployment.
 
-### Basic Usage
-- **Start Scan:** Select your primary Network Interface and hit "Initiate Radar."
-- **Monitor:** Right-click any discovered node to view detailed latency charts or initiate a specific port scan.
-- **Alerts:** Configure SMTP settings in "Settings" to receive email dispatches when critical servers go offline.
-
----
-
-## 🛠️ Support & Issue Tracking
-
-As a closed-source freeware tool, we welcome community feedback via GitHub:
-- **Bug Reports:** Please use the [Issues](https://github.com/PyPie-Studio/NodeRadar-Pro/issues) tab to report reproducible crashes.
-- **Feature Requests:** Suggest new probes or UI refinements via GitHub Discussions or Issues.
-- **Disclaimer:** This software is provided "As-Is" by PyPie Studio. No warranty is provided, expressed, or implied.
+### "Pro" Interactions
+- **Click-to-Copy:** Instantly copy IP or MAC addresses to your clipboard with a single click.
+- **🌐 Open Web UI:** Jump directly to a router or IP camera's web interface from the device detail panel.
+- **SMTP Alerts:** Configure encrypted email notifications in Settings for real-world alerting.
 
 ---
 
 ## 🥧 About PyPie Studio
 
-**PyPie Studio** is a forward-thinking development house specializing in high-performance C# applications, systems tools, and low-latency utilities. We believe in building software that is as beautiful as it is powerful, focusing on modern .NET paradigms and premium UI/UX design.
+**PyPie Studio** specializes in high-performance desktop tools for systems engineers. We focus on modern .NET paradigms, hardened security, and premium UI/UX to build software that IT professionals trust.
 
 *Interested in our tech stack or looking to collaborate? Reach out via our GitHub profile.*
