@@ -17,7 +17,7 @@ public class LocalDatabase : IDisposable
     public static LocalDatabase Instance => _instance.Value;
 
     private readonly string _dbPath;
-    private readonly LiteDatabase _db;
+    private LiteDatabase _db;
 
     private LocalDatabase()
     {
@@ -26,6 +26,9 @@ public class LocalDatabase : IDisposable
         Directory.CreateDirectory(myFolder);
         _dbPath = Path.Combine(myFolder, "noderadar.db");
         _db = new LiteDatabase($"Filename={_dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared;");
+
+        // Automatic backup on startup
+        BackupDatabase();
     }
 
     public void Dispose()
@@ -300,5 +303,82 @@ public class LocalDatabase : IDisposable
     {
         var collection = _db.GetCollection<AppSettings>("settings");
         collection.Upsert(settings);
+    }
+
+    // ── Backup & Maintenance ──
+
+    public string BackupDatabase(string? customPath = null)
+    {
+        try
+        {
+            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+            string backupDir = customPath ?? Path.Combine(Path.GetDirectoryName(dbPath)!, "Backups");
+            
+            if (!Directory.Exists(backupDir)) Directory.CreateDirectory(backupDir);
+
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string backupFileName = customPath != null ? Path.GetFileName(customPath) : $"noderadar_backup_{timestamp}.db";
+            string destPath = customPath ?? Path.Combine(backupDir, backupFileName);
+
+            File.Copy(dbPath, destPath, true);
+            Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
+            
+            if (customPath == null) CleanupOldBackups(backupDir);
+            
+            return destPath;
+        }
+        catch (Exception ex)
+        {
+            Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
+            return "";
+        }
+    }
+
+    public bool RestoreDatabase(string backupPath)
+    {
+        try
+        {
+            if (!File.Exists(backupPath)) return false;
+
+            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+            
+            // We must close the current connection before overwriting the file
+            _db.Dispose();
+            
+            File.Copy(backupPath, dbPath, true);
+            
+            // Re-initialize (Note: In a real app, we would probably trigger an app restart)
+            var connectionString = $"Filename={dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared";
+            _db = new LiteDatabase(connectionString);
+            
+            Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // Try to re-open if possible
+            try { if (_db == null) _db = new LiteDatabase(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db")); } catch { }
+            Log(LogLevel.Error, "Database", $"Restore failed: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void CleanupOldBackups(string backupDir)
+    {
+        try
+        {
+            var files = Directory.GetFiles(backupDir, "noderadar_backup_*.db")
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.CreationTime)
+                .Skip(7) // Keep last 7 backups
+                .ToList();
+
+            foreach (var file in files)
+            {
+                file.Delete();
+                Log(LogLevel.Info, "Database", $"Cleaned up old backup: {file.Name}");
+            }
+        }
+        catch { }
     }
 }

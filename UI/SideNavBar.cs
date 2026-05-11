@@ -152,6 +152,10 @@ public class SideNavBar : Border
                         tb.Foreground = isActive ? ThemeTokens.NavTextActive : ThemeTokens.NavTextInactive;
                         tb.FontWeight = isActive ? FontWeight.Bold : FontWeight.Medium;
                     }
+                    else if (c is Avalonia.Controls.Shapes.Path pathIcon && pathIcon.Tag?.ToString() == "icon")
+                    {
+                        pathIcon.Fill = isActive ? ThemeTokens.NavTextActive : ThemeTokens.NavTextInactive;
+                    }
                     else if (c is TextBlock icon && icon.Tag?.ToString() == "icon")
                     {
                         icon.Foreground = isActive ? ThemeTokens.NavTextActive : ThemeTokens.NavTextInactive;
@@ -163,16 +167,29 @@ public class SideNavBar : Border
 
     private Border MakeNavItem(string name, string icon, string label, string tooltip)
     {
-        var iconText = new TextBlock
+        Control iconControl;
+        bool isSvg = icon.StartsWith("M", StringComparison.OrdinalIgnoreCase);
+
+        if (isSvg)
         {
-            Text = icon,
-            FontSize = 16,
-            Foreground = ThemeTokens.NavTextInactive,
-            VerticalAlignment = VerticalAlignment.Center,
-            Width = 24,
-            TextAlignment = TextAlignment.Center,
-            Tag = "icon"
-        };
+            iconControl = ThemeTokens.VectorIcon(icon, 18, ThemeTokens.NavTextInactive);
+            iconControl.Width = 24;
+            iconControl.Height = 24;
+        }
+        else
+        {
+            iconControl = new TextBlock
+            {
+                Text = icon,
+                FontSize = 16,
+                Foreground = ThemeTokens.NavTextInactive,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 24,
+                TextAlignment = TextAlignment.Center
+            };
+        }
+        
+        iconControl.Tag = "icon";
 
         var labelText = new TextBlock
         {
@@ -190,7 +207,7 @@ public class SideNavBar : Border
         {
             Orientation = Orientation.Horizontal,
             Spacing = 12,
-            Children = { iconText, labelText }
+            Children = { iconControl, labelText }
         };
 
         var border = new Border

@@ -43,6 +43,12 @@ public class SettingsPage : Border
     private readonly CheckBox _soundToggle;
     private readonly CheckBox _emailToggle;
 
+    // Thresholds
+    private readonly Slider _latencyThresholdSlider;
+    private readonly TextBlock _latencyThresholdValue;
+    private readonly Slider _packetLossThresholdSlider;
+    private readonly TextBlock _packetLossThresholdValue;
+
     // SMTP
     private readonly TextBox _smtpHost;
     private readonly TextBox _smtpPort;
@@ -224,8 +230,15 @@ public class SettingsPage : Border
 
         var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
 
-        var latencyBar = MakeThresholdBar("Latency Warning", "> 200ms", 0.72, ThemeTokens.Error);
-        var packetBar = MakeThresholdBar("Packet Loss Alert", "> 5%", 0.28, ThemeTokens.Error);
+        _latencyThresholdSlider = new Slider { Minimum = 50, Maximum = 1000, Value = _settings.LatencyThresholdMs };
+        _latencyThresholdValue = new TextBlock { Text = $"{_settings.LatencyThresholdMs}ms", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center };
+        _latencyThresholdSlider.ValueChanged += (s, e) => _latencyThresholdValue.Text = $"{(int)_latencyThresholdSlider.Value}ms";
+        var latencyCard = MakeThresholdSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue);
+
+        _packetLossThresholdSlider = new Slider { Minimum = 1, Maximum = 50, Value = _settings.PacketLossThresholdPct };
+        _packetLossThresholdValue = new TextBlock { Text = $"{_settings.PacketLossThresholdPct:F1}%", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center };
+        _packetLossThresholdSlider.ValueChanged += (s, e) => _packetLossThresholdValue.Text = $"{_packetLossThresholdSlider.Value:F1}%";
+        var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
 
         // Buttons
         var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
@@ -252,7 +265,7 @@ public class SettingsPage : Border
 
         var notifContent = new StackPanel
         {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, updatesLabel, updateBtn, separator2, thresholdLabel, latencyBar, packetBar, btnGrid }
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, updatesLabel, updateBtn, separator2, thresholdLabel, latencyCard, packetCard, btnGrid }
         };
         var notifCard = ThemeTokens.GlassCard(notifContent, 28);
 
@@ -295,6 +308,10 @@ public class SettingsPage : Border
         _sweepFreqValue.Text = $"{_settings.SweepFrequencySeconds}s";
         _responseTimeout.Value = _settings.ResponseTimeoutMs;
         _responseTimeoutValue.Text = $"{_settings.ResponseTimeoutMs}ms";
+        _latencyThresholdSlider.Value = _settings.LatencyThresholdMs;
+        _latencyThresholdValue.Text = $"{_settings.LatencyThresholdMs}ms";
+        _packetLossThresholdSlider.Value = _settings.PacketLossThresholdPct;
+        _packetLossThresholdValue.Text = $"{_settings.PacketLossThresholdPct:F1}%";
         _synScanToggle.IsChecked = _settings.EnableSynScan;
         _dnsResolveToggle.IsChecked = _settings.EnableDnsResolve;
         _promiscuousToggle.IsChecked = _settings.EnablePromiscuous;
@@ -419,9 +436,33 @@ public class SettingsPage : Border
         }
     }
 
-    // ══════════════════════════════════
-    // UI FACTORY HELPERS
-    // ══════════════════════════════════
+    // ── UI FACTORY HELPERS ──
+
+    private static Border MakeThresholdSliderCard(string title, string description, Slider slider, TextBlock valueLabel)
+    {
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+
+        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
+        Grid.SetColumn(titleTb, 0);
+        Grid.SetColumn(valueLabel, 1);
+        header.Children.Add(titleTb);
+        header.Children.Add(valueLabel);
+
+        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 8) };
+
+        return new Border
+        {
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16, 12),
+            Margin = new Thickness(0, 0, 0, 8),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
+            Child = new StackPanel { Children = { header, desc, slider } }
+        };
+    }
 
     private static Border MakeToggleCard(string title, string description, CheckBox toggle, string? icon = null)
     {
