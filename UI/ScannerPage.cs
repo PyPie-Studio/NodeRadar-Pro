@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using NodeRadarPro.Core;
+using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
@@ -21,8 +22,8 @@ public class ScannerPage : Border
 {
     private readonly LocalDatabase _db;
     private readonly SubnetScanner _scanner;
-    private readonly List<NetworkNode> _activeNodes;
-    private readonly object _nodesLock;
+    private List<NetworkNode> _activeNodes;
+    private readonly object _nodesLock = new();
     private readonly List<NetworkNode> _scanResults = new();
 
     private readonly TextBox _startIp;
@@ -53,8 +54,19 @@ public class ScannerPage : Border
         _db = db;
         _scanner = scanner;
         _activeNodes = activeNodes;
-        _nodesLock = nodesLock;
         Background = ThemeTokens.Surface;
+
+        // Subscribe to updates
+        EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                lock (_nodesLock)
+                {
+                    _activeNodes = msg.Nodes.ToList();
+                }
+            });
+        });
 
         // ═══════════════════════
         // HEADER: Title + Buttons

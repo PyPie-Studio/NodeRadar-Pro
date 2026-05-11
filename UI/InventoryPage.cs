@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using NodeRadarPro.Core;
+using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
@@ -21,7 +22,7 @@ public class InventoryPage : Border
 {
     private readonly LocalDatabase _db;
     private readonly ConnectivityMonitor _monitor;
-    private readonly List<NetworkNode> _activeNodes;
+    private List<NetworkNode> _activeNodes;
 
     // Left panel
     private readonly StackPanel _deviceListContainer;
@@ -81,6 +82,16 @@ public class InventoryPage : Border
         _monitor = monitor;
         _activeNodes = activeNodes;
         Background = ThemeTokens.Surface;
+
+        // Subscribe to updates
+        EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _activeNodes = msg.Nodes.ToList();
+                RefreshData();
+            });
+        });
 
         // ═══════════════════════
         // LEFT: Search + Filter + Device List

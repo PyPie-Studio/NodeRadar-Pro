@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
 using NodeRadarPro.Core;
+using NodeRadarPro.Core.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,8 +21,8 @@ public class DashboardPage : Border
     private readonly TextBlock _latencyValue;
     private readonly TextBlock _alertCount;
     private readonly StackPanel _pingsList;
-    private readonly List<NetworkNode> _nodes;
-    
+    private List<NetworkNode> _nodes;
+
     private readonly Border _healthGauge;
     private readonly TextBlock _healthStatusText;
     private readonly TextBlock _healthPercent;
@@ -34,6 +35,16 @@ public class DashboardPage : Border
         _nodes = nodes;
         Background = ThemeTokens.Surface;
 
+        // Subscribe to updates
+        EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _nodes = msg.Nodes.ToList();
+                RefreshData();
+            });
+        });
+...
         // ── Health Gauge (Circular progress) ──
         _healthPercent = new TextBlock { Text = "100%", FontSize = 24, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, HorizontalAlignment = HorizontalAlignment.Center };
         _healthStatusText = new TextBlock { Text = "STABLE", FontSize = 10, FontWeight = FontWeight.Black, LetterSpacing = 1.2, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center };

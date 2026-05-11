@@ -4,10 +4,12 @@ using Avalonia.Media;
 using Avalonia.Layout;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Core;
+using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using Avalonia.Threading;
 
@@ -51,8 +53,7 @@ public class DarkPurpleTheme
         var detector = new IntrusionDetector();
 
         AppSettings settings = null!;
-        var activeNodes = new List<NetworkNode>();
-        var _nodesLock = new object();
+        var activeNodesMap = new ConcurrentDictionary<string, NetworkNode>();
         var cts = new CancellationTokenSource();
 
         // Log startup
@@ -67,10 +68,10 @@ public class DarkPurpleTheme
         // ═══════════════════════════════════════════
         // ██  PAGES (Real implementations)
         // ═══════════════════════════════════════════
-        var dashboardPage = new DashboardPage(activeNodes);
-        var scannerPage = new ScannerPage(db, scanner, activeNodes, _nodesLock);
+        var dashboardPage = new DashboardPage(activeNodesMap.Values.ToList());
+        var scannerPage = new ScannerPage(db, scanner, activeNodesMap.Values.ToList(), new object());
         var traceroutePage = new TraceroutePage();
-        var inventoryPage = new InventoryPage(db, monitor, activeNodes);
+        var inventoryPage = new InventoryPage(db, monitor, activeNodesMap.Values.ToList());
         var settingsPage = new SettingsPage(db);
         var portScansPage = new PortScansPage();
         var alertsPage = new AlertsPage(db);
@@ -162,14 +163,10 @@ public class DarkPurpleTheme
         {
             Dispatcher.UIThread.Post(() =>
             {
-                int online;
-                long avgLat;
-                lock (_nodesLock)
-                {
-                    online = activeNodes.Count(n => n.IsOnline);
-                    var onlineWithLatency = activeNodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
-                    avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
-                }
+                var snapshot = activeNodesMap.Values.ToList();
+                int online = snapshot.Count(n => n.IsOnline);
+                var onlineWithLatency = snapshot.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
+                long avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
                 
                 int alertCount = 0;
                 try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
@@ -177,18 +174,16 @@ public class DarkPurpleTheme
                 // Update Top Nav
                 topNav.UpdateStatus(online, avgLat, alertCount);
                 
-                // Refresh visible pages
-                if (dashboardPage.IsVisible) dashboardPage.RefreshData();
-                if (inventoryPage.IsVisible) inventoryPage.RefreshData();
-                if (alertsPage.IsVisible) alertsPage.RefreshAlerts();
+                // Broadcast updates
+                EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
+                EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
             });
         }
 
         // ── Scanner page data changes → refresh dashboard ──
         scannerPage.DataChanged += () =>
         {
-            int count = 0;
-            lock (_nodesLock) { count = activeNodes.Count(n => n.IsOnline); }
+            int count = activeNodesMap.Values.Count(n => n.IsOnline);
             try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
             SyncGlobalStats();
         };
@@ -202,23 +197,21 @@ public class DarkPurpleTheme
         inventoryPage.DeviceSaved += (node) =>
         {
             monitor.AddDevice(node);
+            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
             SyncGlobalStats();
         };
 
         inventoryPage.DeviceDeleted += (node) =>
         {
+            activeNodesMap.TryRemove(node.MacAddress, out _);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
             SyncGlobalStats();
         };
 
         inventoryPage.DeviceStatusChanged += (node) =>
         {
-            lock (_nodesLock)
-            {
-                var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                if (idx >= 0) activeNodes[idx] = node;
-            }
+            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
             SyncGlobalStats();
         };
 
@@ -257,6 +250,7 @@ public class DarkPurpleTheme
         scannerPage.DeviceSaved += (node) =>
         {
             monitor.AddDevice(node);
+            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
             try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' saved from scan results", node.MacAddress); } catch { }
             SyncGlobalStats();
         };
@@ -289,11 +283,7 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceOffline(node);
-                lock (_nodesLock)
-                {
-                    var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                    if (idx >= 0) activeNodes[idx] = node;
-                }
+                activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
                 SyncGlobalStats();
             });
         };
@@ -303,11 +293,7 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceReconnected(node);
-                lock (_nodesLock)
-                {
-                    var idx = activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                    if (idx >= 0) activeNodes[idx] = node;
-                }
+                activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
                 SyncGlobalStats();
             });
         };
@@ -316,13 +302,9 @@ public class DarkPurpleTheme
         {
             Dispatcher.UIThread.Post(() =>
             {
-                lock (_nodesLock)
+                foreach (var updated in updatedNodes)
                 {
-                    foreach (var updated in updatedNodes)
-                    {
-                        var idx = activeNodes.FindIndex(n => n.MacAddress == updated.MacAddress);
-                        if (idx >= 0) activeNodes[idx] = updated;
-                    }
+                    activeNodesMap.AddOrUpdate(updated.MacAddress, updated, (k, v) => updated);
                 }
                 SyncGlobalStats();
             });
@@ -377,33 +359,27 @@ public class DarkPurpleTheme
             ApplySettings(settings, monitor, scanner);
 
             // Process devices
-            lock (_nodesLock)
+            foreach (var device in savedDevices)
             {
-                foreach (var device in savedDevices)
-                {
-                    device.IsOnline = false;
-                    if (!activeNodes.Any(n => n.MacAddress == device.MacAddress))
-                        activeNodes.Add(device);
-                }
+                device.IsOnline = false;
+                activeNodesMap.TryAdd(device.MacAddress, device);
             }
 
             // UI Status Updates
             Dispatcher.UIThread.Post(() =>
             {
-                int online;
-                lock (_nodesLock) { online = activeNodes.Count(n => n.IsOnline); }
+                int online = activeNodesMap.Values.Count(n => n.IsOnline);
                 topNav.UpdateStatus(online, -1, alertCount);
                 dashboardPage.RefreshData();
                 SyncGlobalStats();
             });
 
             // Start services
-            int activeCount = 0;
-            lock (_nodesLock) { activeCount = activeNodes.Count; }
+            int activeCount = activeNodesMap.Count;
 
             if (activeCount > 0)
             {
-                lock (_nodesLock) { monitor.UpdateTrackedDevices(activeNodes); }
+                monitor.UpdateTrackedDevices(activeNodesMap.Values.ToList());
                 _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token));
             }
 
