@@ -1,5 +1,6 @@
 ﻿using Avalonia;
 using System;
+using System.Threading.Tasks;
 
 namespace NodeRadar_Pro
 {
@@ -17,6 +18,14 @@ namespace NodeRadar_Pro
                 System.IO.Directory.CreateDirectory(logDir);
                 string logPath = System.IO.Path.Combine(logDir, "crash.log");
                 System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] CRITICAL CRASH: {ex}\n");
+            };
+
+            TaskScheduler.UnobservedTaskException += (s, e) => {
+                string logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");
+                System.IO.Directory.CreateDirectory(logDir);
+                string logPath = System.IO.Path.Combine(logDir, "crash.log");
+                System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] UNOBSERVED TASK CRASH: {e.Exception}\n");
+                e.SetObserved(); 
             };
 
             try 
