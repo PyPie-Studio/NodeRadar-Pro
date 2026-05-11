@@ -56,6 +56,10 @@ public class SettingsPage : Border
     private readonly TextBox _smtpPass;
     private readonly StackPanel _smtpSettingsPanel;
 
+    private readonly Button _backupBtn;
+    private readonly Button _restoreBtn;
+    private readonly TextBlock _maintenanceStatus;
+
     public event Action<AppSettings>? SettingsSaved;
 
     public SettingsPage(LocalDatabase db)
@@ -240,6 +244,28 @@ public class SettingsPage : Border
         _packetLossThresholdSlider.ValueChanged += (s, e) => _packetLossThresholdValue.Text = $"{_packetLossThresholdSlider.Value:F1}%";
         var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
 
+        // Database Maintenance
+        var maintenanceLabel = ThemeTokens.SectionLabel("DATABASE MAINTENANCE");
+        _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
+        
+        _backupBtn = ThemeTokens.SecondaryButton("Backup Database");
+        ThemeTokens.SetToolTip(_backupBtn, "Create a timestamped backup of your current database in the PyPie Studio folder.");
+        _backupBtn.Click += OnBackupClicked;
+
+        _restoreBtn = ThemeTokens.SecondaryButton("Restore Database");
+        ThemeTokens.SetToolTip(_restoreBtn, "Select a previously created backup file (.db) to restore your system state.");
+        _restoreBtn.Click += OnRestoreClicked;
+
+        var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 10) };
+        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        Grid.SetColumn(_backupBtn, 0);
+        Grid.SetColumn(_restoreBtn, 1);
+        _backupBtn.Margin = new Thickness(0, 0, 4, 0);
+        _restoreBtn.Margin = new Thickness(4, 0, 0, 0);
+        maintGrid.Children.Add(_backupBtn);
+        maintGrid.Children.Add(_restoreBtn);
+
         // Buttons
         var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
         ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
@@ -265,7 +291,7 @@ public class SettingsPage : Border
 
         var notifContent = new StackPanel
         {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, updatesLabel, updateBtn, separator2, thresholdLabel, latencyCard, packetCard, btnGrid }
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, updatesLabel, updateBtn, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, maintGrid, _maintenanceStatus, btnGrid }
         };
         var notifCard = ThemeTokens.GlassCard(notifContent, 28);
 
@@ -407,6 +433,60 @@ public class SettingsPage : Border
             finally
             {
                 btn.IsEnabled = true;
+            }
+        }
+    }
+
+    private void OnBackupClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        string path = _db.BackupDatabase();
+        if (!string.IsNullOrEmpty(path))
+        {
+            _maintenanceStatus.Text = $"Backup successful: {System.IO.Path.GetFileName(path)}";
+            _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+        }
+        else
+        {
+            _maintenanceStatus.Text = "Backup failed. Check system logs.";
+            _maintenanceStatus.Foreground = ThemeTokens.Error;
+        }
+    }
+
+    private async void OnRestoreClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select Database Backup",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Database Files") { Patterns = new[] { "*.db" } } }
+        });
+
+        if (files.Count > 0)
+        {
+            try
+            {
+                string path = Uri.UnescapeDataString(files[0].Path.LocalPath);
+                bool success = _db.RestoreDatabase(path);
+
+                if (success)
+                {
+                    _maintenanceStatus.Text = "Database restored. Restart recommended.";
+                    _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+                    Refresh();
+                }
+                else
+                {
+                    _maintenanceStatus.Text = "Restore failed. File may be corrupted or in use.";
+                    _maintenanceStatus.Foreground = ThemeTokens.Error;
+                }
+            }
+            catch (Exception ex)
+            {
+                _maintenanceStatus.Text = $"Error: {ex.Message}";
+                _maintenanceStatus.Foreground = ThemeTokens.Error;
             }
         }
     }
