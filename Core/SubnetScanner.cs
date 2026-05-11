@@ -481,17 +481,17 @@ public class SubnetScanner
 
     private static async Task<string> TryGetHostnameAsync(string ip)
     {
+        using var cts = new CancellationTokenSource(2000);
         try
         {
-            var dnsTask = Dns.GetHostEntryAsync(ip);
-            if (await Task.WhenAny(dnsTask, Task.Delay(2000)) == dnsTask)
-            {
-                var hostEntry = await dnsTask;
-                if (hostEntry.HostName != ip)
-                    return hostEntry.HostName;
-            }
+            var hostEntry = await Dns.GetHostEntryAsync(ip, cts.Token);
+            if (hostEntry.HostName != ip)
+                return hostEntry.HostName;
         }
-        catch { }
+        catch (OperationCanceledException) { }
+        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound) { }
+        catch (Exception) { }
+
         return "Unknown Device";
     }
 }
