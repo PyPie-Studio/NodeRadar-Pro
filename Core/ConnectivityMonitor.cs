@@ -285,9 +285,15 @@ public class ConnectivityMonitor
             try
             {
                 using var tcp = new TcpClient();
-                var connectTask = tcp.ConnectAsync(ip, port);
-                if (await Task.WhenAny(connectTask, Task.Delay(300)) == connectTask && tcp.Connected)
-                    return true;
+                using var cts = new CancellationTokenSource(300);
+                var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
+                try
+                {
+                    await connectTask;
+                    if (tcp.Connected) return true;
+                }
+                catch (OperationCanceledException) { }
+                catch { }
             }
             catch { }
         }

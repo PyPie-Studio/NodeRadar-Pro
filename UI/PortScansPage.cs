@@ -183,17 +183,26 @@ public class PortScansPage : Border
                 {
                     if (token.IsCancellationRequested) return;
                     using var tcp = new System.Net.Sockets.TcpClient();
-                    var ct = tcp.ConnectAsync(ip, port);
-                    if (await Task.WhenAny(ct, Task.Delay(500, token)) == ct && tcp.Connected)
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(500);
+
+                    var ct = tcp.ConnectAsync(ip, port, cts.Token);
+                    try
                     {
-                        openPorts.Add(port);
-                        int currentFound = Interlocked.Increment(ref found);
-                        Dispatcher.UIThread.Post(() =>
+                        await ct;
+                        if (tcp.Connected)
                         {
-                            _openCount.Text = $"OPEN PORTS: {currentFound}";
-                            _resultsBody.Children.Add(MakeResultRow(port, ip, currentFound % 2 == 0));
-                        });
+                            openPorts.Add(port);
+                            int currentFound = Interlocked.Increment(ref found);
+                            Dispatcher.UIThread.Post(() =>
+                            {
+                                _openCount.Text = $"OPEN PORTS: {currentFound}";
+                                _resultsBody.Children.Add(MakeResultRow(port, ip, currentFound % 2 == 0));
+                            });
+                        }
                     }
+                    catch (OperationCanceledException) { }
+                    catch { }
                 }
                 catch (OperationCanceledException) { }
                 catch { }

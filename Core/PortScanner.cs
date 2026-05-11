@@ -120,14 +120,16 @@ public static class PortScanner
         try
         {
             using var tcpClient = new TcpClient();
-            var connectTask = tcpClient.ConnectAsync(ipAddress, port);
-            var timeoutTask = Task.Delay(timeoutMs);
-            var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-            
-            if (completedTask == timeoutTask) return false;
-            return tcpClient.Connected;
+            using var cts = new CancellationTokenSource(timeoutMs);
+            var connectTask = tcpClient.ConnectAsync(ipAddress, port, cts.Token);
+            try
+            {
+                await connectTask;
+                return tcpClient.Connected;
+            }
+            catch (OperationCanceledException) { return false; }
+            catch { return false; }
         }
-        catch (OperationCanceledException) { return false; }
         catch { return false; }
     }
 }

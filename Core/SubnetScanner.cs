@@ -409,14 +409,21 @@ public class SubnetScanner
                 try
                 {
                     using var tcp = new TcpClient();
-                    var connectTask = tcp.ConnectAsync(ip, port);
-                    if (await Task.WhenAny(connectTask, Task.Delay(400)) == connectTask && tcp.Connected)
+                    using var cts = new CancellationTokenSource(400);
+                    var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
+                    try
                     {
-                        isOnline = true;
-                        if (mac == "Unknown")
-                            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
-                        break;
+                        await connectTask;
+                        if (tcp.Connected)
+                        {
+                            isOnline = true;
+                            if (mac == "Unknown")
+                                mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+                            break;
+                        }
                     }
+                    catch (OperationCanceledException) { }
+                    catch { }
                 }
                 catch { }
             }
