@@ -69,6 +69,7 @@ public class DarkPurpleTheme
         // ═══════════════════════════════════════════
         var dashboardPage = new DashboardPage(activeNodes);
         var scannerPage = new ScannerPage(db, scanner, activeNodes, _nodesLock);
+        var traceroutePage = new TraceroutePage();
         var inventoryPage = new InventoryPage(db, monitor, activeNodes);
         var settingsPage = new SettingsPage(db);
         var portScansPage = new PortScansPage();
@@ -82,6 +83,7 @@ public class DarkPurpleTheme
         var pageHost = new Grid();
         pageHost.Children.Add(dashboardPage);
         pageHost.Children.Add(scannerPage);
+        pageHost.Children.Add(traceroutePage);
         pageHost.Children.Add(inventoryPage);
         pageHost.Children.Add(settingsPage);
         pageHost.Children.Add(portScansPage);
@@ -91,6 +93,7 @@ public class DarkPurpleTheme
 
         // Hide all except dashboard
         scannerPage.IsVisible = false;
+        traceroutePage.IsVisible = false;
         inventoryPage.IsVisible = false;
         settingsPage.IsVisible = false;
         portScansPage.IsVisible = false;
@@ -102,6 +105,7 @@ public class DarkPurpleTheme
         {
             dashboardPage.IsVisible = name == "dashboard";
             scannerPage.IsVisible = name == "radar";
+            traceroutePage.IsVisible = name == "traceroute";
             inventoryPage.IsVisible = name == "inventory";
             settingsPage.IsVisible = name == "settings";
             portScansPage.IsVisible = name == "portscans";
@@ -334,30 +338,35 @@ public class DarkPurpleTheme
             var savedDevices = await Task.Run(() => db.GetRegisteredDevices());
             var alertCount = await Task.Run(() => db.GetUnresolvedAlertCount());
 
-            // Task 2: Database Integrity Check (Non-Blocking + Shared Read)
+            // Task 2: System Integrity Shield (Verify Binaries)
             _ = Task.Run(() => {
                 try {
-                    string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                    string dbPath = System.IO.Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-                    // Using FileShare.ReadWrite allows us to hash while LiteDB has the file open
-                    using var stream = new System.IO.FileStream(dbPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
-                    using var sha256 = System.Security.Cryptography.SHA256.Create();
-                    var hashBytes = sha256.ComputeHash(stream);
-                    string hash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+                    // We verify the core logic DLL instead of the dynamic database
+                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
+                    string dllPath = System.IO.Path.Combine(appPath, "NodeRadar Pro.dll");
+                    
+                    if (System.IO.File.Exists(dllPath))
+                    {
+                        using var stream = new System.IO.FileStream(dllPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
+                        using var sha256 = System.Security.Cryptography.SHA256.Create();
+                        var hashBytes = sha256.ComputeHash(stream);
+                        string currentHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
 
-                    if (string.IsNullOrEmpty(settings.LastKnownGoodHash))
-                    {
-                        settings.LastKnownGoodHash = hash;
-                        db.SaveSettings(settings);
-                        db.Log(LogLevel.Info, "Security", $"Initial Database Hash stored: {hash}");
-                    }
-                    else if (settings.LastKnownGoodHash != hash)
-                    {
-                        db.Log(LogLevel.Error, "Security", "[SECURITY] Database integrity mismatch detected!");
-                    }
-                    else
-                    {
-                        db.Log(LogLevel.Info, "Security", "Database Integrity verified.");
+                        // On first run or update, lock in the hash
+                        if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
+                        {
+                            settings.LastKnownGoodHash = currentHash;
+                            db.SaveSettings(settings);
+                            db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
+                        }
+                        else if (settings.LastKnownGoodHash != currentHash)
+                        {
+                            db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
+                        }
+                        else
+                        {
+                            db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
+                        }
                     }
                 } catch (Exception ex) {
                     db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");

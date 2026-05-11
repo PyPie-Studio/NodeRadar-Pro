@@ -4,7 +4,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
-using Velopack;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -100,11 +99,13 @@ public class SettingsPage : Border
             Padding = new Thickness(14, 10),
             FontFamily = new FontFamily("Inter")
         };
+        ThemeTokens.SetToolTip(_interfaceSelector, "Choose the physical or virtual network adapter to use for scanning and monitoring.");
         // Populate with available interfaces
         PopulateNetworkInterfaces();
 
         // Promiscuous Mode toggle
         _promiscuousToggle = new CheckBox { IsChecked = false };
+        ThemeTokens.SetToolTip(_promiscuousToggle, "Attempt to listen to all packets on the network segment, not just those addressed to this host.");
         var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
 
         // Hidden persistence controls
@@ -124,11 +125,13 @@ public class SettingsPage : Border
 
         // Sweep Frequency slider
         _sweepFrequency = new Slider { Minimum = 5, Maximum = 120, Value = 30 };
+        ThemeTokens.SetToolTip(_sweepFrequency, "Set how often the background monitor probes each registered device.");
         _sweepFreqValue = new TextBlock { Text = "30s", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
         _sweepFrequency.ValueChanged += (s, e) => _sweepFreqValue.Text = $"{(int)_sweepFrequency.Value}s";
 
         // Response Timeout slider
         _responseTimeout = new Slider { Minimum = 100, Maximum = 5000, Value = 1500 };
+        ThemeTokens.SetToolTip(_responseTimeout, "Maximum time to wait for a device to respond before marking it as potentially offline.");
         _responseTimeoutValue = new TextBlock { Text = "1500ms", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter") };
         _responseTimeout.ValueChanged += (s, e) => _responseTimeoutValue.Text = $"{(int)_responseTimeout.Value}ms";
 
@@ -149,7 +152,9 @@ public class SettingsPage : Border
 
         // SYN Scan + DNS toggles
         _synScanToggle = new CheckBox { IsChecked = false };
+        ThemeTokens.SetToolTip(_synScanToggle, "Enable aggressive TCP SYN scanning to identify open ports behind stealthy firewalls.");
         _dnsResolveToggle = new CheckBox { IsChecked = true };
+        ThemeTokens.SetToolTip(_dnsResolveToggle, "Perform reverse DNS lookups to resolve IP addresses to human-readable hostnames.");
         var synRow = MakeToggleCard("Aggressive Port Scanning (SYN)", "", _synScanToggle, "⊕");
         var dnsRow = MakeToggleCard("Resolve Hostnames (DNS)", "", _dnsResolveToggle, "◉");
 
@@ -171,8 +176,11 @@ public class SettingsPage : Border
         var routingLabel = ThemeTokens.SectionLabel("ALERT ROUTING");
 
         _toastToggle = new CheckBox { IsChecked = true };
+        ThemeTokens.SetToolTip(_toastToggle, "Show visual desktop notifications when devices go offline or reconnect.");
         _soundToggle = new CheckBox { IsChecked = true };
+        ThemeTokens.SetToolTip(_soundToggle, "Play an audible chime for important network events.");
         _emailToggle = new CheckBox { IsChecked = false };
+        ThemeTokens.SetToolTip(_emailToggle, "Dispatch automated email alerts for critical outages and security intrusions.");
 
         var toastRow = MakeCheckboxCard("UI Popups (Toasts)", "Display transient alerts in dashboard.", _toastToggle);
         var soundRow = MakeCheckboxCard("Audible Alarms", "Play sounds for critical events.", _soundToggle);
@@ -180,9 +188,13 @@ public class SettingsPage : Border
 
         // SMTP Fields
         _smtpHost = ThemeTokens.Input("SMTP Host (e.g., smtp.gmail.com)");
+        ThemeTokens.SetToolTip(_smtpHost, "The hostname of your outgoing mail server.");
         _smtpPort = ThemeTokens.Input("Port (e.g., 587)");
+        ThemeTokens.SetToolTip(_smtpPort, "The TCP port for SMTP (Common: 587 for TLS, 465 for SSL).");
         _smtpUser = ThemeTokens.Input("Username");
+        ThemeTokens.SetToolTip(_smtpUser, "Your SMTP authentication username (usually your email address).");
         _smtpPass = ThemeTokens.Input("Password");
+        ThemeTokens.SetToolTip(_smtpPass, "Your SMTP authentication password. For Gmail, use an 'App Password'.");
         _smtpPass.PasswordChar = '●';
 
         _smtpSettingsPanel = new StackPanel
@@ -204,6 +216,7 @@ public class SettingsPage : Border
 
         var updatesLabel = ThemeTokens.SectionLabel("SOFTWARE UPDATES");
         var updateBtn = ThemeTokens.SecondaryButton("Check for Updates");
+        ThemeTokens.SetToolTip(updateBtn, "Visit the PyPie Studio GitHub repository to check for the latest NodeRadar Pro stable release.");
         updateBtn.Margin = new Thickness(0, 4, 0, 12);
         updateBtn.Click += OnCheckForUpdatesClicked;
 
@@ -216,11 +229,13 @@ public class SettingsPage : Border
 
         // Buttons
         var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
+        ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
         resetBtn.Height = 50;
         resetBtn.FontSize = 12;
         resetBtn.Click += OnResetClicked;
 
         var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
+        ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
         saveBtn.Height = 50;
         saveBtn.FontSize = 12;
         saveBtn.Click += OnSaveClicked;
@@ -348,33 +363,27 @@ public class SettingsPage : Border
             try
             {
                 btn.IsEnabled = false;
-                btn.Content = "Checking...";
+                btn.Content = "Opening Browser...";
 
-                _db.Log(LogLevel.Info, "Velopack", "Starting update check...");
-
-                var mgr = new UpdateManager("https://releases.pypie.studio/noderadar-pro");
-                var newVersion = await mgr.CheckForUpdatesAsync();
-
-                if (newVersion != null)
+                _db.Log(LogLevel.Info, "Update", "Directing user to GitHub Releases...");
+                
+                // Open GitHub Releases page in default browser
+                string url = "https://github.com/PyPie-Studio/NodeRadar-Pro/releases";
+                try
                 {
-                    btn.Content = "Downloading...";
-                    _db.Log(LogLevel.Info, "Velopack", $"Update found: {newVersion.TargetFullRelease.Version}. Downloading...");
-                    await mgr.DownloadUpdatesAsync(newVersion);
-                    _db.Log(LogLevel.Info, "Velopack", "Update downloaded. Restart to apply.");
-                    btn.Content = "Update Ready";
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = url,
+                        UseShellExecute = true
+                    });
+                    btn.Content = "Check GitHub";
                 }
-                else
+                catch (Exception ex)
                 {
-                    _db.Log(LogLevel.Info, "Velopack", "No updates found.");
-                    btn.Content = "Up to Date";
-                    await Task.Delay(2000);
-                    btn.Content = originalText;
+                    _db.Log(LogLevel.Error, "Update", $"Failed to open browser: {ex.Message}");
+                    btn.Content = "Error";
                 }
-            }
-            catch (Exception ex)
-            {
-                _db.Log(LogLevel.Error, "Velopack", $"Update check failed: {ex.Message}");
-                btn.Content = "Error Checking";
+
                 await Task.Delay(2000);
                 btn.Content = originalText;
             }

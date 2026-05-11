@@ -44,7 +44,7 @@ NodeRadar Pro is distributed as a compiled, hardened binary.
 
 ### Getting Started
 1. Navigate to the [Releases](https://github.com/PyPie-Studio/NodeRadar-Pro/releases) tab.
-2. Download the **Velopack Installer** for a premium setup experience with seamless background auto-updates.
+2. Download the **Setup.exe** for a professional installation experience to Program Files.
 3. For portable use, the **Single-File EXE** is available for zero-install deployment.
 
 ### "Pro" Interactions

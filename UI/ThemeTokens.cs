@@ -94,6 +94,23 @@ public static class ThemeTokens
     public const double ButtonRadius = 6;
     public const double InputRadius = 8;
 
+    // ── SVG Vector Paths (Modern Technical Icons) ──
+    public const string SvgRouter = "M4,17V9H20V17H4M12,10A1,1 0 0,0 11,11A1,1 0 0,0 12,12A1,1 0 0,0 13,11A1,1 0 0,0 12,10M15,10A1,1 0 0,0 14,11A1,1 0 0,0 15,12A1,1 0 0,0 16,11A1,1 0 0,0 15,10M18,10A1,1 0 0,0 17,11A1,1 0 0,0 18,12A1,1 0 0,0 19,11A1,1 0 0,0 18,10M7,12V14H10V12H7Z";
+    public const string SvgServer = "M4,4H20A1,1 0 0,1 21,5V9A1,1 0 0,1 20,10H4A1,1 0 0,1 3,9V5A1,1 0 0,1 4,4M4,14H20A1,1 0 0,1 21,15V19A1,1 0 0,1 20,20H4A1,1 0 0,1 3,19V15A1,1 0 0,1 4,14M9,7A1,1 0 1,0 8,8A1,1 0 0,0 9,7M9,17A1,1 0 1,0 8,18A1,1 0 0,0 9,17M12,7A1,1 0 1,0 11,8A1,1 0 0,0 12,7M12,17A1,1 0 1,0 11,18A1,1 0 0,0 12,17Z";
+    public const string SvgDesktop = "M21,14H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10L9,19V20H15V19L14,18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z";
+    public const string SvgPhone = "M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21C5,22.1 5.89,23 7,23H17C18.1,23 19,22.1 19,21V3C19,1.89 18.1,1 17,1Z";
+    public const string SvgShield = "M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z";
+    public const string SvgChart = "M2,13H8V21H2V13M9,3H15V21H9V3M16,8H22V21H16V8Z";
+
+    public static Avalonia.Controls.Shapes.Path VectorIcon(string pathData, double size = 20, IBrush? color = null) => new()
+    {
+        Data = Geometry.Parse(pathData),
+        Width = size,
+        Height = size,
+        Stretch = Stretch.Uniform,
+        Fill = color ?? OnSurface
+    };
+
     public static void SetToolTip(Control control, string tip)
     {
         ToolTip.SetTip(control, tip);
@@ -167,6 +184,10 @@ public static class ThemeTokens
         FontFamily = new FontFamily("Inter")
     };
 
+    public static readonly IBrush HealthSafe = Tertiary;
+    public static readonly IBrush HealthWarning = new SolidColorBrush(Color.Parse("#EAB308"));
+    public static readonly IBrush HealthCritical = Error;
+
     // ═══════════════════════════════════════════
     // ██  FACTORY: Card
     // ═══════════════════════════════════════════
@@ -183,16 +204,12 @@ public static class ThemeTokens
 
     public static Border GlassCard(Control child, double padding = 24) => new()
     {
-        Background = new SolidColorBrush(Color.Parse("#2E3545"), 0.6),
-        CornerRadius = new CornerRadius(CardRadius),
+        Background = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
+        CornerRadius = new CornerRadius(16),
         Padding = new Thickness(padding),
-        BorderBrush = new SolidColorBrush(Color.Parse("#4C4452"), 0.15),
+        BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.08),
         BorderThickness = new Thickness(1),
-        BoxShadow = new BoxShadows(new BoxShadow
-        {
-            OffsetX = 0, OffsetY = 20, Blur = 40,
-            Color = Color.FromArgb(102, 0, 0, 0) // rgba(0,0,0,0.4)
-        }),
+        ClipToBounds = true,
         Child = child
     };
 

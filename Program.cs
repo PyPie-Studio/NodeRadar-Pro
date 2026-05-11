@@ -1,6 +1,5 @@
 ﻿using Avalonia;
 using System;
-using Velopack;
 
 namespace NodeRadar_Pro
 {
@@ -12,7 +11,6 @@ namespace NodeRadar_Pro
         [STAThread]
         public static void Main(string[] args) 
         {
-            VelopackApp.Build().Run();
             AppDomain.CurrentDomain.UnhandledException += (s, e) => {
                 var ex = e.ExceptionObject as Exception;
                 string logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");

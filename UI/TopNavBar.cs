@@ -48,6 +48,7 @@ public class TopNavBar : Border
             VerticalAlignment = VerticalAlignment.Center,
             FontFamily = new FontFamily("Inter")
         };
+        ThemeTokens.SetToolTip(_healthText, "Overall network stability based on active device heartbeat and alert count.");
 
         var separator = new Border
         {
@@ -66,6 +67,7 @@ public class TopNavBar : Border
             VerticalAlignment = VerticalAlignment.Center,
             FontFamily = new FontFamily("Inter")
         };
+        ThemeTokens.SetToolTip(_latencyText, "Average round-trip time (RTT) across all monitored network nodes.");
 
         var statusGroup = new StackPanel
         {
@@ -84,6 +86,7 @@ public class TopNavBar : Border
             FontFamily = new FontFamily("Inter"),
             Opacity = 0.7
         };
+        ThemeTokens.SetToolTip(versionBadge, "Production Build v1.0.0 - PyPie Studio");
         var rightGroup = new StackPanel
         {
             Orientation = Orientation.Horizontal,

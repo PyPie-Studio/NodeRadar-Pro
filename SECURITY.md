@@ -6,7 +6,7 @@
 
 ## 🛡️ Supported Versions
 
-We only provide security updates for the latest stable release of NodeRadar Pro. Users are encouraged to utilize the built-in **Velopack auto-update** feature to ensure they are always running the latest protected binary.
+We only provide security updates for the latest stable release of NodeRadar Pro. Users are encouraged to check for updates manually via the **Settings** page or monitor our GitHub Releases page to ensure they are always running the latest protected binary.
 
 | Version | Supported          |
 | ------- | ------------------ |

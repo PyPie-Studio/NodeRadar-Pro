@@ -7,6 +7,7 @@ using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia.Threading;
 using System.Diagnostics;
 
@@ -44,6 +45,7 @@ public class InventoryPage : Border
     private readonly Border _detailIpPill;
     private readonly Border _detailMacPill;
     private readonly Border _statusDot;
+    private readonly Border _threatBadge;
 
     private readonly TextBlock _latencyStatText;
     private readonly TextBlock _packetLossText;
@@ -51,16 +53,17 @@ public class InventoryPage : Border
     private readonly TextBox _nameInput;
     private readonly TextBox _deviceNameInput;
     private readonly TextBox _deviceModelInput;
+    private readonly TextBox _exactModelInput;
     private readonly TextBox _locationInput;
     private readonly TextBox _notesInput;
     private readonly Button _saveBtn;
     private readonly Button _deleteBtn;
     private readonly Button _pingBtn;
+    private readonly Button _wakeBtn;
     private readonly Button _portScanBtn;
     private readonly TextBlock _pingResult;
     private readonly TextBlock _portResult;
     private readonly Border _deviceIconBox;
-    private readonly TextBlock _deviceIconText;
 
     // Alert toggles
     private readonly CheckBox _connLostToggle;
@@ -94,6 +97,7 @@ public class InventoryPage : Border
         _searchBox.Background = Brushes.Transparent;
         _searchBox.Padding = new Thickness(0, 10);
         _searchBox.TextChanged += (s, e) => RefreshDeviceList();
+        ThemeTokens.SetToolTip(_searchBox, "Filter the device list by IP, MAC, Vendor, or Custom Name.");
 
         var searchWrap = new Border
         {
@@ -143,6 +147,7 @@ public class InventoryPage : Border
             Padding = new Thickness(0)
         };
         addBtn.Click += OnAddDevice;
+        ThemeTokens.SetToolTip(addBtn, "Manually register a new static device in the database.");
 
         var listHeader = new Grid { Margin = new Thickness(16, 8, 16, 8) };
         listHeader.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -193,14 +198,6 @@ public class InventoryPage : Border
         };
 
         // Glass header
-        _deviceIconText = new TextBlock
-        {
-            Text = "⊞",
-            FontSize = 28,
-            Foreground = ThemeTokens.Tertiary,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center
-        };
         _deviceIconBox = new Border
         {
             Width = 60, Height = 60,
@@ -208,7 +205,6 @@ public class InventoryPage : Border
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
-            Child = _deviceIconText,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 0, 20, 0)
         };
@@ -216,6 +212,16 @@ public class InventoryPage : Border
         _statusDot = ThemeTokens.StatusDot(true, 10);
         _statusDot.VerticalAlignment = VerticalAlignment.Center;
         _statusDot.Margin = new Thickness(8, 0, 0, 0);
+
+        _threatBadge = new Border
+        {
+            Padding = new Thickness(8, 3),
+            CornerRadius = new CornerRadius(4),
+            Margin = new Thickness(12, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false,
+            Child = new TextBlock { FontSize = 10, FontWeight = FontWeight.Bold, FontFamily = new FontFamily("Inter") }
+        };
 
         _detailName = new TextBlock
         {
@@ -229,7 +235,7 @@ public class InventoryPage : Border
         var nameStatusRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
-            Children = { _detailName, _statusDot }
+            Children = { _detailName, _statusDot, _threatBadge }
         };
 
         _detailSubtitle = ThemeTokens.Body("", 14);
@@ -290,7 +296,7 @@ public class InventoryPage : Border
         // ═══════════════════════
         // UPTIME HISTORY (real chart — I1)
         // ═══════════════════════
-        var uptimeIcon = new TextBlock { Text = "📊", FontSize = 16, VerticalAlignment = VerticalAlignment.Center };
+        var uptimeIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgChart, 18, ThemeTokens.NavTextInactive);
         var uptimeTitle = ThemeTokens.Headline("Uptime History", 18);
 
         var tab24h = MakeTimeTab("24h", true);
@@ -336,7 +342,7 @@ public class InventoryPage : Border
         // ═══════════════════════
 
         // Alert Configuration
-        var alertIcon = new TextBlock { Text = "🛡", FontSize = 16, VerticalAlignment = VerticalAlignment.Center };
+        var alertIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgShield, 18, ThemeTokens.NavTextInactive);
         var alertTitle = ThemeTokens.Headline("Alert Configuration", 16);
         var alertTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 16), Children = { alertIcon, alertTitle } };
 
@@ -374,7 +380,7 @@ public class InventoryPage : Border
         var alertCard = ThemeTokens.Card(alertContent, ThemeTokens.SurfaceContainerHigh, 20);
 
         // Telemetry Snapshot
-        var telIcon = new TextBlock { Text = "◉", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
+        var telIcon = ThemeTokens.VectorIcon("M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z", 18, ThemeTokens.Primary);
         var telTitle = ThemeTokens.Headline("Telemetry Snapshot", 16);
         var telTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 12), Children = { telIcon, telTitle } };
 
@@ -441,11 +447,19 @@ public class InventoryPage : Border
         
         _deviceNameInput = ThemeTokens.Input("Device Name...");
         _deviceNameInput.IsReadOnly = true;
-        _deviceNameInput.Opacity = 0.6;
+        _deviceNameInput.IsHitTestVisible = false; // Prevent keyboard focus/cursor
+        _deviceNameInput.Opacity = 0.7;
         ThemeTokens.SetToolTip(_deviceNameInput, "The official hostname reported by the device (Read-only).");
 
         _deviceModelInput = ThemeTokens.Input("Device Model...");
         ThemeTokens.SetToolTip(_deviceModelInput, "The hardware model or version identified during scanning.");
+
+        _exactModelInput = ThemeTokens.Input("Deep Intelligence Model...");
+        _exactModelInput.IsReadOnly = true;
+        _exactModelInput.IsHitTestVisible = false; // Prevent keyboard focus/cursor
+        _exactModelInput.Opacity = 0.9;
+        _exactModelInput.Foreground = ThemeTokens.Tertiary;
+        ThemeTokens.SetToolTip(_exactModelInput, "High-accuracy model identified via mDNS, SSDP, or HTTP banners.");
 
         _locationInput = ThemeTokens.Input("Location...");
         ThemeTokens.SetToolTip(_locationInput, "Specify the physical location of this device (e.g., Office, Server Room).");
@@ -463,6 +477,10 @@ public class InventoryPage : Border
         _pingBtn = ThemeTokens.SecondaryButton("◎  Ping Device");
         ThemeTokens.SetToolTip(_pingBtn, "Send a live ICMP ping to check device responsiveness.");
         _pingBtn.Click += OnPingClicked;
+
+        _wakeBtn = ThemeTokens.SecondaryButton("⚡  Wake Device");
+        ThemeTokens.SetToolTip(_wakeBtn, "Send a Wake-on-LAN Magic Packet to power on this device remotely.");
+        _wakeBtn.Click += OnWakeClicked;
 
         _deleteBtn = ThemeTokens.DangerButton("🗑  Delete Device");
         ThemeTokens.SetToolTip(_deleteBtn, "Remove this device permanently from the database.");
@@ -493,6 +511,7 @@ public class InventoryPage : Border
                 regLabel,
                 MakeFieldLabel("Custom Name"), _nameInput,
                 MakeFieldLabel("Device Name"), _deviceNameInput,
+                MakeFieldLabel("Deep Intelligence Model"), _exactModelInput,
                 MakeFieldLabel("Device Model"), _deviceModelInput,
                 MakeFieldLabel("Location"), _locationInput,
                 MakeFieldLabel("Notes"), _notesInput,
@@ -501,6 +520,7 @@ public class InventoryPage : Border
                 diagLabel,
                 webBtn, // Added Web UI button
                 _pingBtn,
+                _wakeBtn,
                 _pingResult,
                 _portResult,
                 new Panel { Height = 6 },
@@ -582,28 +602,52 @@ public class InventoryPage : Border
         UpdatePill(_detailMacPill, node.MacAddress);
         UpdateStatusDot(node.IsOnline);
 
-        string iconStr = node.DeviceType switch
+        // Update Status Badge
+        _threatBadge.IsVisible = node.ThreatLevel != ThreatLevel.Safe || node.VulnerabilityScore > 0;
+        if (_threatBadge.IsVisible)
         {
-            "Router" or "Router/Network" => "⊞",
-            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => "📱",
-            "Computer" or "Desktop" or "PC / Windows" or "Workstation" => "🖥",
-            "Laptop" or "Mac" => "💻",
-            _ => "⊟"
+            var (bg, fg, text) = node.ThreatLevel switch
+            {
+                ThreatLevel.Critical => (ThemeTokens.ErrorContainer, ThemeTokens.Error, "CRITICAL RISK"),
+                ThreatLevel.Warning => (new SolidColorBrush(Color.Parse("#FFCE50"), 0.2), new SolidColorBrush(Color.Parse("#FFCE50")), "SECURITY WARNING"),
+                _ => (ThemeTokens.PrimaryContainer, ThemeTokens.Primary, "SAFE / AUDITED")
+            };
+            _threatBadge.Background = bg;
+            if (_threatBadge.Child is TextBlock tb) { tb.Foreground = fg; tb.Text = text; }
+        }
+
+        string svgPath = node.DeviceType switch
+        {
+            "Router" or "Router/Network" => ThemeTokens.SvgRouter,
+            "Server" or "NAS" => ThemeTokens.SvgServer,
+            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
+            _ => ThemeTokens.SvgDesktop
         };
-        _deviceIconText.Text = iconStr;
+        _deviceIconBox.Child = ThemeTokens.VectorIcon(svgPath, 32, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
         _latencyStatText.Text = node.IsOnline && node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{node.PacketLossPct:F1}";
         _lastScanText.Text = node.LastSeen != default ? GetTimeAgo(node.LastSeen) : "—";
 
-        _detailSubtitle.Text = !string.IsNullOrEmpty(node.OsGuess) ? $"{node.OsGuess} • {node.Vendor}" : node.SubtitleText;
+        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] + [Vendor]
+        string subtitle = node.SubtitleText;
+        if (!string.IsNullOrEmpty(node.OsGuess) && !subtitle.Contains(node.OsGuess))
+            subtitle = $"{node.OsGuess} • {subtitle}";
+        
+        if (!string.IsNullOrEmpty(node.Notes))
+            subtitle = $"{subtitle} ({node.Notes})";
+
+        _detailSubtitle.Text = subtitle;
         if (_detailSubtitle.Text.Contains("Unknown Vendor")) _detailSubtitle.Text = _detailSubtitle.Text.Replace("Unknown Vendor", "Generic Device");
 
         _nameInput.Text = node.CustomName;
         _deviceNameInput.Text = node.DeviceName;
         _deviceModelInput.Text = node.DeviceModel;
+        _exactModelInput.Text = node.ExactModel;
         _locationInput.Text = node.Location;
         _notesInput.Text = node.Notes;
+
+        _wakeBtn.IsEnabled = !node.IsOnline;
 
         // Load per-device alert prefs
         _connLostToggle.IsChecked = node.AlertOnConnectionLost;
@@ -630,6 +674,7 @@ public class InventoryPage : Border
     {
         if (_currentNode == null) return;
         UpdateStatusDot(_currentNode.IsOnline);
+        _wakeBtn.IsEnabled = !_currentNode.IsOnline;
         _latencyStatText.Text = _currentNode.IsOnline && _currentNode.PingLatencyMs >= 0 ? $"{_currentNode.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{_currentNode.PacketLossPct:F1}";
         _lastScanText.Text = _currentNode.LastSeen != default ? GetTimeAgo(_currentNode.LastSeen) : "—";
@@ -754,7 +799,15 @@ public class InventoryPage : Border
     {
         bool isSelected = node.MacAddress == _selectedMac;
 
-        string iconStr = node.DeviceType switch { "Router" => "⊞", "Phone" or "Mobile" => "📱", "Computer" or "Desktop" => "🖥", "Laptop" => "💻", "IoT" => "⊙", _ => "⊟" };
+        string svgPath = node.DeviceType switch
+        {
+            "Router" or "Router/Network" => ThemeTokens.SvgRouter,
+            "Server" or "NAS" => ThemeTokens.SvgServer,
+            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
+            _ => ThemeTokens.SvgDesktop
+        };
+
+        var icon = ThemeTokens.VectorIcon(svgPath, 18, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
         var iconBox = new Border
         {
@@ -763,13 +816,28 @@ public class InventoryPage : Border
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
-            Child = new TextBlock { Text = iconStr, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Foreground = node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant }
+            Child = icon
         };
 
         var nameText = new TextBlock { Text = node.DisplayName, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new FontFamily("Inter") };
         var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) };
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, ipText } };
         var leftGroup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { iconBox, textCol } };
+
+        // Security Risk Dot
+        if (node.ThreatLevel != ThreatLevel.Safe)
+        {
+            var riskDot = new Border
+            {
+                Width = 6, Height = 6,
+                CornerRadius = new CornerRadius(3),
+                Background = node.ThreatLevel == ThreatLevel.Critical ? ThemeTokens.Error : new SolidColorBrush(Color.Parse("#FFCE50")),
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            ThemeTokens.SetToolTip(riskDot, $"Security Risk: {node.ThreatLevel}");
+            leftGroup.Children.Insert(1, riskDot);
+        }
 
         Border? badge = null;
         if (node.IsOnline) badge = ThemeTokens.StatusBadge("Online", true);
@@ -831,7 +899,7 @@ public class InventoryPage : Border
         _currentNode.Notes = _notesInput.Text ?? "";
         _currentNode.IsRegistered = true;
 
-        _db.UpdateRegistration(_currentNode.MacAddress, _currentNode.CustomName, _currentNode.Notes, _currentNode.Location, _currentNode.DeviceName, _currentNode.DeviceModel, _currentNode.IconPath, _currentNode.IpAddress);
+        _db.UpdateRegistration(_currentNode.MacAddress, _currentNode.CustomName, _currentNode.Notes, _currentNode.Location, _currentNode.DeviceName, _currentNode.DeviceModel, _currentNode.IconPath, _currentNode.IpAddress, _currentNode.VulnerabilityScore, _currentNode.ThreatLevel, _currentNode.ExactModel);
         _detailName.Text = _currentNode.DisplayName;
 
         _saveBtn.Content = "✅  Saved!";
@@ -902,6 +970,29 @@ public class InventoryPage : Border
             _pingBtn.IsEnabled = true; _pingBtn.Content = "◎  Ping Device";
             if (_currentNode != null) { UpdateStatusDot(_currentNode.IsOnline); RefreshDetailView(); DeviceStatusChanged?.Invoke(_currentNode); }
         }
+    }
+
+    private async void OnWakeClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_currentNode == null) return;
+        _wakeBtn.IsEnabled = false;
+        _wakeBtn.Content = "⚡  Sending...";
+        
+        bool success = await WakeOnLan.WakeAsync(_currentNode.MacAddress);
+        
+        if (success)
+        {
+            _wakeBtn.Content = "✅  Magic Packet Sent";
+            _db.Log(LogLevel.Info, "WoL", $"Magic Packet broadcasted to {_currentNode.MacAddress} ({_currentNode.DisplayName})");
+        }
+        else
+        {
+            _wakeBtn.Content = "❌  Failed";
+        }
+
+        await Task.Delay(2000);
+        _wakeBtn.Content = "⚡  Wake Device";
+        _wakeBtn.IsEnabled = !_currentNode.IsOnline;
     }
 
     private async void OnPortScanClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

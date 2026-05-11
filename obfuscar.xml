@@ -1,11 +1,14 @@
 <?xml version='1.0'?>
 <Obfuscator>
-  <Var name="InPath" value=".\bin\Release\net10.0-windows10.0.19041.0\win-x64" />
-  <Var name="OutPath" value=".\bin\Release\net10.0-windows10.0.19041.0\win-x64\Obfuscated" />
+  <Var name="InPath" value=".\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish" />
+  <Var name="OutPath" value=".\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish\Obfuscated" />
   <Var name="KeepPublicApi" value="true" />
   <Var name="HidePrivateApi" value="true" />
   <Var name="RenameProperties" value="true" />
   <Var name="RenameEvents" value="true" />
   <Var name="RenameFields" value="true" />
-  <Module file="$(InPath)\NodeRadar Pro.dll" />
+  <Module file="$(InPath)\NodeRadar Pro.dll">
+    <!-- Exclude entry point from obfuscation so Avalonia can find it -->
+    <Type name="NodeRadar_Pro.Program" skipMethods="true" />
+  </Module>
 </Obfuscator>

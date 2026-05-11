@@ -232,6 +232,7 @@ public class ScannerPage : Border
             FontFamily = new FontFamily("Inter"),
             Margin = new Thickness(0, 0, 24, 0)
         };
+        ThemeTokens.SetToolTip(_fastScanCheck, "Scan only the most common 100 service ports to significantly reduce scan time.");
 
         _osDetectCheck = new CheckBox
         {
@@ -241,6 +242,7 @@ public class ScannerPage : Border
             FontFamily = new FontFamily("Inter"),
             IsChecked = true
         };
+        ThemeTokens.SetToolTip(_osDetectCheck, "Analyze TCP/IP stack fingerprints and service banners to guess the device OS.");
 
         var checkboxRow = new StackPanel
         {
@@ -589,20 +591,20 @@ public class ScannerPage : Border
     private static Border MakeTableHeader()
     {
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(50)));   // Status
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));  // IP
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(160)));  // MAC
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(80)));   // Status (Increased from 50)
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));  // IP
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(170)));  // MAC
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Device Identity
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(180)));  // Open Ports
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(80)));   // Action
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(200)));  // Open Ports
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(90)));   // Action
 
-        string[] headers = { "ST", "IP ADDRESS", "MAC ADDRESS", "DEVICE IDENTITY", "OPEN PORTS", "ACTION" };
-        string[] tooltips = { "Status", "IP Address", "Physical Hardware Address", "Resolved Hardware & OS", "Discovered Services", "Register Device" };
+        string[] headers = { "STATE", "IP ADDRESS", "MAC ADDRESS", "DEVICE IDENTITY", "OPEN PORTS", "ACTION" };
+        string[] tooltips = { "Current connectivity status", "IPv4 Network Address", "Physical Hardware Address", "Resolved Hardware & OS", "Discovered Services", "Register Device" };
         for (int i = 0; i < headers.Length; i++)
         {
             var tb = ThemeTokens.Label(headers[i], 10, ThemeTokens.OnSurfaceVariant);
             tb.LetterSpacing = 1.5;
-            tb.FontWeight = FontWeight.Medium;
+            tb.FontWeight = FontWeight.Bold;
             tb.Margin = new Thickness(16, 0);
             tb.VerticalAlignment = VerticalAlignment.Center;
             ThemeTokens.SetToolTip(tb, tooltips[i]);
@@ -612,8 +614,10 @@ public class ScannerPage : Border
 
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#070E1D"), 0.5),
-            Padding = new Thickness(0, 12),
+            Background = new SolidColorBrush(Color.Parse("#0D1425")),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(0, 14),
             Child = grid
         };
     }
@@ -621,25 +625,26 @@ public class ScannerPage : Border
     private Border MakeTableRow(NetworkNode node, bool alternate)
     {
         var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(50)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(130)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(160)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(180)));
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(80)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(140)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(170)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(200)));
+        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(90)));
 
-        // Status dot
-        var dot = ThemeTokens.StatusDot(node.IsOnline, 10);
-        dot.Margin = new Thickness(24, 0, 0, 0);
-        dot.VerticalAlignment = VerticalAlignment.Center;
+        // Status badge
+        var statusBadge = ThemeTokens.StatusBadge(node.IsOnline ? "Online" : "Offline", node.IsOnline);
+        statusBadge.HorizontalAlignment = HorizontalAlignment.Left;
+        statusBadge.Margin = new Thickness(16, 0, 0, 0);
+        statusBadge.VerticalAlignment = VerticalAlignment.Center;
 
         // IP
-        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
-        ThemeTokens.AddCopyAction(ipText); // Fix: Resolve live IP
+        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        ThemeTokens.AddCopyAction(ipText);
 
         // MAC
-        var macText = new TextBlock { Text = node.MacAddress, FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
-        ThemeTokens.AddCopyAction(macText); // Fix: Resolve live MAC
+        var macText = new TextBlock { Text = node.MacAddress, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        ThemeTokens.AddCopyAction(macText);
 
         // Device identity with icon and OS/Vendor details
         string devIcon = node.DeviceType switch
@@ -651,8 +656,13 @@ public class ScannerPage : Border
             _ => "⊟"
         };
         
-        string identitySubtitle = !string.IsNullOrEmpty(node.OsGuess) ? node.OsGuess : node.Vendor;
-        if (identitySubtitle == "Unknown Vendor") identitySubtitle = "Unknown Device";
+        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
+        string identitySubtitle = node.SubtitleText;
+        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess))
+            identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
+
+        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor")) 
+            identitySubtitle = "Unknown Device";
 
         var devPanel = new StackPanel
         {
@@ -721,14 +731,14 @@ public class ScannerPage : Border
             saveBtn.IsEnabled = false;
         };
 
-        Grid.SetColumn(dot, 0);
+        Grid.SetColumn(statusBadge, 0);
         Grid.SetColumn(ipText, 1);
         Grid.SetColumn(macText, 2);
         Grid.SetColumn(devPanel, 3);
         Grid.SetColumn(portsPanel, 4);
         Grid.SetColumn(saveBtn, 5);
 
-        grid.Children.Add(dot);
+        grid.Children.Add(statusBadge);
         grid.Children.Add(ipText);
         grid.Children.Add(macText);
         grid.Children.Add(devPanel);
@@ -738,6 +748,8 @@ public class ScannerPage : Border
         return new Border
         {
             Background = alternate ? ThemeTokens.SurfaceContainerLowest : Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
+            BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(0, 14),
             Child = grid
         };

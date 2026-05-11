@@ -84,13 +84,16 @@ public class SystemLogsPage : Border
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
         clearBtn.Click += (s, e) => ClearAllFilters();
+        ThemeTokens.SetToolTip(clearBtn, "Clear the search box and level filters to show all system telemetry.");
 
         var searchIcon = new TextBlock { Text = "🔍", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 8, 0) };
         _searchBox = ThemeTokens.Input("Search logs..."); _searchBox.Width = 200; _searchBox.FontSize = 14; _searchBox.Padding = new Thickness(10, 6); _searchBox.Background = Brushes.Transparent;
         _searchBox.TextChanged += (s, e) => RefreshLogs();
+        ThemeTokens.SetToolTip(_searchBox, "Live search through message content, log sources, or device MAC addresses.");
         var searchWrap = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 0), Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { searchIcon, _searchBox } } };
 
         _autoScrollToggle = new CheckBox { Content = "Auto-scroll", Foreground = ThemeTokens.OnSurfaceVariant, FontSize = 13, FontFamily = new FontFamily("Inter"), IsChecked = true, Margin = new Thickness(12, 0, 0, 0) };
+        ThemeTokens.SetToolTip(_autoScrollToggle, "Automatically jump to the newest log entry when a system event occurs.");
 
         _entryCount = new TextBlock { Text = "(0 entries)", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
 

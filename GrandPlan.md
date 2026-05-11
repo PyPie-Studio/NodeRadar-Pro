@@ -41,5 +41,6 @@
 ## 📦 Deployment & Sale
 - [x] **Code Protection:** Apply obfuscation to prevent reverse-engineering of the core scanning logic.
 - [x] **Installer:** 
-  - Choice B: Modern **Velopack** (Implemented for seamless auto-updates).
-- [x] **Production Build:** Optimize for **ReadyToRun** and **Single-File** for fast startup and zero dependencies.
+  - Choice B: **Inno Setup** (Finalized for professional installation to Program Files).
+  - Choice C: **GitHub Releases** (Manual update check integration in Settings).
+- [x] **Production Build:** Optimize for **ReadyToRun** and **Modular Publish** (to support Obfuscar logic protection) for fast startup and hardened security.

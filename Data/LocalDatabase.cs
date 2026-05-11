@@ -58,6 +58,9 @@ public class LocalDatabase : IDisposable
             scannedNode.FirstSeen = existing.FirstSeen;
             scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
             scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
+            scannedNode.ThreatLevel = existing.ThreatLevel;
+            scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+            if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
 
             if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
                 scannedNode.Vendor = existing.Vendor;
@@ -80,6 +83,10 @@ public class LocalDatabase : IDisposable
             if (!string.IsNullOrEmpty(scannedNode.OsGuess))
                 existing.OsGuess = scannedNode.OsGuess;
 
+            existing.ThreatLevel = scannedNode.ThreatLevel;
+            existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
+            if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
+
             collection.Update(existing);
         }
         else
@@ -96,7 +103,7 @@ public class LocalDatabase : IDisposable
 
     public void UpdateRegistration(string macAddress, string customName, string notes,
         string location, string deviceName, string deviceModel, string icon,
-        string? ipAddress = null)
+        string? ipAddress = null, int score = 0, ThreatLevel threat = ThreatLevel.Safe, string exactModel = "")
     {
         var collection = _db.GetCollection<NetworkNode>("devices");
 
@@ -110,6 +117,10 @@ public class LocalDatabase : IDisposable
             existing.DeviceModel = deviceModel;
             existing.IconPath = icon;
             existing.IsRegistered = true;
+            existing.VulnerabilityScore = score;
+            existing.ThreatLevel = threat;
+            if (!string.IsNullOrEmpty(exactModel)) existing.ExactModel = exactModel;
+
             if (!string.IsNullOrEmpty(ipAddress))
                 existing.IpAddress = ipAddress;
             collection.Update(existing);
@@ -127,6 +138,9 @@ public class LocalDatabase : IDisposable
                 IconPath = icon,
                 IpAddress = ipAddress ?? "0.0.0.0",
                 IsRegistered = true,
+                VulnerabilityScore = score,
+                ThreatLevel = threat,
+                ExactModel = exactModel,
                 FirstSeen = DateTime.UtcNow,
                 LastSeen = DateTime.UtcNow
             };

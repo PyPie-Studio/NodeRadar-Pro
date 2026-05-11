@@ -44,6 +44,11 @@ public class NetworkNode
     public bool AlertOnConnectionLost { get; set; } = true;
     public bool AlertOnHighLatency { get; set; } = false;
 
+    // ── Deep Intelligence & Vulnerability ──
+    public int VulnerabilityScore { get; set; } = 0;
+    public ThreatLevel ThreatLevel { get; set; } = ThreatLevel.Safe;
+    public string ExactModel { get; set; } = string.Empty;
+
     // ── Runtime-only fields (not persisted) ──
 
     [BsonIgnore]
@@ -82,7 +87,9 @@ public class NetworkNode
         get
         {
             if (!string.IsNullOrEmpty(CustomName)) return CustomName;
+            if (!string.IsNullOrEmpty(ExactModel)) return ExactModel;
             if (!string.IsNullOrEmpty(DeviceName)) return DeviceName;
+            if (!string.IsNullOrEmpty(DeviceModel)) return DeviceModel;
             if (Hostname != "Unknown Device" && Hostname != "Manual Entry") return Hostname;
             if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor")
                 return $"{Vendor} ({IpAddress})";
@@ -102,11 +109,20 @@ public class NetworkNode
             if (!string.IsNullOrEmpty(DeviceType)) parts = DeviceType;
             else if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor") parts = Vendor;
             
-            if (!string.IsNullOrEmpty(DeviceModel))
+            if (!string.IsNullOrEmpty(ExactModel) && ExactModel != DisplayName)
+                parts = string.IsNullOrEmpty(parts) ? ExactModel : $"{parts} • {ExactModel}";
+            else if (!string.IsNullOrEmpty(DeviceModel))
                 parts = string.IsNullOrEmpty(parts) ? DeviceModel : $"{parts} • {DeviceModel}";
 
             return parts;
         }
     }
 
+}
+
+public enum ThreatLevel
+{
+    Safe,
+    Warning,
+    Critical
 }

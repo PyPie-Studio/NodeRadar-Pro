@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using NodeRadarPro.Core;
 using System;
 using System.Collections.Generic;
@@ -10,8 +11,7 @@ using System.Linq;
 namespace NodeRadarPro.UI;
 
 /// <summary>
-/// Dashboard page — 2-column layout: Radar (left) + Stats/Pings (right).
-/// Matches Main_Form HTML mockup.
+/// Modern adaptive Bento Grid Dashboard with health gauges and glassmorphism.
 /// </summary>
 public class DashboardPage : Border
 {
@@ -21,6 +21,10 @@ public class DashboardPage : Border
     private readonly TextBlock _alertCount;
     private readonly StackPanel _pingsList;
     private readonly List<NetworkNode> _nodes;
+    
+    private readonly Border _healthGauge;
+    private readonly TextBlock _healthStatusText;
+    private readonly TextBlock _healthPercent;
 
     public event Action<NetworkNode>? DeviceSelected;
     public event Action? ViewLogsRequested;
@@ -28,210 +32,130 @@ public class DashboardPage : Border
     public DashboardPage(List<NetworkNode> nodes)
     {
         _nodes = nodes;
-        Background = ThemeTokens.SurfaceContainerLow;
+        Background = ThemeTokens.Surface;
 
-        // ═══════════════════════
-        // LEFT: Radar Area
-        // ═══════════════════════
+        // ── Health Gauge (Circular progress) ──
+        _healthPercent = new TextBlock { Text = "100%", FontSize = 24, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, HorizontalAlignment = HorizontalAlignment.Center };
+        _healthStatusText = new TextBlock { Text = "STABLE", FontSize = 10, FontWeight = FontWeight.Black, LetterSpacing = 1.2, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center };
+        
+        var gaugeContent = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { _healthPercent, _healthStatusText } };
+        _healthGauge = new Border
+        {
+            Width = 100, Height = 100,
+            CornerRadius = new CornerRadius(50),
+            BorderThickness = new Thickness(6),
+            BorderBrush = ThemeTokens.Tertiary,
+            Background = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.02),
+            Child = gaugeContent
+        };
+
+        var healthCard = ThemeTokens.GlassCard(new StackPanel
+        {
+            Spacing = 12,
+            Children =
+            {
+                ThemeTokens.Label("NETWORK HEALTH", 10),
+                _healthGauge
+            }
+        });
+        ThemeTokens.SetToolTip(healthCard, "Calculated system stability based on uptime vs alerts.");
+
+        // ── Radar Card (Large) ──
         _radar = new RadarCanvas();
         _radar.NodeSelected += n => DeviceSelected?.Invoke(n);
         _radar.NodeRightClicked += n => DeviceSelected?.Invoke(n);
 
-        var radarTitle = ThemeTokens.Headline("Live Network Topography", 22);
-        radarTitle.Margin = new Thickness(0, 0, 0, 2);
+        var radarHeader = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) }, Margin = new Thickness(0, 0, 0, 16) };
+        var radarTitle = new StackPanel { Children = { ThemeTokens.Headline("Active Sonar", 22), ThemeTokens.Body("Live topology mapping", 12) } };
+        var legend = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ThemeTokens.StatusBadge("Online", true), ThemeTokens.StatusBadge("Alert", false) } };
+        Grid.SetColumn(radarTitle, 0); Grid.SetColumn(legend, 1);
+        radarHeader.Children.Add(radarTitle); radarHeader.Children.Add(legend);
 
-        var radarSubtitle = ThemeTokens.Body("Real-time node status and latency mapping.", 13);
-
-        // Status legend
-        var activeBadge = ThemeTokens.StatusBadge("Active", true);
-        var criticalBadge = ThemeTokens.StatusBadge("Critical", false);
-        var legend = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top,
-            Children = { activeBadge, criticalBadge }
-        };
-
-        var radarHeader = new Grid();
-        radarHeader.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        radarHeader.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-
-        var headerLeft = new StackPanel { Children = { radarTitle, radarSubtitle } };
-        Grid.SetColumn(headerLeft, 0);
-        Grid.SetColumn(legend, 1);
-        radarHeader.Children.Add(headerLeft);
-        radarHeader.Children.Add(legend);
-
-        var radarPanel = new DockPanel();
+        var radarDock = new DockPanel { Children = { radarHeader, _radar } };
         DockPanel.SetDock(radarHeader, Dock.Top);
-        radarHeader.Margin = new Thickness(0, 0, 0, 12);
-        radarPanel.Children.Add(radarHeader);
-        radarPanel.Children.Add(_radar);
+        var radarCard = ThemeTokens.Card(radarDock, ThemeTokens.SurfaceContainerHigh, 24);
 
-        var radarCard = ThemeTokens.Card(radarPanel, ThemeTokens.SurfaceContainerHigh, 24);
+        // ── Stats ──
+        _onlineCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface };
+        _latencyValue = new TextBlock { Text = "—", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary };
+        _alertCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error };
 
-        // ═══════════════════════
-        // RIGHT: Stats + Pings
-        // ═══════════════════════
+        var devicesCard = MakeBentoStat("DEVICES ONLINE", _onlineCount, "🖥", "Count of active hosts reachable on the subnet.");
+        var latencyCard = MakeBentoStat("AVG. LATENCY", _latencyValue, "⚡", "Geometric mean of network response times.");
+        
+        var alertHeader = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
+        var alertTitle = ThemeTokens.Label("ACTIVE ALERTS", 10, ThemeTokens.Error);
+        var logBtn = ThemeTokens.TertiaryButton("LOGS →");
+        logBtn.FontSize = 11; logBtn.Click += (s, e) => ViewLogsRequested?.Invoke();
+        Grid.SetColumn(alertTitle, 0); Grid.SetColumn(logBtn, 1);
+        alertHeader.Children.Add(alertTitle); alertHeader.Children.Add(logBtn);
+        var alertCard = ThemeTokens.Card(new StackPanel { Children = { alertHeader, _alertCount } }, ThemeTokens.SurfaceContainerHigh, 20);
+        alertCard.BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.15);
 
-        // Stat cards
-        _onlineCount = new TextBlock
-        {
-            Text = "0",
-            FontSize = 32,
-            FontWeight = FontWeight.Bold,
-            Foreground = ThemeTokens.OnSurface,
-            FontFamily = new FontFamily("Inter")
-        };
-
-        _latencyValue = new TextBlock
-        {
-            Text = "—",
-            FontSize = 32,
-            FontWeight = FontWeight.Bold,
-            Foreground = ThemeTokens.Tertiary,
-            FontFamily = new FontFamily("Inter")
-        };
-
-        _alertCount = new TextBlock
-        {
-            Text = "0",
-            FontSize = 32,
-            FontWeight = FontWeight.Bold,
-            Foreground = ThemeTokens.OnSurface,
-            FontFamily = new FontFamily("Inter")
-        };
-
-        var statGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, RowDefinitions = { new RowDefinition(GridLength.Auto), new RowDefinition(GridLength.Auto) } };
-
-        var devicesCard = MakeStatCard("DEVICES ONLINE", _onlineCount, "🖥");
-        var latencyCard = MakeStatCard("AVG. LATENCY", _latencyValue, "⚡");
-
-        var alertContent = new Grid();
-        alertContent.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        alertContent.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-
-        var alertLeft = new StackPanel
-        {
-            Children =
-            {
-                ThemeTokens.Label("⚠ ACTIVE ALERTS", 10, ThemeTokens.Error),
-                _alertCount
-            }
-        };
-        var viewLogsBtn = ThemeTokens.SecondaryButton("View Logs");
-        viewLogsBtn.Width = 90;
-        viewLogsBtn.Height = 32;
-        viewLogsBtn.FontSize = 11;
-        viewLogsBtn.Foreground = ThemeTokens.Tertiary;
-        viewLogsBtn.VerticalAlignment = VerticalAlignment.Center;
-        viewLogsBtn.Click += (s, e) => ViewLogsRequested?.Invoke();
-
-        Grid.SetColumn(alertLeft, 0);
-        Grid.SetColumn(viewLogsBtn, 1);
-        alertContent.Children.Add(alertLeft);
-        alertContent.Children.Add(viewLogsBtn);
-
-        var alertCard = ThemeTokens.Card(alertContent, ThemeTokens.SurfaceContainerHigh);
-        alertCard.BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.2);
-
-        Grid.SetColumn(devicesCard, 0);
-        Grid.SetColumn(latencyCard, 1);
-        Grid.SetRow(alertCard, 1);
-        Grid.SetColumnSpan(alertCard, 2);
-
-        statGrid.Children.Add(devicesCard);
-        statGrid.Children.Add(latencyCard);
-        statGrid.Children.Add(alertCard);
-
-        // Spacer between stat cards
-        devicesCard.Margin = new Thickness(0, 0, 6, 8);
-        latencyCard.Margin = new Thickness(6, 0, 0, 8);
-
-        // Active Pings panel
-        var pingsTitle = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 8,
-            Children =
-            {
-                new TextBlock { Text = "⇌", FontSize = 16, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center },
-                ThemeTokens.Headline("Active Pings", 16)
-            }
-        };
-
-        var pingsHeader = new Border
-        {
-            Padding = new Thickness(16, 12),
-            Background = new SolidColorBrush(Color.Parse("#070E1D"), 0.5),
-            Child = pingsTitle
-        };
-
-        _pingsList = new StackPanel { Spacing = 4, Margin = new Thickness(8) };
-
-        var pingsScroll = new ScrollViewer
-        {
-            Content = _pingsList,
-            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
-        };
-
-        var pingsDock = new DockPanel();
-        DockPanel.SetDock(pingsHeader, Dock.Top);
-        pingsDock.Children.Add(pingsHeader);
-        pingsDock.Children.Add(pingsScroll);
-
-        var pingsCard = ThemeTokens.Card(pingsDock, ThemeTokens.SurfaceContainerHigh, 0);
-
-        // Right column assembly
-        var rightCol = new DockPanel();
-        DockPanel.SetDock(statGrid, Dock.Top);
-        rightCol.Children.Add(statGrid);
-        rightCol.Children.Add(pingsCard);
+        // ── Real-time Pings ──
+        var pingHeader = new Border { Padding = new Thickness(0, 0, 0, 12), BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(0, 0, 0, 1), Child = ThemeTokens.Label("REAL-TIME TRAFFIC", 10) };
+        _pingsList = new StackPanel { Spacing = 2 };
+        var pingsScroll = new ScrollViewer { Content = _pingsList, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
+        var pingsCard = ThemeTokens.Card(new DockPanel { Children = { pingHeader, pingsScroll } }, ThemeTokens.SurfaceContainerHigh, 16);
+        DockPanel.SetDock(pingHeader, Dock.Top);
 
         // ═══════════════════════
-        // ROOT GRID
+        // BENTO GRID ASSEMBLY
         // ═══════════════════════
-        var rootGrid = new Grid
-        {
-            Margin = new Thickness(24),
-            ColumnDefinitions =
-            {
-                new ColumnDefinition(new GridLength(2, GridUnitType.Star)),
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star))
-            }
-        };
+        var bentoGrid = new Grid();
+        bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 0
+        bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.2, GridUnitType.Star))); // Col 1
+        bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 2
+        
+        bentoGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); // Row 0
+        bentoGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star))); // Row 1
 
-        Grid.SetColumn(radarCard, 0);
-        Grid.SetColumn(rightCol, 1);
-        radarCard.Margin = new Thickness(0, 0, 12, 0);
-        rightCol.Margin = new Thickness(12, 0, 0, 0);
+        // Row 0
+        Grid.SetColumn(healthCard, 0); bentoGrid.Children.Add(healthCard);
+        Grid.SetColumn(devicesCard, 1); bentoGrid.Children.Add(devicesCard);
+        Grid.SetColumn(latencyCard, 2); bentoGrid.Children.Add(latencyCard);
+        
+        healthCard.Margin = new Thickness(0, 0, 10, 10);
+        devicesCard.Margin = new Thickness(10, 0, 10, 10);
+        latencyCard.Margin = new Thickness(10, 0, 0, 10);
 
-        rootGrid.Children.Add(radarCard);
-        rootGrid.Children.Add(rightCol);
+        // Row 1
+        Grid.SetRow(radarCard, 1); Grid.SetColumnSpan(radarCard, 2);
+        bentoGrid.Children.Add(radarCard);
+        radarCard.Margin = new Thickness(0, 10, 10, 0);
 
-        Child = rootGrid;
+        var rightColumn = new StackPanel { Spacing = 20, Children = { alertCard, pingsCard } };
+        Grid.SetRow(rightColumn, 1); Grid.SetColumn(rightColumn, 2);
+        bentoGrid.Children.Add(rightColumn);
+        rightColumn.Margin = new Thickness(10, 10, 0, 0);
+
+        Child = new Border { Margin = new Thickness(32), Child = bentoGrid };
     }
 
     public void RefreshData()
     {
+        int totalTracked = _nodes.Count;
         int online = _nodes.Count(n => n.IsOnline);
         _onlineCount.Text = online.ToString();
 
         var onlineNodes = _nodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
+        long avg = 0;
         if (onlineNodes.Count > 0)
         {
-            long avg = (long)onlineNodes.Average(n => n.PingLatencyMs);
+            avg = (long)onlineNodes.Average(n => n.PingLatencyMs);
             _latencyValue.Text = $"{avg}ms";
         }
-        else
-        {
-            _latencyValue.Text = "—";
-        }
+        else _latencyValue.Text = "—";
 
         int alerts = _nodes.Count(n => !n.IsOnline && n.IsRegistered);
         _alertCount.Text = alerts.ToString();
+
+        // Update Health Gauge
+        double health = totalTracked > 0 ? (1.0 - ((double)alerts / totalTracked)) * 100 : 100;
+        _healthPercent.Text = $"{(int)health}%";
+        if (health > 90) { _healthStatusText.Text = "STABLE"; _healthStatusText.Foreground = ThemeTokens.Tertiary; _healthGauge.BorderBrush = ThemeTokens.Tertiary; }
+        else if (health > 70) { _healthStatusText.Text = "WARNING"; _healthStatusText.Foreground = ThemeTokens.HealthWarning; _healthGauge.BorderBrush = ThemeTokens.HealthWarning; }
+        else { _healthStatusText.Text = "CRITICAL"; _healthStatusText.Foreground = ThemeTokens.Error; _healthGauge.BorderBrush = ThemeTokens.Error; }
 
         _radar.UpdateNodes(_nodes);
         RefreshPingsList();
@@ -240,133 +164,35 @@ public class DashboardPage : Border
     private void RefreshPingsList()
     {
         _pingsList.Children.Clear();
-
-        var recentNodes = _nodes
-            .Where(n => n.IsOnline || n.IsRegistered)
-            .OrderByDescending(n => n.IsOnline)
-            .ThenByDescending(n => n.LastSeen)
-            .Take(20)
-            .ToList();
-
-        if (recentNodes.Count == 0)
-        {
-            _pingsList.Children.Add(ThemeTokens.Body("No active pings yet. Run a scan to discover devices.", 12));
-            return;
-        }
-
-        foreach (var node in recentNodes)
-        {
-            _pingsList.Children.Add(MakePingRow(node));
-        }
+        var recent = _nodes.Where(n => n.IsOnline || n.IsRegistered).OrderByDescending(n => n.IsOnline).ThenByDescending(n => n.LastSeen).Take(10).ToList();
+        foreach (var node in recent) _pingsList.Children.Add(MakePingRow(node));
     }
 
     private Border MakePingRow(NetworkNode node)
     {
-        var statusDot = ThemeTokens.StatusDot(node.IsOnline, 8);
-        statusDot.VerticalAlignment = VerticalAlignment.Center;
+        var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
+        var dot = ThemeTokens.StatusDot(node.IsOnline, 6); dot.VerticalAlignment = VerticalAlignment.Center; dot.Margin = new Thickness(0, 0, 10, 0);
+        var name = new TextBlock { Text = node.IpAddress, FontSize = 12, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
+        var lat = new TextBlock { Text = node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}ms" : (node.IsOnline ? "ARP" : "—"), FontSize = 11, Foreground = node.PingLatencyMs > 100 ? ThemeTokens.Error : ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), HorizontalAlignment = HorizontalAlignment.Right };
 
-        var nameText = new TextBlock
-        {
-            Text = node.IpAddress,
-            FontSize = 13,
-            Foreground = ThemeTokens.OnSurface,
-            FontFamily = new FontFamily("Inter"),
-            FontWeight = FontWeight.Medium
-        };
+        Grid.SetColumn(dot, 0); Grid.SetColumn(name, 1); Grid.SetColumn(lat, 2);
+        grid.Children.Add(dot); grid.Children.Add(name); grid.Children.Add(lat);
 
-        var subText = new TextBlock
-        {
-            Text = node.DisplayName != node.IpAddress ? node.DisplayName : "",
-            FontSize = 11,
-            Foreground = ThemeTokens.OnSurfaceVariant,
-            FontFamily = new FontFamily("Inter")
-        };
-
-        var leftInfo = new StackPanel { Spacing = 1, Children = { nameText, subText } };
-        var leftGroup = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 10,
-            Children = { statusDot, leftInfo }
-        };
-
-        string latencyStr = node.IsOnline && node.PingLatencyMs >= 0
-            ? $"{node.PingLatencyMs}ms"
-            : (node.IsOnline ? "ARP" : "—");
-        var latencyColor = node.PingLatencyMs > 80 ? SolidColorBrush.Parse("#EAB308") : ThemeTokens.Tertiary;
-
-        var latencyText = new TextBlock
-        {
-            Text = latencyStr,
-            FontSize = 13,
-            FontWeight = FontWeight.Bold,
-            Foreground = node.IsOnline ? (IBrush)latencyColor : ThemeTokens.Error,
-            FontFamily = new FontFamily("Inter"),
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-
-        var timeAgo = new TextBlock
-        {
-            Text = GetTimeAgo(node.LastSeen),
-            FontSize = 9,
-            Foreground = ThemeTokens.OnSurfaceVariant,
-            FontFamily = new FontFamily("Inter"),
-            HorizontalAlignment = HorizontalAlignment.Right
-        };
-
-        var rightInfo = new StackPanel { Spacing = 1, HorizontalAlignment = HorizontalAlignment.Right, Children = { latencyText, timeAgo } };
-
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(leftGroup, 0);
-        Grid.SetColumn(rightInfo, 1);
-        grid.Children.Add(leftGroup);
-        grid.Children.Add(rightInfo);
-
-        var row = new Border
-        {
-            Padding = new Thickness(12, 10),
-            CornerRadius = new CornerRadius(8),
-            Background = ThemeTokens.SurfaceContainerLowest,
-            Child = grid,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
-        };
-
-        row.PointerEntered += (s, e) => row.Background = ThemeTokens.SurfaceVariant;
-        row.PointerExited += (s, e) => row.Background = ThemeTokens.SurfaceContainerLowest;
+        var row = new Border { Padding = new Thickness(8, 6), CornerRadius = new CornerRadius(6), Background = ThemeTokens.SurfaceContainerLowest, Child = grid, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
         row.PointerPressed += (s, e) => DeviceSelected?.Invoke(node);
-
         return row;
     }
 
-    private static Border MakeStatCard(string label, TextBlock valueBlock, string icon)
+    private static Border MakeBentoStat(string label, TextBlock value, string icon, string tip)
     {
-        var iconText = new TextBlock
-        {
-            Text = icon,
-            FontSize = 28,
-            Opacity = 0.1,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Top
-        };
+        var header = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
+        var lbl = ThemeTokens.Label(label, 10);
+        var ico = new TextBlock { Text = icon, FontSize = 14, Opacity = 0.3, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(lbl, 0); Grid.SetColumn(ico, 1);
+        header.Children.Add(lbl); header.Children.Add(ico);
 
-        var labelText = ThemeTokens.Label(label, 10);
-        labelText.LetterSpacing = 1.2;
-        labelText.Margin = new Thickness(0, 0, 0, 4);
-
-        var content = new StackPanel { Children = { labelText, valueBlock } };
-        var panel = new Grid { Children = { content, iconText } };
-
-        return ThemeTokens.Card(panel, ThemeTokens.SurfaceContainerHigh, 16);
-    }
-
-    private static string GetTimeAgo(DateTime utcTime)
-    {
-        var diff = DateTime.UtcNow - utcTime;
-        if (diff.TotalSeconds < 10) return "Just now";
-        if (diff.TotalSeconds < 60) return $"{(int)diff.TotalSeconds}s ago";
-        if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes}m ago";
-        return $"{(int)diff.TotalHours}h ago";
+        var card = ThemeTokens.Card(new StackPanel { Spacing = 4, Children = { header, value } }, ThemeTokens.SurfaceContainerHigh, 20);
+        ThemeTokens.SetToolTip(card, tip);
+        return card;
     }
 }

@@ -26,9 +26,31 @@ public class SubnetScanner
     public bool FastScanMode { get; set; } = false;
     public bool EnableOsDetection { get; set; } = true;
     public string PreferredInterfaceName { get; set; } = ""; // S3: Interface preference
+    private string _localBindingIp = "";
+
+    private void ResolveBindingIp()
+    {
+        _localBindingIp = "";
+        if (string.IsNullOrEmpty(PreferredInterfaceName)) return;
+
+        try
+        {
+            var ni = NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
+            
+            if (ni != null)
+            {
+                var addr = ni.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+                if (addr != null) _localBindingIp = addr.Address.ToString();
+            }
+        }
+        catch { }
+    }
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
+        ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
@@ -97,6 +119,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
+        ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
@@ -221,7 +244,7 @@ public class SubnetScanner
 
         try
         {
-            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
             if (mac != "Unknown") isReachable = true;
         }
         catch { }
@@ -284,6 +307,25 @@ public class SubnetScanner
             catch { }
         }
 
+        // ── Deep Intelligence: Protocol Discovery (mDNS / SSDP) ──
+        if (!token.IsCancellationRequested)
+        {
+            try
+            {
+                string mdnsModel = await DeviceFingerprinter.DiscoverExactModelViaMDnsAsync(node.IpAddress);
+                if (!string.IsNullOrEmpty(mdnsModel))
+                    node.ExactModel = mdnsModel;
+
+                string ssdpModel = await DeviceFingerprinter.DiscoverExactModelViaSSDPAsync(node.IpAddress);
+                if (!string.IsNullOrEmpty(ssdpModel))
+                {
+                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = ssdpModel;
+                    else node.ExactModel = $"{node.ExactModel} ({ssdpModel})";
+                }
+            }
+            catch { }
+        }
+
         // Device type guessing
         node.DeviceType = Data.VendorLookup.GuessDeviceType(node.Vendor, node.Hostname);
 
@@ -312,6 +354,16 @@ public class SubnetScanner
             }
             catch { }
         }
+
+        // ── Deep Intelligence: Vulnerability Scoring ──
+        VulnerabilityEngine.UpdateThreatLevel(node);
+
+        // ── UI Synchronization: Map discovery data to registration fields ──
+        if (string.IsNullOrEmpty(node.DeviceName) && node.Hostname != "Unknown Device")
+            node.DeviceName = node.Hostname;
+        
+        if (string.IsNullOrEmpty(node.DeviceModel) && !string.IsNullOrEmpty(node.ExactModel))
+            node.DeviceModel = node.ExactModel;
     }
 
     private static NetworkNode BuildNode(string ip, string mac) => new()

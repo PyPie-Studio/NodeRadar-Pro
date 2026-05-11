@@ -46,8 +46,11 @@ public class AlertsPage : Border
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 0, 0, 20) };
 
         var activeCard = MakeStatCard("⚠", "Active Alerts", _activeCount, ThemeTokens.Error);
+        ThemeTokens.SetToolTip(activeCard, "Outstanding network anomalies and security events requiring intervention.");
         var resolvedCard = MakeStatCard("✅", "Resolved", _resolvedCount, ThemeTokens.Tertiary);
+        ThemeTokens.SetToolTip(resolvedCard, "Total count of alerts that have been acknowledged and cleared.");
         var totalCard = MakeStatCard("📊", "Total Events", _totalCount, ThemeTokens.Primary);
+        ThemeTokens.SetToolTip(totalCard, "Cumulative history of all security and connectivity triggers in the current session.");
 
         Grid.SetColumn(activeCard, 0); Grid.SetColumn(resolvedCard, 1); Grid.SetColumn(totalCard, 2);
         activeCard.Margin = new Thickness(0, 0, 8, 0); resolvedCard.Margin = new Thickness(4, 0, 4, 0); totalCard.Margin = new Thickness(8, 0, 0, 0);
@@ -57,7 +60,7 @@ public class AlertsPage : Border
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 16) };
 
         var resolveAllBtn = ThemeTokens.SecondaryButton("✓  Resolve All");
-        ThemeTokens.SetToolTip(resolveAllBtn, "Clear all active alerts and mark them as resolved.");
+        ThemeTokens.SetToolTip(resolveAllBtn, "Mass-resolve all pending alerts and clear the active threat list.");
         resolveAllBtn.Width = 160; resolveAllBtn.HorizontalAlignment = HorizontalAlignment.Right;
         resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); AlertsChanged?.Invoke(); };
 
@@ -73,6 +76,7 @@ public class AlertsPage : Border
 
         var listCard = ThemeTokens.Card(new DockPanel { Children = { filterGrid, listScroll } }, ThemeTokens.SurfaceContainerLow, 20);
         DockPanel.SetDock(filterGrid, Dock.Top);
+        ThemeTokens.SetToolTip(listCard, "A chronological list of network events and security findings.");
 
         // Root
         var root = new DockPanel { Margin = new Thickness(32, 28) };

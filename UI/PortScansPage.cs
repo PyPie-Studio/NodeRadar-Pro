@@ -48,6 +48,7 @@ public class PortScansPage : Border
             Height = 46, Padding = new Thickness(28, 0), CornerRadius = new CornerRadius(8), HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
         _scanBtn.Click += OnStartScan;
+        ThemeTokens.SetToolTip(_scanBtn, "Begin an exhaustive port enumeration on the target IP.");
 
         _stopBtn = new Button
         {
@@ -55,6 +56,7 @@ public class PortScansPage : Border
             Background = Brushes.Transparent, Height = 46, Padding = new Thickness(24, 0), CornerRadius = new CornerRadius(8), BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3), BorderThickness = new Thickness(1), HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center
         };
         _stopBtn.Click += OnStopScan;
+        ThemeTokens.SetToolTip(_stopBtn, "Immediately terminate the active port sweep.");
 
         var btnRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Children = { _scanBtn, _stopBtn } };
 
@@ -73,14 +75,17 @@ public class PortScansPage : Border
         var ipLabel = ThemeTokens.Label("TARGET IP ADDRESS", 12); ipLabel.LetterSpacing = 1.5; ipLabel.Margin = new Thickness(0, 0, 0, 8);
         _targetIp = ThemeTokens.Input("192.168.1.1");
         _targetIp.Text = $"{SubnetScanner.GetLocalBaseIp()}.1";
+        ThemeTokens.SetToolTip(_targetIp, "The IPv4 address of the host you wish to probe.");
 
         var portStartLabel = ThemeTokens.Label("START PORT", 12); portStartLabel.LetterSpacing = 1.5; portStartLabel.Margin = new Thickness(0, 0, 0, 8);
         _startPort = ThemeTokens.Input("1"); _startPort.Text = "1";
+        ThemeTokens.SetToolTip(_startPort, "The lower bound of the TCP port range (1-65535).");
 
         var portEndLabel = ThemeTokens.Label("END PORT", 12); portEndLabel.LetterSpacing = 1.5; portEndLabel.Margin = new Thickness(0, 0, 0, 8);
         _endPort = ThemeTokens.Input("1024"); _endPort.Text = "1024";
+        ThemeTokens.SetToolTip(_endPort, "The upper bound of the TCP port range (1-65535).");
 
-        var portGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) } };
+        var portGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Auto)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) } };
         var startCol = new StackPanel { Children = { portStartLabel, _startPort } };
         var endCol = new StackPanel { Children = { portEndLabel, _endPort } };
         var dash = new TextBlock { Text = "—", FontSize = 22, Foreground = ThemeTokens.Outline, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(12, 24, 12, 0) };
@@ -90,10 +95,10 @@ public class PortScansPage : Border
         // Quick profile buttons
         var profileLabel = ThemeTokens.Label("QUICK PROFILES", 12); profileLabel.LetterSpacing = 1.5; profileLabel.Margin = new Thickness(0, 16, 0, 8);
         var profileRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-        profileRow.Children.Add(MakeProfileChip("Common", "1", "1024"));
-        profileRow.Children.Add(MakeProfileChip("Web", "80", "8443"));
-        profileRow.Children.Add(MakeProfileChip("Database", "1433", "5432"));
-        profileRow.Children.Add(MakeProfileChip("Full", "1", "65535"));
+        profileRow.Children.Add(MakeProfileChip("Common", "1", "1024", "Scan standard service ports (1-1024)."));
+        profileRow.Children.Add(MakeProfileChip("Web", "80", "8443", "Scan common web and application server ports."));
+        profileRow.Children.Add(MakeProfileChip("Database", "1433", "5432", "Scan SQL, Redis, and Mongo database ports."));
+        profileRow.Children.Add(MakeProfileChip("Full", "1", "65535", "Perform an exhaustive scan of all 65,535 possible TCP ports."));
 
         var cfgContent = new StackPanel { Children = { cfgTitle, ipLabel, _targetIp, new Panel { Height = 16 }, portGrid, profileLabel, profileRow } };
         var cfgCard = ThemeTokens.Card(cfgContent, ThemeTokens.SurfaceContainerLow, 28);
@@ -232,7 +237,7 @@ public class PortScansPage : Border
         _progressPct.Text = "0%";
     }
 
-    private Border MakeProfileChip(string name, string start, string end)
+    private Border MakeProfileChip(string name, string start, string end, string tooltip)
     {
         var chip = new Border
         {
@@ -242,6 +247,7 @@ public class PortScansPage : Border
             Child = new TextBlock { Text = name, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium }
         };
         chip.PointerPressed += (s, e) => { _startPort.Text = start; _endPort.Text = end; };
+        ThemeTokens.SetToolTip(chip, tooltip);
         return chip;
     }
 
@@ -269,10 +275,17 @@ public class PortScansPage : Border
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(120)));
 
-        var portTb = new TextBlock { Text = port.ToString(), FontSize = 15, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        bool isRisky = port == 21 || port == 23 || port == 445 || port == 1433 || port == 3389;
+
+        var portTb = new TextBlock { Text = port.ToString(), FontSize = 15, Foreground = isRisky ? ThemeTokens.Error : ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         var svcTb = new TextBlock { Text = PortScanner.GetServiceName(port), FontSize = 15, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         var protoTb = new TextBlock { Text = "TCP", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
-        var stateBadge = new Border { Background = new SolidColorBrush(Color.Parse("#005362"), 0.3), CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 4), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0), Child = new TextBlock { Text = "Open", FontSize = 13, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
+        
+        var badgeBg = isRisky ? ThemeTokens.ErrorContainer : new SolidColorBrush(Color.Parse("#005362"), 0.3);
+        var badgeFg = isRisky ? ThemeTokens.Error : ThemeTokens.Tertiary;
+        var stateBadge = new Border { Background = badgeBg, CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 4), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0), Child = new TextBlock { Text = isRisky ? "Risk" : "Open", FontSize = 13, Foreground = badgeFg, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
+
+        if (isRisky) ThemeTokens.SetToolTip(stateBadge, "This port is associated with unencrypted or highly exploitable services.");
 
         Grid.SetColumn(portTb, 0); Grid.SetColumn(svcTb, 1); Grid.SetColumn(protoTb, 2); Grid.SetColumn(stateBadge, 3);
         grid.Children.Add(portTb); grid.Children.Add(svcTb); grid.Children.Add(protoTb); grid.Children.Add(stateBadge);

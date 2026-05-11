@@ -22,11 +22,11 @@ public static class ArpResolver
     /// <summary>
     /// Attempts to resolve the MAC address for a given IP address.
     /// </summary>
-    public static string ResolveMacAddress(string ipAddress)
+    public static string ResolveMacAddress(string ipAddress, string sourceIp = "")
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            return ResolveWindows(ipAddress);
+            return ResolveWindows(ipAddress, sourceIp);
         }
         
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -109,17 +109,25 @@ public static class ArpResolver
 
     // ── Windows: Single IP resolution via SendARP ──
 
-    private static string ResolveWindows(string ipAddress)
+    private static string ResolveWindows(string ipAddress, string sourceIp = "")
     {
         try
         {
             IPAddress parsedIp = IPAddress.Parse(ipAddress);
+            int srcIpInt = 0;
+            if (!string.IsNullOrEmpty(sourceIp) && IPAddress.TryParse(sourceIp, out var sIp))
+            {
+#pragma warning disable CS0618
+                srcIpInt = (int)sIp.Address;
+#pragma warning restore CS0618
+            }
+
             byte[] macAddr = new byte[6];
             uint macAddrLen = (uint)macAddr.Length;
             
             // Note: BitConverter is used for legacy compat. IPv4 only for ARP.
 #pragma warning disable CS0618 // Type or member is obsolete
-            int result = SendARP((int)parsedIp.Address, 0, macAddr, ref macAddrLen);
+            int result = SendARP((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen);
 #pragma warning restore CS0618 
 
             if (result != 0) return "Unknown";
