@@ -45,6 +45,7 @@ public static class DeviceFingerprinter
     /// </summary>
     public static async Task<string> DiscoverExactModelViaMDnsAsync(string ip)
     {
+        using var cts = new CancellationTokenSource(1500);
         try
         {
             // Note: In a real world production app, we would use a full mDNS library.
@@ -72,18 +73,16 @@ public static class DeviceFingerprinter
             var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
             await udp.SendAsync(query, query.Length, target);
 
-            var receiveTask = udp.ReceiveAsync();
-            if (await Task.WhenAny(receiveTask, Task.Delay(1500)) == receiveTask)
-            {
-                var result = await receiveTask;
-                // Simplified parsing: Look for readable strings in the DNS packet
-                string data = Encoding.UTF8.GetString(result.Buffer);
-                if (data.Contains("Apple") || data.Contains("TV")) return "Apple TV / AirPlay";
-                if (data.Contains("Chromecast")) return "Google Chromecast";
-                if (data.Contains("Printer") || data.Contains("Canon") || data.Contains("HP")) return "Network Printer";
-            }
+            var result = await udp.ReceiveAsync(cts.Token);
+            // Simplified parsing: Look for readable strings in the DNS packet
+            string data = Encoding.UTF8.GetString(result.Buffer);
+            if (data.Contains("Apple") || data.Contains("TV")) return "Apple TV / AirPlay";
+            if (data.Contains("Chromecast")) return "Google Chromecast";
+            if (data.Contains("Printer") || data.Contains("Canon") || data.Contains("HP")) return "Network Printer";
         }
-        catch { }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+
         return string.Empty;
     }
 
@@ -92,6 +91,7 @@ public static class DeviceFingerprinter
     /// </summary>
     public static async Task<string> DiscoverExactModelViaSSDPAsync(string ip)
     {
+        using var cts = new CancellationTokenSource(1500);
         try
         {
             using var udp = new UdpClient();
@@ -108,22 +108,20 @@ public static class DeviceFingerprinter
             var target = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
             await udp.SendAsync(query, query.Length, target);
 
-            var receiveTask = udp.ReceiveAsync();
-            if (await Task.WhenAny(receiveTask, Task.Delay(1500)) == receiveTask)
+            var result = await udp.ReceiveAsync(cts.Token);
+            string data = Encoding.UTF8.GetString(result.Buffer);
+            
+            // Extract SERVER or friendlyName from SSDP response
+            if (data.Contains("SERVER:"))
             {
-                var result = await receiveTask;
-                string data = Encoding.UTF8.GetString(result.Buffer);
-                
-                // Extract SERVER or friendlyName from SSDP response
-                if (data.Contains("SERVER:"))
-                {
-                    var lines = data.Split('\n');
-                    var serverLine = lines.FirstOrDefault(l => l.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase));
-                    if (serverLine != null) return serverLine.Substring(7).Trim();
-                }
+                var lines = data.Split('\n');
+                var serverLine = lines.FirstOrDefault(l => l.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase));
+                if (serverLine != null) return serverLine.Substring(7).Trim();
             }
         }
-        catch { }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+
         return string.Empty;
     }
 }
