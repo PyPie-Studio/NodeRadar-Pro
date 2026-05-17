@@ -178,6 +178,20 @@ public class DarkPurpleTheme
 
         AppSettings settings = null!;
         var activeNodesMap = new ConcurrentDictionary<string, NetworkNode>();
+
+        // Load registered devices from database (Issue: Inventory was empty on restart)
+        try
+        {
+            var registered = db.GetRegisteredDevices();
+            foreach (var node in registered)
+            {
+                node.IsOnline = false; // Initially offline until monitor probes them
+                activeNodesMap.TryAdd(node.MacAddress, node);
+                monitor.AddDevice(node);
+            }
+        }
+        catch { }
+
         var cts = new CancellationTokenSource();
 
         // Log startup
@@ -373,9 +387,24 @@ public class DarkPurpleTheme
         // ── Scanner device save → register device (I9) ──
         scannerPage.DeviceSaved += (node) =>
         {
+            // Fix: Persist to database immediately so it survives app restart
+            db.UpdateRegistration(
+                node.MacAddress, 
+                node.CustomName, 
+                node.Notes, 
+                node.Location, 
+                node.DeviceName, 
+                node.DeviceModel, 
+                node.IconPath, 
+                node.IpAddress, 
+                node.VulnerabilityScore, 
+                node.ThreatLevel, 
+                node.ExactModel
+            );
+
             monitor.AddDevice(node);
             activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
-            try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' saved from scan results", node.MacAddress); } catch { }
+            try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
             SyncGlobalStats();
         };
 
@@ -435,14 +464,12 @@ public class DarkPurpleTheme
         };
 
         // ═══════════════════════════════════════════
-        // ██  STARTUP — Load registered devices
+        // ██  STARTUP
         // ═══════════════════════════════════════════
         window.Opened += async (s, e) =>
         {
             // Background data load
             settings = await Task.Run(() => db.LoadSettings());
-            var savedDevices = await Task.Run(() => db.GetRegisteredDevices());
-            var alertCount = await Task.Run(() => db.GetUnresolvedAlertCount());
 
             // Task 2: System Integrity Shield (Verify Binaries)
             _ = Task.Run(() => {
@@ -482,28 +509,22 @@ public class DarkPurpleTheme
             // Apply settings to services (Non-UI)
             ApplySettings(settings, monitor, scanner);
 
-            // Process devices
-            foreach (var device in savedDevices)
-            {
-                device.IsOnline = false;
-                activeNodesMap.TryAdd(device.MacAddress, device);
-            }
-
             // UI Status Updates
             Dispatcher.UIThread.Post(() =>
             {
                 int online = activeNodesMap.Values.Count(n => n.IsOnline);
-                topNav.UpdateStatus(online, -1, alertCount);
+                int alertCountActual = 0;
+                try { alertCountActual = db.GetUnresolvedAlertCount(); } catch { }
+
+                topNav.UpdateStatus(online, -1, alertCountActual);
                 dashboardPage.RefreshData();
+                inventoryPage.RefreshData();
                 SyncGlobalStats();
             });
 
             // Start services
-            int activeCount = activeNodesMap.Count;
-
-            if (activeCount > 0)
+            if (activeNodesMap.Count > 0)
             {
-                monitor.UpdateTrackedDevices(activeNodesMap.Values.ToList());
                 _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token));
             }
 
