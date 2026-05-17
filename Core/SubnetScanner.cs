@@ -308,7 +308,16 @@ public class SubnetScanner
             PingLatencyMs = latency
         };
 
-        await ResolveNodeMetadataAsync(node, token);
+        // Fix: Use a per-node resolution timeout (5s) to prevent hangs at 82%
+        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        resolveCts.CancelAfter(5000);
+
+        try
+        {
+            await ResolveNodeMetadataAsync(node, resolveCts.Token);
+        }
+        catch (OperationCanceledException) { }
+        catch { }
 
         return node;
     }

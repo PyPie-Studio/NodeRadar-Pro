@@ -52,28 +52,30 @@ public static class DeviceFingerprinter
                 // HTTP Banner
                 string req = $"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n";
                 byte[] reqBytes = Encoding.ASCII.GetBytes(req);
-                await stream.WriteAsync(reqBytes, 0, reqBytes.Length, token);
+                await stream.WriteAsync(reqBytes, 0, reqBytes.Length, cts.Token);
                 
                 byte[] buffer = new byte[2048];
-                int read = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                int read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
                 string response = Encoding.UTF8.GetString(buffer, 0, read);
                 
                 var serverLine = response.Split('\n').FirstOrDefault(l => l.StartsWith("Server:", StringComparison.OrdinalIgnoreCase));
                 string banner = serverLine?.Replace("Server:", "").Trim() ?? string.Empty;
                 
-                // Scrub non-printable characters (Huawei fix)
-                return new string(banner.Where(c => c >= 32 && c < 127).ToArray());
+                // Truncate and scrub (Huawei fix)
+                banner = new string(banner.Where(c => c >= 32 && c < 127).Take(100).ToArray());
+                return banner;
             }
             else
             {
                 // TCP Greeting (SSH, FTP, etc.)
                 byte[] buffer = new byte[512];
-                int read = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                int read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
                 if (read > 0)
                 {
                     string greeting = Encoding.UTF8.GetString(buffer, 0, read).Trim();
-                    // Clean up common control characters aggressively
-                    return new string(greeting.Where(c => c >= 32 && c < 127).ToArray());
+                    // Truncate and scrub aggressively
+                    greeting = new string(greeting.Where(c => c >= 32 && c < 127).Take(100).ToArray());
+                    return greeting;
                 }
             }
         }
