@@ -44,33 +44,19 @@ public class DarkPurpleTheme
     {
         try
         {
-            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
-            
-            // Check GitHub releases API for latest version
-            var response = await http.GetStringAsync("https://api.github.com/repos/pypiestudio/noderadar-pro/releases/latest");
-            
-            // Simple JSON parse for tag_name
-            var tagIdx = response.IndexOf("\"tag_name\"");
-            if (tagIdx > 0)
+            var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
+            if (hasUpdate)
             {
-                var valStart = response.IndexOf('"', tagIdx + 11) + 1;
-                var valEnd = response.IndexOf('"', valStart);
-                var latestVersion = response[valStart..valEnd].TrimStart('v');
-
-                if (latestVersion != ThemeTokens.AppVersion && !string.IsNullOrEmpty(latestVersion))
+                await Dispatcher.UIThread.InvokeAsync(() => 
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() => 
-                    {
-                        ShowUpdatePrompt(mainWindow);
-                    });
-                }
+                    ShowUpdatePrompt(mainWindow, version, downloadUrl);
+                });
             }
         }
         catch { }
     }
 
-    private static void ShowUpdatePrompt(Window mainWindow)
+    private static void ShowUpdatePrompt(Window mainWindow, string version, string downloadUrl)
     {
         if (mainWindow.Content is not Grid rootGrid) return;
         
@@ -83,16 +69,33 @@ public class DarkPurpleTheme
         var btnLater = ThemeTokens.SecondaryButton("Later");
         btnLater.Click += (s, e) => rootGrid.Children.Remove(overlay);
 
-        var btnUpdate = ThemeTokens.PrimaryButton("Update Now");
-        btnUpdate.Click += (s, e) => {
+        var progressText = ThemeTokens.Body("");
+        progressText.IsVisible = false;
+        progressText.HorizontalAlignment = HorizontalAlignment.Center;
+        progressText.Margin = new Thickness(0, 5);
+
+        var btnUpdate = ThemeTokens.PrimaryButton("Download & Install");
+        btnUpdate.Click += async (s, e) => {
+            btnUpdate.IsEnabled = false;
+            btnLater.IsEnabled = false;
+            progressText.IsVisible = true;
+            progressText.Text = "Starting download...";
+
             try {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "https://github.com/PyPie-Studio/NodeRadar-Pro/releases",
-                    UseShellExecute = true
+                await Task.Run(async () => {
+                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress => {
+                        Dispatcher.UIThread.Post(() => {
+                            progressText.Text = $"Downloading: {progress:F0}%";
+                        });
+                    });
                 });
-            } catch { }
-            rootGrid.Children.Remove(overlay);
+            } catch (Exception ex) {
+                Dispatcher.UIThread.Post(() => {
+                    progressText.Text = $"Error: {ex.Message}";
+                    btnUpdate.IsEnabled = true;
+                    btnLater.IsEnabled = true;
+                });
+            }
         };
 
         var prompt = ThemeTokens.GlassCard(new StackPanel
@@ -102,7 +105,8 @@ public class DarkPurpleTheme
             Children = 
             {
                 ThemeTokens.Headline("Update Available", 20),
-                ThemeTokens.Body("A new version of NodeRadar Pro is available on GitHub. Would you like to update now?"),
+                ThemeTokens.Body($"A new version ({version}) of NodeRadar Pro is available. Would you like to download and install it now?"),
+                progressText,
                 new StackPanel
                 {
                     Orientation = Orientation.Horizontal,
