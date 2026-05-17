@@ -30,7 +30,9 @@ public static class DeviceClassifier
         // ── 2. Protocol Signals (mDNS/SSDP) ──
         if (exact.Contains("apple") || exact.Contains("airplay") || exact.Contains("homekit")) iosScore += 60;
         if (exact.Contains("chromecast") || exact.Contains("google cast")) iotScore += 60;
-        if (exact.Contains("spotify")) iotScore += 40;
+        if (exact.Contains("spotify") || exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("bose")) iotScore += 40;
+        if (exact.Contains("bulb") || exact.Contains("light") || exact.Contains("yeelight") || exact.Contains("hue") || exact.Contains("ring") || exact.Contains("nest") || exact.Contains("arlo")) iotScore += 50;
+        if (exact.Contains("tv") || exact.Contains("samsung") || exact.Contains("tizen") || exact.Contains("webos") || exact.Contains("bravia") || exact.Contains("roku") || exact.Contains("vizio") || exact.Contains("lg")) iotScore += 50;
         if (exact.Contains("printer") || exact.Contains("ipp") || exact.Contains("canon") || exact.Contains("epson")) printerScore += 80;
         if (exact.Contains("workstation") || exact.Contains("windows")) winScore += 40;
         if (exact.Contains("smb") || exact.Contains("server")) linuxScore += 20;
@@ -59,7 +61,7 @@ public static class DeviceClassifier
         // ── 5. Final Decision ──
         var scores = new Dictionary<string, int>
         {
-            { "iOS/macOS", iosScore },
+            { "macOS/iOS", iosScore },
             { "Windows", winScore },
             { "Linux/Android", linuxScore },
             { "IoT/Smart Device", iotScore },
@@ -74,7 +76,7 @@ public static class DeviceClassifier
             node.OsGuess = winner.Key;
             
             // Refine DeviceType and Icon based on winner
-            if (winner.Key == "iOS/macOS")
+            if (winner.Key == "macOS/iOS")
             {
                 if (hostname.Contains("iphone") || vendor.Contains("apple"))
                 {
@@ -100,10 +102,19 @@ public static class DeviceClassifier
             else if (winner.Key == "IoT/Smart Device")
             {
                 node.DeviceType = "IoT Device";
-                node.IconPath = "router"; // Fallback for IoT
-                if (exact.Contains("cast") || hostname.Contains("tv")) node.IconPath = "tv";
-                if (exact.Contains("spotify") || exact.Contains("speaker")) node.IconPath = "speaker";
-                if (hostname.Contains("android") || vendor.Contains("xiaomi") || vendor.Contains("samsung"))
+                node.IconPath = "iot"; 
+                
+                if (exact.Contains("tv") || hostname.Contains("tv") || exact.Contains("tizen") || exact.Contains("webos")) 
+                {
+                    node.DeviceType = "Smart TV";
+                    node.IconPath = "tv";
+                }
+                else if (exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("bose") || exact.Contains("spotify")) 
+                {
+                    node.DeviceType = "Smart Speaker";
+                    node.IconPath = "speaker";
+                }
+                else if (hostname.Contains("android") || vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("huawei"))
                 {
                     node.DeviceType = "Mobile Phone";
                     node.IconPath = "phone";

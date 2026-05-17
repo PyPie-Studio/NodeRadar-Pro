@@ -50,6 +50,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
+        await DeviceFingerprinter.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
@@ -119,6 +120,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
+        await DeviceFingerprinter.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
