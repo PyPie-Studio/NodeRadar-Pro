@@ -414,6 +414,20 @@ public class SettingsPage : Border
 
         _db.SaveSettings(_settings);
         SettingsSaved?.Invoke(_settings);
+
+        if (sender is Button btn)
+        {
+            btn.Content = "✅  Saved!";
+            btn.IsEnabled = false;
+            var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            timer.Tick += (s2, e2) =>
+            {
+                btn.Content = "Save\nConfiguration";
+                btn.IsEnabled = true;
+                timer.Stop();
+            };
+            timer.Start();
+        }
     }
 
     private void OnResetClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
