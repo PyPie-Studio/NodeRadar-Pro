@@ -268,8 +268,10 @@ public class RadarCanvas : Control
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
         
-        // Inverse Scaling: Nodes and text shrink as you zoom in to reveal more resolution
-        double nodeScale = 1.0 / Math.Sqrt(_zoomLevel);
+        // Refined Scaling: Dampen the shrink effect so nodes and text stay visible
+        // spacing out is handled by distance being multiplied by _zoomLevel
+        double nodeScale = Math.Max(0.65, 1.0 / Math.Pow(_zoomLevel, 0.3));
+        double textScale = Math.Max(0.75, 1.0 / Math.Pow(_zoomLevel, 0.2));
 
         foreach (var node in _activeNodes)
         {
@@ -330,10 +332,10 @@ public class RadarCanvas : Control
                 node.DisplayName,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                typeface, 11 * nodeScale, textColor
+                typeface, 11 * textScale, textColor
             );
 
-            double textYOffset = nodePoint.Y > center.Y ? -(20 * nodeScale) : (14 * nodeScale);
+            double textYOffset = nodePoint.Y > center.Y ? -(22 * nodeScale) : (16 * nodeScale);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
 
