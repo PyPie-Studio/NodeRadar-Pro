@@ -268,10 +268,10 @@ public class RadarCanvas : Control
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
         
-        // Refined Scaling: Dampen the shrink effect so nodes and text stay visible
-        // spacing out is handled by distance being multiplied by _zoomLevel
-        double nodeScale = Math.Max(0.65, 1.0 / Math.Pow(_zoomLevel, 0.3));
-        double textScale = Math.Max(0.75, 1.0 / Math.Pow(_zoomLevel, 0.2));
+        // Visibility Scaling: Make elements slightly larger as we zoom in for better clarity
+        // spacing out is already handled by the position calculation
+        double nodeScale = Math.Max(1.0, 1.0 + (_zoomLevel - 1.0) * 0.15);
+        double textScale = Math.Max(1.0, 1.0 + (_zoomLevel - 1.0) * 0.2);
 
         foreach (var node in _activeNodes)
         {
@@ -335,7 +335,7 @@ public class RadarCanvas : Control
                 typeface, 11 * textScale, textColor
             );
 
-            double textYOffset = nodePoint.Y > center.Y ? -(22 * nodeScale) : (16 * nodeScale);
+            double textYOffset = nodePoint.Y > center.Y ? -(24 * nodeScale) : (18 * nodeScale);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
 
