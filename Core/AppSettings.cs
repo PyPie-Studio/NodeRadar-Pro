@@ -46,6 +46,11 @@ public class AppSettings
     public string SmtpUser { get; set; } = "";
     public string SmtpPassword { get; set; } = "";
 
+    // ── Application Maintenance ──
+    public bool CheckUpdatesOnStartup { get; set; } = true;
+    public bool EnableAutoBackup { get; set; } = true;
+    public int AutoBackupIntervalHours { get; set; } = 24;
+
     // â”€â”€ Security â”€â”€
     public string? LastKnownGoodHash { get; set; }
 }
