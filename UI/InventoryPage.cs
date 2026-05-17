@@ -607,7 +607,7 @@ public class InventoryPage : Border
         _detailArea.IsVisible = true;
 
         _detailName.Text = node.DisplayName;
-        _detailSubtitle.Text = node.SubtitleText;
+        _detailSubtitle.Text = GetRichSubtitle(node);
 
         UpdatePill(_detailIpPill, node.IpAddress);
         UpdatePill(_detailMacPill, node.MacAddress);
@@ -627,37 +627,11 @@ public class InventoryPage : Border
             if (_threatBadge.Child is TextBlock tb) { tb.Foreground = fg; tb.Text = text; }
         }
 
-        string svgPath = (node.IconPath ?? "").ToLower() switch
-        {
-            "phone" or "mobile" => ThemeTokens.SvgPhone,
-            "server" or "nas" => ThemeTokens.SvgServer,
-            "router" or "network" => ThemeTokens.SvgRouter,
-            "tv" => "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z",
-            _ => node.DeviceType switch
-            {
-                "Router" or "Gateway" or "Router/Network" => ThemeTokens.SvgRouter,
-                "Server" or "NAS" => ThemeTokens.SvgServer,
-                "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
-                _ => ThemeTokens.SvgDesktop
-            }
-        };
-        _deviceIconBox.Child = ThemeTokens.VectorIcon(svgPath, 32, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+        _deviceIconBox.Child = ThemeTokens.VectorIcon(GetDeviceSvg(node), 32, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
         _latencyStatText.Text = node.IsOnline && node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{node.PacketLossPct:F1}";
         _lastScanText.Text = node.LastSeen != default ? GetTimeAgo(node.LastSeen) : "—";
-
-        // Build accurate subtitle: Prefer [Vendor] • [Subtitle]
-        string subtitle = node.SubtitleText;
-
-        if (!string.IsNullOrEmpty(node.Vendor) && node.Vendor != "Unknown Vendor" && !node.DisplayName.Contains(node.Vendor))
-            subtitle = $"{node.Vendor} • {subtitle}";
-
-        if (!string.IsNullOrEmpty(node.OsGuess) && !subtitle.Contains(node.OsGuess))
-            subtitle = $"{node.OsGuess} • {subtitle}";
-
-        _detailSubtitle.Text = subtitle;
-        if (_detailSubtitle.Text.Contains("Unknown Vendor")) _detailSubtitle.Text = _detailSubtitle.Text.Replace("Unknown Vendor", "Generic Device");
 
         _nameInput.Text = node.CustomName;
         _deviceNameInput.Text = node.DeviceName;
@@ -694,6 +668,10 @@ public class InventoryPage : Border
         if (_currentNode == null) return;
         UpdateStatusDot(_currentNode.IsOnline);
         _wakeBtn.IsEnabled = !_currentNode.IsOnline;
+
+        _detailSubtitle.Text = GetRichSubtitle(_currentNode);
+        _deviceIconBox.Child = ThemeTokens.VectorIcon(GetDeviceSvg(_currentNode), 32, _currentNode.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+
         _latencyStatText.Text = _currentNode.IsOnline && _currentNode.PingLatencyMs >= 0 ? $"{_currentNode.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{_currentNode.PacketLossPct:F1}";
         _lastScanText.Text = _currentNode.LastSeen != default ? GetTimeAgo(_currentNode.LastSeen) : "—";
@@ -818,22 +796,7 @@ public class InventoryPage : Border
     {
         bool isSelected = node.MacAddress == _selectedMac;
 
-        string svgPath = (node.IconPath ?? "").ToLower() switch
-        {
-            "phone" or "mobile" => ThemeTokens.SvgPhone,
-            "server" or "nas" => ThemeTokens.SvgServer,
-            "router" or "network" => ThemeTokens.SvgRouter,
-            "tv" => "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z",
-            _ => node.DeviceType switch
-            {
-                "Router" or "Gateway" or "Router/Network" => ThemeTokens.SvgRouter,
-                "Server" or "NAS" => ThemeTokens.SvgServer,
-                "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
-                _ => ThemeTokens.SvgDesktop
-            }
-        };
-
-        var icon = ThemeTokens.VectorIcon(svgPath, 18, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+        var icon = ThemeTokens.VectorIcon(GetDeviceSvg(node), 18, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
         var iconBox = new Border
         {
@@ -846,7 +809,7 @@ public class InventoryPage : Border
         };
 
         var nameText = new TextBlock { Text = node.DisplayName, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new FontFamily("Inter") };
-        var subText = new TextBlock { Text = node.SubtitleText, FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 1, 0, 0) };
+        var subText = new TextBlock { Text = GetRichSubtitle(node), FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 1, 0, 0) };
         var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) };
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, subText, ipText } };
         var leftGroup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { iconBox, textCol } };
@@ -1132,5 +1095,39 @@ public class InventoryPage : Border
         if (diff.TotalMinutes < 1) return $"{(int)diff.TotalSeconds}s ago";
         if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} mins ago";
         return $"{(int)diff.TotalHours}h ago";
+    }
+
+    private string GetDeviceSvg(NetworkNode node)
+    {
+        string icon = (node.IconPath ?? "").ToLower();
+        if (icon == "phone" || icon == "mobile") return ThemeTokens.SvgPhone;
+        if (icon == "server" || icon == "nas") return ThemeTokens.SvgServer;
+        if (icon == "router" || icon == "network") return ThemeTokens.SvgRouter;
+        if (icon == "tv") return "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z";
+
+        string type = (node.DeviceType ?? "").ToLower();
+        if (type.Contains("router") || type.Contains("gateway") || type.Contains("network")) return ThemeTokens.SvgRouter;
+        if (type.Contains("server") || type.Contains("nas")) return ThemeTokens.SvgServer;
+        if (type.Contains("phone") || type.Contains("mobile") || type.Contains("iphone")) return ThemeTokens.SvgPhone;
+        if (type.Contains("tv")) return "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z";
+
+        string vendor = (node.Vendor ?? "").ToLower();
+        if (vendor.Contains("apple") || vendor.Contains("samsung") || vendor.Contains("xiaomi") || vendor.Contains("google")) return ThemeTokens.SvgPhone;
+        if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("netgear")) return ThemeTokens.SvgRouter;
+        if (vendor.Contains("dell") || vendor.Contains("hp") || vendor.Contains("intel") || vendor.Contains("vmware")) return ThemeTokens.SvgServer;
+
+        return ThemeTokens.SvgDesktop;
+    }
+
+    private string GetRichSubtitle(NetworkNode node)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(node.Vendor) && node.Vendor != "Unknown Vendor" && node.Vendor != "Unknown") parts.Add(node.Vendor);
+        if (!string.IsNullOrEmpty(node.DeviceType) && node.DeviceType != "Generic Device") parts.Add(node.DeviceType);
+        if (!string.IsNullOrEmpty(node.ExactModel)) parts.Add(node.ExactModel);
+
+        var uniqueParts = parts.Distinct().ToList();
+        if (uniqueParts.Count == 0) return "Generic Network Device";
+        return string.Join(" • ", uniqueParts);
     }
 }
