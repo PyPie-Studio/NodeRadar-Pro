@@ -247,13 +247,40 @@ public class SubnetScanner
         try
         {
             mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
+            
+            // Fallback: If direct SendARP failed, check the full system ARP table
+            if (mac == "Unknown")
+            {
+                var table = ArpResolver.GetFullArpTable();
+                var match = table.FirstOrDefault(x => x.Ip == ip);
+                if (!string.IsNullOrEmpty(match.Mac))
+                {
+                    mac = match.Mac;
+                }
+            }
+
             if (mac != "Unknown") isReachable = true;
         }
         catch { }
 
         if (!isReachable) return null;
 
-        if (mac == "Unknown") mac = "L3-ROUTED-" + ip;
+        // Final fallback: Use IP-based ID but flag it properly (Issue: prevents database link loss)
+        if (mac == "Unknown") 
+        {
+            // We check the database to see if we have a device that HAD this IP recently
+            // This allows us to maintain identity even if ARP is transiently failing.
+            var registered = Data.LocalDatabase.Instance.GetRegisteredDevices();
+            var existing = registered.FirstOrDefault(d => d.IpAddress == ip);
+            if (existing != null)
+            {
+                mac = existing.MacAddress;
+            }
+            else
+            {
+                mac = "L3-ROUTED-" + ip;
+            }
+        }
 
         var node = new NetworkNode
         {
@@ -369,6 +396,15 @@ public class SubnetScanner
         try
         {
             mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+            
+            // Fallback: Check full ARP table
+            if (mac == "Unknown")
+            {
+                var table = ArpResolver.GetFullArpTable();
+                var match = table.FirstOrDefault(x => x.Ip == ip);
+                if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+            }
+            
             if (mac != "Unknown") isOnline = true;
         }
         catch { }
@@ -382,7 +418,15 @@ public class SubnetScanner
                 isOnline = true;
                 latency = reply.RoundtripTime;
                 if (mac == "Unknown")
+                {
                     mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+                    if (mac == "Unknown")
+                    {
+                        var table = ArpResolver.GetFullArpTable();
+                        var match = table.FirstOrDefault(x => x.Ip == ip);
+                        if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                    }
+                }
             }
         }
         catch { }
@@ -404,7 +448,15 @@ public class SubnetScanner
                         {
                             isOnline = true;
                             if (mac == "Unknown")
+                            {
                                 mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+                                if (mac == "Unknown")
+                                {
+                                    var table = ArpResolver.GetFullArpTable();
+                                    var match = table.FirstOrDefault(x => x.Ip == ip);
+                                    if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                                }
+                            }
                             break;
                         }
                     }
@@ -413,6 +465,14 @@ public class SubnetScanner
                 }
                 catch { }
             }
+        }
+
+        // Database correlation fallback for background monitor
+        if (isOnline && mac == "Unknown")
+        {
+            var registered = Data.LocalDatabase.Instance.GetRegisteredDevices();
+            var existing = registered.FirstOrDefault(d => d.IpAddress == ip);
+            if (existing != null) mac = existing.MacAddress;
         }
 
         return (isOnline, mac, latency);
