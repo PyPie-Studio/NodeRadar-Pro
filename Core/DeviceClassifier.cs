@@ -31,6 +31,7 @@ public static class DeviceClassifier
         if (exact.Contains("nginx") || exact.Contains("apache")) linuxScore += 30;
         if (exact.Contains("yeelight") || exact.Contains("mi-light")) iotScore += 100;
         if (exact.Contains("samsung") && exact.Contains("tv")) iotScore += 80;
+        if (exact.Contains("huawei")) networkScore += 100;
 
         // ── 2. MAC Prefix Scoring ──
         if (vendor.Contains("apple")) iosScore += 30;
@@ -40,7 +41,11 @@ public static class DeviceClassifier
         if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("netgear") || vendor.Contains("huawei")) networkScore += 20;
 
         // ── 3. Protocol Signals (mDNS/SSDP) ──
-        if (exact.Contains("apple") || exact.Contains("airplay") || exact.Contains("homekit")) iosScore += 60;
+        if (exact.Contains("apple") || exact.Contains("airplay") || exact.Contains("homekit")) 
+        {
+            // Safeguard: Don't tag as Apple if banner explicitly says Huawei
+            if (!exact.Contains("huawei")) iosScore += 60;
+        }
         if (exact.Contains("chromecast") || exact.Contains("google cast") || exact.Contains("google-home")) iotScore += 60;
         if (exact.Contains("spotify") || exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("bose")) iotScore += 40;
         if (exact.Contains("bulb") || exact.Contains("light") || exact.Contains("hue") || exact.Contains("ring") || exact.Contains("nest") || exact.Contains("arlo")) iotScore += 50;

@@ -57,19 +57,28 @@ public class SubnetScanner
 
         int totalIps = endIp - startIp + 1;
         int completed = 0;
+        using var semaphore = new SemaphoreSlim(32);
 
         var tasks = Enumerable.Range(startIp, totalIps).Select(async i =>
         {
             if (token.IsCancellationRequested) return;
 
-            string ip = $"{baseIp}.{i}";
-            var node = await ProbeAndResolveAsync(ip, token);
-
-            if (node != null && !token.IsCancellationRequested)
+            await semaphore.WaitAsync(token);
+            try
             {
-                discoveredMacs.TryAdd(node.MacAddress, true);
-                activeNodes.Add(node);
-                NodeDiscovered?.Invoke(node);
+                string ip = $"{baseIp}.{i}";
+                var node = await ProbeAndResolveAsync(ip, token);
+
+                if (node != null && !token.IsCancellationRequested)
+                {
+                    discoveredMacs.TryAdd(node.MacAddress, true);
+                    activeNodes.Add(node);
+                    NodeDiscovered?.Invoke(node);
+                }
+            }
+            finally
+            {
+                semaphore.Release();
             }
 
             if (!token.IsCancellationRequested)
@@ -155,6 +164,7 @@ public class SubnetScanner
 
         int totalIps = allSubnets.Count * 254;
         int completed = 0;
+        using var semaphore = new SemaphoreSlim(32);
 
         foreach (var subnet in allSubnets)
         {
@@ -164,14 +174,22 @@ public class SubnetScanner
             {
                 if (token.IsCancellationRequested) return;
 
-                string ip = $"{subnet}.{i}";
-                var node = await ProbeAndResolveAsync(ip, token);
-
-                if (node != null && !token.IsCancellationRequested)
+                await semaphore.WaitAsync(token);
+                try
                 {
-                    discoveredMacs.TryAdd(node.MacAddress, true);
-                    activeNodes.Add(node);
-                    NodeDiscovered?.Invoke(node);
+                    string ip = $"{subnet}.{i}";
+                    var node = await ProbeAndResolveAsync(ip, token);
+
+                    if (node != null && !token.IsCancellationRequested)
+                    {
+                        discoveredMacs.TryAdd(node.MacAddress, true);
+                        activeNodes.Add(node);
+                        NodeDiscovered?.Invoke(node);
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
                 }
 
                 if (!token.IsCancellationRequested)

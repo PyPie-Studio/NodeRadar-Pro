@@ -186,11 +186,13 @@ public static class ArpResolver
             using var proc = Process.Start(psi);
             if (proc == null) return results;
             
-            string output = proc.StandardOutput.ReadToEnd();
-            proc.WaitForExit(5000);
-
-            // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
-            foreach (var line in output.Split('\n'))
+            // Read output with timeout protection
+            var outputTask = proc.StandardOutput.ReadToEndAsync();
+            if (proc.WaitForExit(5000))
+            {
+                string output = outputTask.Result;
+                // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
+                foreach (var line in output.Split('\n'))
             {
                 string trimmed = line.Trim();
                 if (string.IsNullOrEmpty(trimmed)) continue;

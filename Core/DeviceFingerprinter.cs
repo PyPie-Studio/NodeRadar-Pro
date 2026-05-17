@@ -59,7 +59,10 @@ public static class DeviceFingerprinter
                 string response = Encoding.UTF8.GetString(buffer, 0, read);
                 
                 var serverLine = response.Split('\n').FirstOrDefault(l => l.StartsWith("Server:", StringComparison.OrdinalIgnoreCase));
-                return serverLine?.Replace("Server:", "").Trim() ?? string.Empty;
+                string banner = serverLine?.Replace("Server:", "").Trim() ?? string.Empty;
+                
+                // Scrub non-printable characters (Huawei fix)
+                return new string(banner.Where(c => c >= 32 && c < 127).ToArray());
             }
             else
             {
@@ -69,8 +72,8 @@ public static class DeviceFingerprinter
                 if (read > 0)
                 {
                     string greeting = Encoding.UTF8.GetString(buffer, 0, read).Trim();
-                    // Clean up common control characters
-                    return new string(greeting.Where(c => !char.IsControl(c) || c == ' ' || c == '.').ToArray());
+                    // Clean up common control characters aggressively
+                    return new string(greeting.Where(c => c >= 32 && c < 127).ToArray());
                 }
             }
         }
@@ -91,8 +94,18 @@ public static class DeviceFingerprinter
         // 1. Check for Apple devices via touch icon
         try
         {
-            var appleResponse = await _httpClient.GetAsync($"http://{ip}/apple-touch-icon.png");
-            if (appleResponse.IsSuccessStatusCode) return "Apple Device (HTTP-Icon)";
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"http://{ip}/apple-touch-icon.png");
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                // Professional Check: Ensure it's actually an image and not a redirected login page
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+                if (contentType != null && contentType.Contains("image/"))
+                {
+                    return "Apple Device (HTTP-Icon)";
+                }
+            }
         }
         catch { }
 
