@@ -280,6 +280,7 @@ public class LocalDatabase : IDisposable
 
     public void Log(LogLevel level, string source, string message, string? deviceMac = null)
     {
+        // 1. Database log (for UI viewer)
         InsertLog(new LogEntry
         {
             Level = level,
@@ -288,6 +289,9 @@ public class LocalDatabase : IDisposable
             DeviceMac = deviceMac,
             Timestamp = DateTime.UtcNow
         });
+
+        // 2. Physical File log (for Technical Support)
+        Logger.Log(level, source, message, deviceMac);
     }
 
     public List<LogEntry> GetLogs(int limit = 500, LogLevel? levelFilter = null, string? deviceMacFilter = null)

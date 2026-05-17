@@ -4,7 +4,9 @@ using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace NodeRadarPro.Core;
 
@@ -48,7 +50,7 @@ public static class ArpResolver
         {
             return GetWindowsArpTable();
         }
-
+        
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             return GetLinuxArpTable();
@@ -57,76 +59,20 @@ public static class ArpResolver
         return new List<(string, string)>();
     }
 
-    /// <summary>
-    /// Attempts to resolve a device's NetBIOS name (Windows only).
-    /// Works for Windows PCs, printers, and NAS devices on the LAN.
-    /// </summary>
-    public static string TryResolveNetBiosName(string ipAddress)
-    {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            return string.Empty;
+    // ── Windows: Single IP resolution via SendARP API ──
 
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = "nbtstat",
-                Arguments = $"-A {ipAddress}",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var proc = Process.Start(psi);
-            if (proc == null) return string.Empty;
-
-            // Give nbtstat 3 seconds max
-            if (!proc.WaitForExit(3000))
-            {
-                try { proc.Kill(); } catch { }
-                return string.Empty;
-            }
-
-            string output = proc.StandardOutput.ReadToEnd();
-            
-            // Parse nbtstat output for the <00> UNIQUE entry (device name)
-            foreach (var line in output.Split('\n'))
-            {
-                string trimmed = line.Trim();
-                if (trimmed.Contains("<00>") && trimmed.Contains("UNIQUE"))
-                {
-                    // Line format: "DESKTOP-ABC   <00>  UNIQUE  ..."
-                    string name = trimmed.Split('<')[0].Trim();
-                    if (!string.IsNullOrEmpty(name) && name != "")
-                        return name;
-                }
-            }
-        }
-        catch { }
-
-        return string.Empty;
-    }
-
-    // ── Windows: Single IP resolution via SendARP ──
-
-    private static string ResolveWindows(string ipAddress, string sourceIp = "")
+    private static string ResolveWindows(string ipAddress, string sourceIp)
     {
         try
         {
             IPAddress parsedIp = IPAddress.Parse(ipAddress);
-            int srcIpInt = 0;
-            if (!string.IsNullOrEmpty(sourceIp) && IPAddress.TryParse(sourceIp, out var sIp))
-            {
-#pragma warning disable CS0618
-                srcIpInt = (int)sIp.Address;
-#pragma warning restore CS0618
-            }
+            IPAddress srcIp = string.IsNullOrEmpty(sourceIp) ? IPAddress.Any : IPAddress.Parse(sourceIp);
 
             byte[] macAddr = new byte[6];
             uint macAddrLen = (uint)macAddr.Length;
-            
-            // Note: BitConverter is used for legacy compat. IPv4 only for ARP.
-#pragma warning disable CS0618 // Type or member is obsolete
+
+#pragma warning disable CS0618 
+            int srcIpInt = (int)srcIp.Address;
             int result = SendARP((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen);
 #pragma warning restore CS0618 
 
@@ -138,6 +84,45 @@ public static class ArpResolver
         {
             return "Unknown";
         }
+    }
+
+    /// <summary>
+    /// Attempts to resolve the NetBIOS name of a device via UDP port 137 (Professional fallback).
+    /// </summary>
+    public static string TryResolveNetBiosName(string ipAddress)
+    {
+        try
+        {
+            using var udp = new UdpClient();
+            udp.Client.ReceiveTimeout = 1500;
+            udp.Connect(ipAddress, 137);
+
+            // Standard NetBIOS Node Status Query packet
+            byte[] query = {
+                0x80, 0x94, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x20, 0x43, 0x4b, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00, 0x00, 0x21,
+                0x00, 0x01
+            };
+
+            udp.Send(query, query.Length);
+            var remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+            byte[] response = udp.Receive(ref remoteEndPoint);
+
+            if (response.Length > 56)
+            {
+                int numberOfNames = response[56];
+                if (numberOfNames > 0)
+                {
+                    // The first name in the response is typically the machine name
+                    string name = Encoding.ASCII.GetString(response, 57, 15).Trim();
+                    return name;
+                }
+            }
+        }
+        catch { }
+        return string.Empty;
     }
 
     // ── Linux: Single IP resolution from /proc/net/arp ──
@@ -184,8 +169,12 @@ public static class ArpResolver
             };
 
             using var proc = Process.Start(psi);
-            if (proc == null) return results;
-            
+            if (proc == null) 
+            {
+                Logger.Log(LogLevel.Error, "ArpResolver", "Failed to start 'arp -a' process.");
+                return results;
+            }
+
             // Read output with timeout protection
             var outputTask = proc.StandardOutput.ReadToEndAsync();
             if (proc.WaitForExit(5000))
@@ -220,8 +209,15 @@ public static class ArpResolver
                     }
                 }
             }
+            else
+            {
+                Logger.Log(LogLevel.Warning, "ArpResolver", "The 'arp -a' process timed out after 5000ms.");
+            }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
+        }
 
         return results;
     }

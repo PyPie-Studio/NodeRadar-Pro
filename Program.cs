@@ -14,6 +14,8 @@ namespace NodeRadar_Pro
         {
             AppDomain.CurrentDomain.UnhandledException += (s, e) => {
                 var ex = e.ExceptionObject as Exception;
+                NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "CRASH", $"Unhandled Exception: {ex}");
+                
                 string logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");
                 System.IO.Directory.CreateDirectory(logDir);
                 string logPath = System.IO.Path.Combine(logDir, "crash.log");
@@ -21,6 +23,8 @@ namespace NodeRadar_Pro
             };
 
             TaskScheduler.UnobservedTaskException += (s, e) => {
+                NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "TaskError", $"Unobserved Task Exception: {e.Exception}");
+                
                 string logDir = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");
                 System.IO.Directory.CreateDirectory(logDir);
                 string logPath = System.IO.Path.Combine(logDir, "crash.log");

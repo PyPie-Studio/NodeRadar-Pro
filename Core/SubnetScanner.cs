@@ -375,11 +375,15 @@ if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
             {
                 string mdnsModel = await DeviceFingerprinter.DiscoverExactModelViaMDnsAsync(node.IpAddress);
                 if (!string.IsNullOrEmpty(mdnsModel))
+                {
                     node.ExactModel = mdnsModel;
+                    Logger.Log(LogLevel.Info, "SubnetScanner", $"mDNS identification success for {node.IpAddress}: {mdnsModel}");
+                }
 
                 string ssdpModel = await DeviceFingerprinter.DiscoverExactModelViaSSDPAsync(node.IpAddress);
                 if (!string.IsNullOrEmpty(ssdpModel))
                 {
+                    Logger.Log(LogLevel.Info, "SubnetScanner", $"SSDP identification success for {node.IpAddress}: {ssdpModel}");
                     if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = ssdpModel;
                     else node.ExactModel = $"{node.ExactModel} ({ssdpModel})";
                 }

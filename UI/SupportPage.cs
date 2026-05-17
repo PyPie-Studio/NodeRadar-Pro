@@ -7,6 +7,7 @@ using Avalonia.Platform;
 using NodeRadarPro.Core;
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
@@ -206,7 +207,28 @@ public class SupportPage : Border
             }
         };
 
-        var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogItems, checkUpdateBtn } };
+        var openLogsBtn = ThemeTokens.SecondaryButton("📂  Open Log Folder");
+        ThemeTokens.SetToolTip(openLogsBtn, "Open the local folder containing detailed technical log files for debugging and support.");
+        openLogsBtn.Margin = new Thickness(0, 12, 0, 0);
+        openLogsBtn.Click += (s, e) =>
+        {
+            try
+            {
+                string logDir = Logger.GetLogDirectory();
+                if (Directory.Exists(logDir))
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = logDir,
+                        UseShellExecute = true,
+                        Verb = "open"
+                    });
+                }
+            }
+            catch { }
+        };
+
+        var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogItems, checkUpdateBtn, openLogsBtn } };
         var updatesCard = ThemeTokens.GlassCard(updatesContent, 24);
         updatesCard.Margin = new Thickness(0, 16, 0, 0);
         ThemeTokens.SetToolTip(updatesCard, "Monitor software versioning and check for mandatory security updates.");
