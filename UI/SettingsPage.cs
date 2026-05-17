@@ -33,10 +33,16 @@ public class SettingsPage : Border
     private readonly CheckBox _synScanToggle;
     private readonly CheckBox _dnsResolveToggle;
 
-    // Old settings kept for persistence
+    // Persistence toggles (old)
     private readonly CheckBox _fadeOutToggle;
     private readonly NumericUpDown _fadeOutSeconds;
     private readonly NumericUpDown _monitorInterval;
+
+    // Maintenance & Lifecycle
+    private readonly CheckBox _checkUpdatesOnStartupToggle;
+    private readonly CheckBox _enableAutoBackupToggle;
+    private readonly Slider _autoBackupIntervalSlider;
+    private readonly TextBlock _autoBackupIntervalValue;
 
     // Notification
     private readonly CheckBox _toastToggle;
@@ -224,12 +230,6 @@ public class SettingsPage : Border
 
         _emailToggle.IsCheckedChanged += (s, e) => _smtpSettingsPanel.IsVisible = _emailToggle.IsChecked == true;
 
-        var updatesLabel = ThemeTokens.SectionLabel("SOFTWARE UPDATES");
-        var updateBtn = ThemeTokens.SecondaryButton("Check for Updates");
-        ThemeTokens.SetToolTip(updateBtn, "Visit the PyPie Studio GitHub repository to check for the latest NodeRadar Pro stable release.");
-        updateBtn.Margin = new Thickness(0, 4, 0, 12);
-        updateBtn.Click += OnCheckForUpdatesClicked;
-
         var separator2 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 12, 0, 8) };
 
         var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
@@ -244,16 +244,33 @@ public class SettingsPage : Border
         _packetLossThresholdSlider.ValueChanged += (s, e) => _packetLossThresholdValue.Text = $"{_packetLossThresholdSlider.Value:F1}%";
         var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
 
-        // Database Maintenance
-        var maintenanceLabel = ThemeTokens.SectionLabel("DATABASE MAINTENANCE");
+        // Maintenance & Lifecycle
+        var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
+
+        _checkUpdatesOnStartupToggle = new CheckBox { IsChecked = true };
+        ThemeTokens.SetToolTip(_checkUpdatesOnStartupToggle, "Automatically check for new NodeRadar Pro releases when the application starts.");
+        var updateStartupRow = MakeCheckboxCard("Check Updates on Startup", "Validate version with PyPie Studio API.", _checkUpdatesOnStartupToggle);
+
+        _enableAutoBackupToggle = new CheckBox { IsChecked = true };
+        ThemeTokens.SetToolTip(_enableAutoBackupToggle, "Enable background database snapshots at regular intervals to prevent data loss.");
+        var autoBackupRow = MakeCheckboxCard("Auto-Backup Database", "Create periodic snapshots of local DB.", _enableAutoBackupToggle);
+
+        _autoBackupIntervalSlider = new Slider { Minimum = 1, Maximum = 168, Value = 24 };
+        _autoBackupIntervalValue = new TextBlock { Text = "24h", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center };
+        _autoBackupIntervalSlider.ValueChanged += (s, e) => _autoBackupIntervalValue.Text = $"{(int)_autoBackupIntervalSlider.Value}h";
+        var intervalCard = MakeSliderCard("Backup Interval", "Hours between automatic snapshots.", _autoBackupIntervalSlider, _autoBackupIntervalValue);
+        intervalCard.Margin = new Thickness(0, 0, 0, 8);
+        intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
+        _enableAutoBackupToggle.IsCheckedChanged += (s, e) => intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
+
         _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
         
-        _backupBtn = ThemeTokens.SecondaryButton("Backup Database");
-        ThemeTokens.SetToolTip(_backupBtn, "Create a timestamped backup of your current database in the PyPie Studio folder.");
+        _backupBtn = ThemeTokens.SecondaryButton("Backup");
+        ThemeTokens.SetToolTip(_backupBtn, "Export a manual copy of the database to your documents folder.");
         _backupBtn.Click += OnBackupClicked;
 
-        _restoreBtn = ThemeTokens.SecondaryButton("Restore Database");
-        ThemeTokens.SetToolTip(_restoreBtn, "Select a previously created backup file (.db) to restore your system state.");
+        _restoreBtn = ThemeTokens.SecondaryButton("Restore");
+        ThemeTokens.SetToolTip(_restoreBtn, "Import a database file to overwrite the current system state.");
         _restoreBtn.Click += OnRestoreClicked;
 
         var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 10) };
@@ -291,7 +308,7 @@ public class SettingsPage : Border
 
         var notifContent = new StackPanel
         {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, updatesLabel, updateBtn, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, maintGrid, _maintenanceStatus, btnGrid }
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, updateStartupRow, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, btnGrid }
         };
         var notifCard = ThemeTokens.GlassCard(notifContent, 28);
 
@@ -345,6 +362,11 @@ public class SettingsPage : Border
         _soundToggle.IsChecked = _settings.EnableSoundAlerts;
         _emailToggle.IsChecked = _settings.EnableEmailAlerts;
 
+        _checkUpdatesOnStartupToggle.IsChecked = _settings.CheckUpdatesOnStartup;
+        _enableAutoBackupToggle.IsChecked = _settings.EnableAutoBackup;
+        _autoBackupIntervalSlider.Value = _settings.AutoBackupIntervalHours;
+        _autoBackupIntervalValue.Text = $"{_settings.AutoBackupIntervalHours}h";
+
         _smtpHost.Text = _settings.SmtpHost;
         _smtpPort.Text = _settings.SmtpPort.ToString();
         _smtpUser.Text = _settings.SmtpUser;
@@ -374,6 +396,10 @@ public class SettingsPage : Border
         _settings.EnableSoundAlerts = _soundToggle.IsChecked == true;
         _settings.EnableEmailAlerts = _emailToggle.IsChecked == true;
 
+        _settings.CheckUpdatesOnStartup = _checkUpdatesOnStartupToggle.IsChecked == true;
+        _settings.EnableAutoBackup = _enableAutoBackupToggle.IsChecked == true;
+        _settings.AutoBackupIntervalHours = (int)_autoBackupIntervalSlider.Value;
+
         _settings.SmtpHost = _smtpHost.Text ?? "";
         if (int.TryParse(_smtpPort.Text, out var port)) _settings.SmtpPort = port;
         _settings.SmtpUser = _smtpUser.Text ?? "";
@@ -398,57 +424,41 @@ public class SettingsPage : Border
         SettingsSaved?.Invoke(_settings);
     }
 
-    private async void OnCheckForUpdatesClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnBackupClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        if (sender is Button btn)
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
         {
-            var originalText = btn.Content;
+            Title = "Save Database Backup",
+            SuggestedFileName = $"noderadar_backup_{DateTime.Now:yyyyMMdd}.db",
+            DefaultExtension = ".db",
+            FileTypeChoices = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Database Files") { Patterns = new[] { "*.db" } } }
+        });
+
+        if (file != null)
+        {
             try
             {
-                btn.IsEnabled = false;
-                btn.Content = "Opening Browser...";
-
-                _db.Log(LogLevel.Info, "Update", "Directing user to GitHub Releases...");
-                
-                // Open GitHub Releases page in default browser
-                string url = "https://github.com/PyPie-Studio/NodeRadar-Pro/releases";
-                try
+                string path = Uri.UnescapeDataString(file.Path.LocalPath);
+                string resultPath = _db.BackupDatabase(path);
+                if (!string.IsNullOrEmpty(resultPath))
                 {
-                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                    {
-                        FileName = url,
-                        UseShellExecute = true
-                    });
-                    btn.Content = "Check GitHub";
+                    _maintenanceStatus.Text = $"Backup successful: {System.IO.Path.GetFileName(resultPath)}";
+                    _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
                 }
-                catch (Exception ex)
+                else
                 {
-                    _db.Log(LogLevel.Error, "Update", $"Failed to open browser: {ex.Message}");
-                    btn.Content = "Error";
+                    _maintenanceStatus.Text = "Backup failed. Check system logs.";
+                    _maintenanceStatus.Foreground = ThemeTokens.Error;
                 }
-
-                await Task.Delay(2000);
-                btn.Content = originalText;
             }
-            finally
+            catch (Exception ex)
             {
-                btn.IsEnabled = true;
+                _maintenanceStatus.Text = $"Error: {ex.Message}";
+                _maintenanceStatus.Foreground = ThemeTokens.Error;
             }
-        }
-    }
-
-    private void OnBackupClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        string path = _db.BackupDatabase();
-        if (!string.IsNullOrEmpty(path))
-        {
-            _maintenanceStatus.Text = $"Backup successful: {System.IO.Path.GetFileName(path)}";
-            _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
-        }
-        else
-        {
-            _maintenanceStatus.Text = "Backup failed. Check system logs.";
-            _maintenanceStatus.Foreground = ThemeTokens.Error;
         }
     }
 
