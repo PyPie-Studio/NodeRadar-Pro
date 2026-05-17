@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -46,44 +47,89 @@ public static class DeviceFingerprinter
     public static async Task<string> DiscoverExactModelViaMDnsAsync(string ip)
     {
         using var cts = new CancellationTokenSource(1500);
+        var discoveredServices = new StringBuilder();
         try
         {
-            // Note: In a real world production app, we would use a full mDNS library.
-            // This is a simplified probe that checks for common service pointers.
             using var udp = new UdpClient();
             udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
             
-            // Standard mDNS query for _services._dns-sd._udp.local
-            byte[] query = {
-                0x00, 0x00, // Transaction ID
-                0x00, 0x00, // Flags
-                0x00, 0x01, // Questions
-                0x00, 0x00, // Answers
-                0x00, 0x00, // Authority
-                0x00, 0x00, // Additional
-                0x09, 0x5f, 0x73, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x73, // _services
-                0x07, 0x5f, 0x64, 0x6e, 0x73, 0x2d, 0x73, 0x64,             // _dns-sd
-                0x04, 0x5f, 0x75, 0x64, 0x70,                               // _udp
-                0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00,                   // local
-                0x00, 0x0c, // Type PTR
-                0x00, 0x01  // Class IN
+            var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
+
+            string[] servicesToQuery = {
+                "_services._dns-sd._udp.local",
+                "_airplay._tcp.local",
+                "_raop._tcp.local",
+                "_workstation._tcp.local",
+                "_smb._tcp.local",
+                "_googlecast._tcp.local",
+                "_spotify-connect._tcp.local"
             };
 
-            var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
-            await udp.SendAsync(query, query.Length, target);
+            foreach (var service in servicesToQuery)
+            {
+                byte[] query = CreateMdnsQuery(service);
+                await udp.SendAsync(query, query.Length, target);
+            }
 
-            var result = await udp.ReceiveAsync(cts.Token);
-            // Simplified parsing: Look for readable strings in the DNS packet
-            string data = Encoding.UTF8.GetString(result.Buffer);
-            if (data.Contains("Apple") || data.Contains("TV")) return "Apple TV / AirPlay";
-            if (data.Contains("Chromecast")) return "Google Chromecast";
-            if (data.Contains("Printer") || data.Contains("Canon") || data.Contains("HP")) return "Network Printer";
+            while (!cts.Token.IsCancellationRequested)
+            {
+                try
+                {
+                    var receiveTask = udp.ReceiveAsync(cts.Token);
+                    if (await Task.WhenAny(receiveTask.AsTask(), Task.Delay(400, cts.Token)) == receiveTask.AsTask())
+                    {
+                        var result = await receiveTask;
+                        string data = Encoding.UTF8.GetString(result.Buffer);
+
+                        if (data.Contains("Apple") || data.Contains("AirPlay") || data.Contains("HomeKit")) 
+                            discoveredServices.Append("Apple Device (mDNS) ");
+                        if (data.Contains("Chromecast") || data.Contains("Google"))
+                            discoveredServices.Append("Google Cast ");
+                        if (data.Contains("Spotify"))
+                            discoveredServices.Append("Spotify Connect ");
+                        if (data.Contains("Printer") || data.Contains("ipp"))
+                            discoveredServices.Append("Network Printer ");
+                        if (data.Contains("Workstation") || data.Contains("smb"))
+                            discoveredServices.Append("PC/Server ");
+                        
+                        // If we already have multiple hits, we might have enough info
+                        if (discoveredServices.Length > 40) break;
+                    }
+                    else break;
+                }
+                catch { break; }
+            }
         }
         catch (OperationCanceledException) { }
         catch (Exception) { }
 
-        return string.Empty;
+        return discoveredServices.ToString().Trim();
+    }
+
+    private static byte[] CreateMdnsQuery(string serviceName)
+    {
+        var packet = new List<byte> { 
+            0x00, 0x00, // Transaction ID
+            0x00, 0x00, // Flags
+            0x00, 0x01, // Questions
+            0x00, 0x00, // Answers
+            0x00, 0x00, // Authority
+            0x00, 0x00  // Additional
+        };
+
+        var parts = serviceName.Split('.');
+        foreach (var part in parts)
+        {
+            packet.Add((byte)part.Length);
+            packet.AddRange(Encoding.ASCII.GetBytes(part));
+        }
+        packet.Add(0x00); // End of labels
+
+        packet.Add(0x00); packet.Add(0x0c); // Type PTR
+        packet.Add(0x00); packet.Add(0x01); // Class IN
+
+        return packet.ToArray();
     }
 
     /// <summary>
@@ -91,7 +137,7 @@ public static class DeviceFingerprinter
     /// </summary>
     public static async Task<string> DiscoverExactModelViaSSDPAsync(string ip)
     {
-        using var cts = new CancellationTokenSource(1500);
+        using var cts = new CancellationTokenSource(2000);
         try
         {
             using var udp = new UdpClient();
@@ -108,20 +154,71 @@ public static class DeviceFingerprinter
             var target = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
             await udp.SendAsync(query, query.Length, target);
 
-            var result = await udp.ReceiveAsync(cts.Token);
-            string data = Encoding.UTF8.GetString(result.Buffer);
-            
-            // Extract SERVER or friendlyName from SSDP response
-            if (data.Contains("SERVER:"))
+            while (!cts.Token.IsCancellationRequested)
             {
-                var lines = data.Split('\n');
-                var serverLine = lines.FirstOrDefault(l => l.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase));
-                if (serverLine != null) return serverLine.Substring(7).Trim();
+                var receiveTask = udp.ReceiveAsync(cts.Token);
+                if (await Task.WhenAny(receiveTask.AsTask(), Task.Delay(800, cts.Token)) == receiveTask.AsTask())
+                {
+                    var result = await receiveTask;
+                    string data = Encoding.UTF8.GetString(result.Buffer);
+                    
+                    if (data.Contains("LOCATION:"))
+                    {
+                        var lines = data.Split('\n');
+                        var locationLine = lines.FirstOrDefault(l => l.StartsWith("LOCATION:", StringComparison.OrdinalIgnoreCase));
+                        if (locationLine != null)
+                        {
+                            string url = locationLine.Substring(9).Trim();
+                            string xmlDetails = await TryFetchSsdpLocationXmlAsync(url);
+                            if (!string.IsNullOrEmpty(xmlDetails)) return xmlDetails;
+                        }
+                    }
+
+                    if (data.Contains("SERVER:"))
+                    {
+                        var lines = data.Split('\n');
+                        var serverLine = lines.FirstOrDefault(l => l.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase));
+                        if (serverLine != null) return serverLine.Substring(7).Trim();
+                    }
+                }
+                else break;
             }
         }
         catch (OperationCanceledException) { }
         catch (Exception) { }
 
         return string.Empty;
+    }
+
+    private static async Task<string> TryFetchSsdpLocationXmlAsync(string url)
+    {
+        try
+        {
+            string xml = await _httpClient.GetStringAsync(url);
+            string friendlyName = ExtractXmlValue(xml, "friendlyName");
+            string manufacturer = ExtractXmlValue(xml, "manufacturer");
+            string modelName = ExtractXmlValue(xml, "modelName");
+
+            if (!string.IsNullOrEmpty(friendlyName)) return friendlyName;
+            if (!string.IsNullOrEmpty(manufacturer) && !string.IsNullOrEmpty(modelName)) return $"{manufacturer} {modelName}";
+            if (!string.IsNullOrEmpty(manufacturer)) return manufacturer;
+        }
+        catch { }
+        return string.Empty;
+    }
+
+    private static string ExtractXmlValue(string xml, string tag)
+    {
+        try
+        {
+            string startTag = $"<{tag}>";
+            string endTag = $"</{tag}>";
+            int start = xml.IndexOf(startTag);
+            if (start == -1) return string.Empty;
+            int end = xml.IndexOf(endTag, start);
+            if (end == -1) return string.Empty;
+            return xml.Substring(start + startTag.Length, end - (start + startTag.Length)).Trim();
+        }
+        catch { return string.Empty; }
     }
 }

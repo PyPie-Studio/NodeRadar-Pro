@@ -326,34 +326,18 @@ public class SubnetScanner
             catch { }
         }
 
-        // Device type guessing
-        node.DeviceType = Data.VendorLookup.GuessDeviceType(node.Vendor, node.Hostname);
-
-        // Icon assignment
-        if (!string.IsNullOrEmpty(node.DeviceType))
-        {
-            string t = node.DeviceType.ToLower();
-            if (t.Contains("phone") || t.Contains("iphone")) node.IconPath = "phone";
-            else if (t.Contains("tv")) node.IconPath = "tv";
-            else if (t.Contains("router") || t.Contains("network") || t.Contains("access point")) node.IconPath = "router";
-            else if (t.Contains("pc") || t.Contains("computer") || t.Contains("desktop")) node.IconPath = "pc";
-            else if (t.Contains("laptop") || t.Contains("macbook")) node.IconPath = "laptop";
-            else if (t.Contains("camera")) node.IconPath = "camera";
-            else if (t.Contains("speaker")) node.IconPath = "speaker";
-            else if (t.Contains("nas") || t.Contains("server")) node.IconPath = "server";
-        }
-
         // Inline port scanning (if enabled)
         if (EnableInlinePortScan && !token.IsCancellationRequested)
         {
             try
             {
                 node.OpenPorts = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
-                if (EnableOsDetection && node.OpenPorts.Count > 0)
-                    node.OsGuess = PortScanner.GuessOs(node.OpenPorts);
             }
             catch { }
         }
+
+        // ── Deep Intelligence: Intelligent Classification ──
+        DeviceClassifier.ResolveDetails(node);
 
         // ── Deep Intelligence: Vulnerability Scoring ──
         VulnerabilityEngine.UpdateThreatLevel(node);
