@@ -22,6 +22,9 @@ public class RadarCanvas : Control
     private string? _selectedMac = null;
     private double _pulsePhase = 0;
     private double _zoomLevel = 1.0;
+    private Vector _panOffset = new Vector(0, 0);
+    private Point _lastPointerPoint;
+    private bool _isDragging = false;
 
     private readonly Avalonia.Threading.DispatcherTimer _radarTimer;
 
@@ -72,7 +75,11 @@ public class RadarCanvas : Control
     {
         base.OnPointerWheelChanged(e);
         double delta = e.Delta.Y;
-        _zoomLevel = Math.Clamp(_zoomLevel + (delta * 0.1), 0.5, 3.0);
+        _zoomLevel = Math.Clamp(_zoomLevel + (delta * 0.1), 0.5, 5.0);
+        
+        // Reset pan if zoomed out to 1.0 or less
+        if (_zoomLevel <= 1.0) _panOffset = new Vector(0, 0);
+        
         InvalidateVisual();
     }
 
@@ -87,22 +94,29 @@ public class RadarCanvas : Control
             double distance = ((maxRadius * 0.1) + ((lastOctet / 254.0) * (maxRadius * distanceFactor))) * _zoomLevel;
 
             return new Point(
-                center.X + Math.Cos(nodeRad) * distance,
-                center.Y + Math.Sin(nodeRad) * distance
+                center.X + Math.Cos(nodeRad) * distance + _panOffset.X,
+                center.Y + Math.Sin(nodeRad) * distance + _panOffset.Y
             );
         }
-        return center;
+        return new Point(center.X + _panOffset.X, center.Y + _panOffset.Y);
     }
 
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
+        _lastPointerPoint = e.GetPosition(this);
+        var props = e.GetCurrentPoint(this).Properties;
 
-        var clickPoint = e.GetPosition(this);
+        if (props.IsLeftButtonPressed)
+        {
+            _isDragging = true;
+            e.Pointer.Capture(this);
+        }
+
         var bounds = Bounds;
         var center = new Point(bounds.Width / 2, bounds.Height / 2);
         double baseRadius = Math.Min(bounds.Width, bounds.Height) / 2.2;
-        bool isRightClick = e.GetCurrentPoint(this).Properties.IsRightButtonPressed;
+        bool isRightClick = props.IsRightButtonPressed;
 
         foreach (var node in _activeNodes)
         {
@@ -112,15 +126,16 @@ public class RadarCanvas : Control
             double distToCenter = Math.Sqrt(Math.Pow(nodePoint.X - center.X, 2) + Math.Pow(nodePoint.Y - center.Y, 2));
             if (distToCenter > baseRadius) continue;
 
-            double dx = clickPoint.X - nodePoint.X;
-            double dy = clickPoint.Y - nodePoint.Y;
+            double dx = _lastPointerPoint.X - nodePoint.X;
+            double dy = _lastPointerPoint.Y - nodePoint.Y;
             
-            // Scale hit detection radius slightly with zoom for better interaction
-            double effectiveNodeZoom = 1.0 + (_zoomLevel - 1.0) * 0.5;
-            double hitRadius = 15 * effectiveNodeZoom;
+            // Hit radius shrinks with node scale (Inverse Zoom)
+            double nodeScale = 1.0 / Math.Sqrt(_zoomLevel);
+            double hitRadius = 15 * nodeScale;
 
             if ((dx * dx) + (dy * dy) <= (hitRadius * hitRadius))
             {
+                _isDragging = false; // Selection takes precedence over panning
                 if (isRightClick)
                     NodeRightClicked?.Invoke(node);
                 else
@@ -133,6 +148,26 @@ public class RadarCanvas : Control
         }
 
         if (!isRightClick) _selectedMac = null;
+    }
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        if (_isDragging && _zoomLevel > 1.0)
+        {
+            var currentPoint = e.GetPosition(this);
+            var delta = currentPoint - _lastPointerPoint;
+            _panOffset += delta;
+            _lastPointerPoint = currentPoint;
+            InvalidateVisual();
+        }
+    }
+
+    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    {
+        base.OnPointerReleased(e);
+        _isDragging = false;
+        e.Pointer.Capture(null);
     }
 
     public override void Render(DrawingContext context)
@@ -232,21 +267,22 @@ public class RadarCanvas : Control
 
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
+        
+        // Inverse Scaling: Nodes and text shrink as you zoom in to reveal more resolution
+        double nodeScale = 1.0 / Math.Sqrt(_zoomLevel);
 
         foreach (var node in _activeNodes)
         {
             Point nodePoint = GetNodePosition(node, center, baseRadius);
-            if (nodePoint == center) continue;
+            if (nodePoint == (center + _panOffset)) continue;
 
             bool isSelected = node.MacAddress == _selectedMac;
-            // Scale node size slightly with zoom for better distinction, but less aggressively than positions
-            double effectiveNodeZoom = 1.0 + (_zoomLevel - 1.0) * 0.5;
-            double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * effectiveNodeZoom;
+            double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * nodeScale;
 
             if (node.IsOnline)
             {
                 // Outer glow
-                double glowRadius = nodeBaseRadius + (5 * effectiveNodeZoom) * pulseScale;
+                double glowRadius = nodeBaseRadius + (5 * nodeScale) * pulseScale;
 
                 var glowColor = node.ThreatLevel switch
                 {
@@ -273,15 +309,15 @@ public class RadarCanvas : Control
             if (node.IsRegistered)
             {
                 var ringC = node.IsOnline ? CyanGlow : ErrorGlow;
-                var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ringC.R, ringC.G, ringC.B)), 1.5 * effectiveNodeZoom);
-                context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * effectiveNodeZoom), nodeBaseRadius + (4 * effectiveNodeZoom));
+                var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ringC.R, ringC.G, ringC.B)), 1.5 * nodeScale);
+                context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * nodeScale), nodeBaseRadius + (4 * nodeScale));
             }
 
             // Selection highlight
             if (isSelected)
             {
-                var selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5 * effectiveNodeZoom);
-                context.DrawEllipse(null, selectPen, nodePoint, nodeBaseRadius + (7 * effectiveNodeZoom), nodeBaseRadius + (7 * effectiveNodeZoom));
+                var selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5 * nodeScale);
+                context.DrawEllipse(null, selectPen, nodePoint, nodeBaseRadius + (7 * nodeScale), nodeBaseRadius + (7 * nodeScale));
             }
 
             // Label
@@ -294,10 +330,10 @@ public class RadarCanvas : Control
                 node.DisplayName,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                typeface, 11 * effectiveNodeZoom, textColor
+                typeface, 11 * nodeScale, textColor
             );
 
-            double textYOffset = nodePoint.Y > center.Y ? -(20 * effectiveNodeZoom) : (14 * effectiveNodeZoom);
+            double textYOffset = nodePoint.Y > center.Y ? -(20 * nodeScale) : (14 * nodeScale);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
 
