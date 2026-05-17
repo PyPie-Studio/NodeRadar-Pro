@@ -107,10 +107,18 @@ public class RadarCanvas : Control
         foreach (var node in _activeNodes)
         {
             Point nodePoint = GetNodePosition(node, center, baseRadius);
+            
+            // Verify node is within the visual radar boundary (clipped in Render)
+            double distToCenter = Math.Sqrt(Math.Pow(nodePoint.X - center.X, 2) + Math.Pow(nodePoint.Y - center.Y, 2));
+            if (distToCenter > baseRadius) continue;
+
             double dx = clickPoint.X - nodePoint.X;
             double dy = clickPoint.Y - nodePoint.Y;
-            // Scale hit detection radius with zoom
-            double hitRadius = 20 * _zoomLevel;
+            
+            // Scale hit detection radius slightly with zoom for better interaction
+            double effectiveNodeZoom = 1.0 + (_zoomLevel - 1.0) * 0.5;
+            double hitRadius = 15 * effectiveNodeZoom;
+
             if ((dx * dx) + (dy * dy) <= (hitRadius * hitRadius))
             {
                 if (isRightClick)
@@ -142,15 +150,15 @@ public class RadarCanvas : Control
 
         var center = new Point(bounds.Width / 2, bounds.Height / 2);
         double baseRadius = Math.Min(bounds.Width, bounds.Height) / 2.2;
-        double maxRadius = baseRadius * _zoomLevel;
+        double maxRadius = baseRadius; // Fixed size for the radar circle
 
         // Background circle — deep surface
         var bgBrush = new ImmutableSolidColorBrush(SurfaceBg, 0.7);
         context.DrawEllipse(bgBrush, null, center, maxRadius, maxRadius);
 
         // Inner shadow ring
-        var innerShadowPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(15, 0, 0, 0)), 30 * _zoomLevel);
-        context.DrawEllipse(null, innerShadowPen, center, Math.Max(1, maxRadius - (15 * _zoomLevel)), Math.Max(1, maxRadius - (15 * _zoomLevel)));
+        var innerShadowPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(15, 0, 0, 0)), 30);
+        context.DrawEllipse(null, innerShadowPen, center, Math.Max(1, maxRadius - 15), Math.Max(1, maxRadius - 15));
 
         // Concentric rings — tertiary cyan at increasing opacity
         byte[] ringAlphas = { 15, 25, 38, 50 };
@@ -162,16 +170,16 @@ public class RadarCanvas : Control
             context.DrawEllipse(null, ringPen, center, ringRadius, ringRadius);
         }
 
-        // Coordinate Labels — INCREASED SIZE
+        // Coordinate Labels
         var labelBrush = new ImmutableSolidColorBrush(new Color(100, RingColor.R, RingColor.G, RingColor.B));
         var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Bold);
         string[] labels = { "N", "E", "S", "W" };
         for (int i = 0; i < 4; i++)
         {
             double ang = (i * 90 - 90) * (Math.PI / 180.0);
-            var labelText = new FormattedText(labels[i], System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, labelTypeface, 16 * _zoomLevel, labelBrush);
-            double lx = center.X + Math.Cos(ang) * (maxRadius + (16 * _zoomLevel)) - (labelText.Width / 2);
-            double ly = center.Y + Math.Sin(ang) * (maxRadius + (16 * _zoomLevel)) - (labelText.Height / 2);
+            var labelText = new FormattedText(labels[i], System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, labelTypeface, 16, labelBrush);
+            double lx = center.X + Math.Cos(ang) * (maxRadius + 16) - (labelText.Width / 2);
+            double ly = center.Y + Math.Sin(ang) * (maxRadius + 16) - (labelText.Height / 2);
             context.DrawText(labelText, new Point(lx, ly));
         }
 
@@ -212,11 +220,15 @@ public class RadarCanvas : Control
 
         // Center hub — primary purple with inner dot
         var hubGlow = new ImmutableSolidColorBrush(new Color(60, PrimaryPurple.R, PrimaryPurple.G, PrimaryPurple.B));
-        context.DrawEllipse(hubGlow, null, center, 12 * _zoomLevel, 12 * _zoomLevel);
+        context.DrawEllipse(hubGlow, null, center, 12, 12);
         var hubBrush = new ImmutableSolidColorBrush(PrimaryPurple);
-        context.DrawEllipse(hubBrush, null, center, 5 * _zoomLevel, 5 * _zoomLevel);
+        context.DrawEllipse(hubBrush, null, center, 5, 5);
         var hubInner = new ImmutableSolidColorBrush(OnPrimary);
-        context.DrawEllipse(hubInner, null, center, 2 * _zoomLevel, 2 * _zoomLevel);
+        context.DrawEllipse(hubInner, null, center, 2, 2);
+
+        // ── PUSH CLIPPING FOR NODES ──
+        // Only draw nodes if they are within the radar circle
+        using var nodeClip = context.PushClip(new RoundedRect(new Rect(center.X - maxRadius, center.Y - maxRadius, maxRadius * 2, maxRadius * 2), maxRadius));
 
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
@@ -227,12 +239,14 @@ public class RadarCanvas : Control
             if (nodePoint == center) continue;
 
             bool isSelected = node.MacAddress == _selectedMac;
-            double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * _zoomLevel;
+            // Scale node size slightly with zoom for better distinction, but less aggressively than positions
+            double effectiveNodeZoom = 1.0 + (_zoomLevel - 1.0) * 0.5;
+            double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * effectiveNodeZoom;
 
             if (node.IsOnline)
             {
                 // Outer glow
-                double glowRadius = nodeBaseRadius + (5 * _zoomLevel) * pulseScale;
+                double glowRadius = nodeBaseRadius + (5 * effectiveNodeZoom) * pulseScale;
 
                 var glowColor = node.ThreatLevel switch
                 {
@@ -259,15 +273,15 @@ public class RadarCanvas : Control
             if (node.IsRegistered)
             {
                 var ringC = node.IsOnline ? CyanGlow : ErrorGlow;
-                var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ringC.R, ringC.G, ringC.B)), 1.5 * _zoomLevel);
-                context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * _zoomLevel), nodeBaseRadius + (4 * _zoomLevel));
+                var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ringC.R, ringC.G, ringC.B)), 1.5 * effectiveNodeZoom);
+                context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * effectiveNodeZoom), nodeBaseRadius + (4 * effectiveNodeZoom));
             }
 
             // Selection highlight
             if (isSelected)
             {
-                var selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5 * _zoomLevel);
-                context.DrawEllipse(null, selectPen, nodePoint, nodeBaseRadius + (7 * _zoomLevel), nodeBaseRadius + (7 * _zoomLevel));
+                var selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5 * effectiveNodeZoom);
+                context.DrawEllipse(null, selectPen, nodePoint, nodeBaseRadius + (7 * effectiveNodeZoom), nodeBaseRadius + (7 * effectiveNodeZoom));
             }
 
             // Label
@@ -280,12 +294,15 @@ public class RadarCanvas : Control
                 node.DisplayName,
                 System.Globalization.CultureInfo.CurrentCulture,
                 FlowDirection.LeftToRight,
-                typeface, 11 * _zoomLevel, textColor
+                typeface, 11 * effectiveNodeZoom, textColor
             );
 
-            double textYOffset = nodePoint.Y > center.Y ? -(20 * _zoomLevel) : (14 * _zoomLevel);
+            double textYOffset = nodePoint.Y > center.Y ? -(20 * effectiveNodeZoom) : (14 * effectiveNodeZoom);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
+
+        // Pop the nodeClip
+        // context automatically pops 'using' objects when they go out of scope.
 
         // Zoom Level Indicator (Subtle overlay)
         if (_zoomLevel != 1.0)
