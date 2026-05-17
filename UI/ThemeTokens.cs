@@ -94,6 +94,8 @@ public static class ThemeTokens
     public const double ButtonRadius = 6;
     public const double InputRadius = 8;
 
+    public const string AppVersion = "1.0.0";
+
     // ── SVG Vector Paths (Modern Technical Icons) ──
     public const string SvgRouter = "M4,17V9H20V17H4M12,10A1,1 0 0,0 11,11A1,1 0 0,0 12,12A1,1 0 0,0 13,11A1,1 0 0,0 12,10M15,10A1,1 0 0,0 14,11A1,1 0 0,0 15,12A1,1 0 0,0 16,11A1,1 0 0,0 15,10M18,10A1,1 0 0,0 17,11A1,1 0 0,0 18,12A1,1 0 0,0 19,11A1,1 0 0,0 18,10M7,12V14H10V12H7Z";
     public const string SvgServer = "M4,4H20A1,1 0 0,1 21,5V9A1,1 0 0,1 20,10H4A1,1 0 0,1 3,9V5A1,1 0 0,1 4,4M4,14H20A1,1 0 0,1 21,15V19A1,1 0 0,1 20,20H4A1,1 0 0,1 3,19V15A1,1 0 0,1 4,14M9,7A1,1 0 1,0 8,8A1,1 0 0,0 9,7M9,17A1,1 0 1,0 8,18A1,1 0 0,0 9,17M12,7A1,1 0 1,0 11,8A1,1 0 0,0 12,7M12,17A1,1 0 1,0 11,18A1,1 0 0,0 12,17Z";

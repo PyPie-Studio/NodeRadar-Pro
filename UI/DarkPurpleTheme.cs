@@ -44,18 +44,27 @@ public class DarkPurpleTheme
     {
         try
         {
-            // Simulate GitHub check (v1.0.0 is current)
-            await Task.Delay(3000); 
+            using var http = new System.Net.Http.HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
             
-            // Mock: newer version found
-            bool updateAvailable = true; 
-
-            if (updateAvailable)
+            // Check GitHub releases API for latest version
+            var response = await http.GetStringAsync("https://api.github.com/repos/pypiestudio/noderadar-pro/releases/latest");
+            
+            // Simple JSON parse for tag_name
+            var tagIdx = response.IndexOf("\"tag_name\"");
+            if (tagIdx > 0)
             {
-                await Dispatcher.UIThread.InvokeAsync(() => 
+                var valStart = response.IndexOf('"', tagIdx + 11) + 1;
+                var valEnd = response.IndexOf('"', valStart);
+                var latestVersion = response[valStart..valEnd].TrimStart('v');
+
+                if (latestVersion != ThemeTokens.AppVersion && !string.IsNullOrEmpty(latestVersion))
                 {
-                    ShowUpdatePrompt(mainWindow);
-                });
+                    await Dispatcher.UIThread.InvokeAsync(() => 
+                    {
+                        ShowUpdatePrompt(mainWindow);
+                    });
+                }
             }
         }
         catch { }
@@ -79,7 +88,7 @@ public class DarkPurpleTheme
             try {
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
-                    FileName = "https://github.com/tryku/NodeRadar-Pro",
+                    FileName = "https://github.com/PyPie-Studio/NodeRadar-Pro/releases",
                     UseShellExecute = true
                 });
             } catch { }

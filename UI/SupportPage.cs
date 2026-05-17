@@ -17,7 +17,6 @@ namespace NodeRadarPro.UI;
 /// </summary>
 public class SupportPage : Border
 {
-    private const string AppVersion = "1.0.0";
     private const string BuildDate = "April 2026";
 
     public SupportPage()
@@ -59,7 +58,7 @@ public class SupportPage : Border
 
         var appName = ThemeTokens.Headline("NodeRadar Pro", 26);
         var appCompany = new TextBlock { Text = "by PyPie Studio", FontSize = 16, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, Margin = new Thickness(0, 2, 0, 4) };
-        var versionBadge = new Border { Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.3), CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 4), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = $"Version {AppVersion} • {BuildDate}", FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } };
+        var versionBadge = new Border { Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.3), CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 4), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = $"Version {ThemeTokens.AppVersion} • {BuildDate}", FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } };
 
         var infoTextCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { appName, appCompany, versionBadge } };
         var infoHeader = new StackPanel { Orientation = Orientation.Horizontal, Children = { logoIcon, infoTextCol } };
@@ -96,7 +95,7 @@ public class SupportPage : Border
         var updatesTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 16), Children = { updatesIcon, updatesTitle } };
 
         var currentVerLabel = ThemeTokens.Label("CURRENT VERSION", 12); currentVerLabel.LetterSpacing = 1.5; currentVerLabel.Margin = new Thickness(0, 0, 0, 4);
-        var currentVer = new TextBlock { Text = $"v{AppVersion}", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
+        var currentVer = new TextBlock { Text = $"v{ThemeTokens.AppVersion}", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
 
         var statusRow = new Border
         {
@@ -146,7 +145,7 @@ public class SupportPage : Border
                     var valStart = response.IndexOf('"', tagIdx + 11) + 1;
                     var valEnd = response.IndexOf('"', valStart);
                     var latestVersion = response[valStart..valEnd].TrimStart('v');
-                    if (latestVersion != "1.0.0" && !string.IsNullOrEmpty(latestVersion))
+                    if (latestVersion != ThemeTokens.AppVersion && !string.IsNullOrEmpty(latestVersion))
                         checkUpdateBtn.Content = $"⬆  Update available: v{latestVersion}";
                     else
                         checkUpdateBtn.Content = "✅  Up to date!";
@@ -188,7 +187,7 @@ public class SupportPage : Border
         var reportTitle = ThemeTokens.Headline("Security Reporting", 20);
         var reportTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 16), Children = { reportIcon, reportTitle } };
 
-        var reportDesc = ThemeTokens.Body("Generate an enterprise-grade PDF audit of your current network state, including vulnerability assessments and device inventory.", 14);
+        var reportDesc = ThemeTokens.Body("Generate a PDF audit of your current network state, including vulnerability assessments and device inventory.", 14);
         reportDesc.Margin = new Thickness(0, 0, 0, 20);
         reportDesc.TextWrapping = TextWrapping.Wrap;
 
