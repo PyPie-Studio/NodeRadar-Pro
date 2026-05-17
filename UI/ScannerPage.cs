@@ -745,6 +745,8 @@ public class ScannerPage : Border
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(16, 0)
         };
+        ThemeTokens.SetToolTip(saveBtn, "Register to Inventory: Permanently save this device's identity and intelligence to your local database.");
+        
         saveBtn.Click += (s, e) =>
         {
             node.IsRegistered = true;
