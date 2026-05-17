@@ -8,6 +8,7 @@ public static class DeviceClassifier
 {
     /// <summary>
     /// Uses a weighted scoring system to identify the OS, Device Type, and Icon for a node.
+    /// Incorporates Active Banner data, MAC prefixes, mDNS, SSDP, and Port Fingerprinting.
     /// </summary>
     public static void ResolveDetails(NetworkNode node)
     {
@@ -16,28 +17,38 @@ public static class DeviceClassifier
         int linuxScore = 0;
         int iotScore = 0;
         int printerScore = 0;
+        int networkScore = 0;
 
         string vendor = node.Vendor?.ToLower() ?? "";
         string hostname = node.Hostname?.ToLower() ?? "";
         string exact = node.ExactModel?.ToLower() ?? "";
 
-        // ── 1. MAC Prefix Scoring ──
+        // ── 1. Active Banner / Version Scoring ──
+        // (Banners gathered via TCP ports 22, 80, etc. in SubnetScanner)
+        if (exact.Contains("openssh")) linuxScore += 40;
+        if (exact.Contains("microsoft-httpapi") || exact.Contains("iis")) winScore += 50;
+        if (exact.Contains("mikrotik") || exact.Contains("routeros")) networkScore += 100;
+        if (exact.Contains("nginx") || exact.Contains("apache")) linuxScore += 30;
+        if (exact.Contains("yeelight") || exact.Contains("mi-light")) iotScore += 100;
+        if (exact.Contains("samsung") && exact.Contains("tv")) iotScore += 80;
+
+        // ── 2. MAC Prefix Scoring ──
         if (vendor.Contains("apple")) iosScore += 30;
-        if (vendor.Contains("microsoft") || vendor.Contains("intel") || vendor.Contains("dell") || vendor.Contains("hp")) winScore += 10;
-        if (vendor.Contains("raspberry") || vendor.Contains("espressif")) linuxScore += 40;
-        if (vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("huawei") || vendor.Contains("google")) iotScore += 20;
+        if (vendor.Contains("microsoft") || vendor.Contains("intel") || vendor.Contains("dell") || vendor.Contains("hp") || vendor.Contains("asustek")) winScore += 10;
+        if (vendor.Contains("raspberry") || vendor.Contains("synology") || vendor.Contains("qnap")) linuxScore += 40;
+        if (vendor.Contains("espressif") || vendor.Contains("xiaomi") || vendor.Contains("tuya") || vendor.Contains("yeelink")) iotScore += 30;
+        if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("netgear") || vendor.Contains("huawei")) networkScore += 20;
 
-        // ── 2. Protocol Signals (mDNS/SSDP) ──
+        // ── 3. Protocol Signals (mDNS/SSDP) ──
         if (exact.Contains("apple") || exact.Contains("airplay") || exact.Contains("homekit")) iosScore += 60;
-        if (exact.Contains("chromecast") || exact.Contains("google cast")) iotScore += 60;
+        if (exact.Contains("chromecast") || exact.Contains("google cast") || exact.Contains("google-home")) iotScore += 60;
         if (exact.Contains("spotify") || exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("bose")) iotScore += 40;
-        if (exact.Contains("bulb") || exact.Contains("light") || exact.Contains("yeelight") || exact.Contains("hue") || exact.Contains("ring") || exact.Contains("nest") || exact.Contains("arlo")) iotScore += 50;
-        if (exact.Contains("tv") || exact.Contains("samsung") || exact.Contains("tizen") || exact.Contains("webos") || exact.Contains("bravia") || exact.Contains("roku") || exact.Contains("vizio") || exact.Contains("lg")) iotScore += 50;
-        if (exact.Contains("printer") || exact.Contains("ipp") || exact.Contains("canon") || exact.Contains("epson")) printerScore += 80;
+        if (exact.Contains("bulb") || exact.Contains("light") || exact.Contains("hue") || exact.Contains("ring") || exact.Contains("nest") || exact.Contains("arlo")) iotScore += 50;
+        if (exact.Contains("tv") || exact.Contains("tizen") || exact.Contains("webos") || exact.Contains("bravia") || exact.Contains("roku") || exact.Contains("vizio")) iotScore += 50;
+        if (exact.Contains("printer") || exact.Contains("ipp") || exact.Contains("canon") || exact.Contains("epson") || exact.Contains("hp jetdirect")) printerScore += 80;
         if (exact.Contains("workstation") || exact.Contains("windows")) winScore += 40;
-        if (exact.Contains("smb") || exact.Contains("server")) linuxScore += 20;
 
-        // ── 3. Port Fingerprinting ──
+        // ── 4. Port Fingerprinting ──
         foreach (int port in node.OpenPorts)
         {
             switch (port)
@@ -47,45 +58,45 @@ public static class DeviceClassifier
                 case 135: case 445: case 3389: winScore += 50; break; // RPC/SMB/RDP
                 case 5357: winScore += 40; break;  // WSD (Web Services for Devices)
                 case 22: linuxScore += 30; break;  // SSH
+                case 23: case 21: networkScore += 30; break; // Telnet/FTP (common on routers)
                 case 9100: case 631: printerScore += 80; break; // JetDirect/IPP
                 case 8008: case 8009: iotScore += 40; break; // Google Cast
-                case 5000: iotScore += 20; break; // Common IoT web
             }
         }
 
-        // ── 4. Hostname Keywords ──
-        if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple")) iosScore += 40;
+        // ── 5. Hostname Keywords ──
+        if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple-")) iosScore += 50;
         if (hostname.Contains("windows") || hostname.Contains("desktop-") || hostname.Contains("laptop-")) winScore += 30;
-        if (hostname.Contains("android") || hostname.Contains("galaxy") || hostname.Contains("pixel")) iotScore += 30;
+        if (hostname.Contains("android") || hostname.Contains("galaxy") || hostname.Contains("pixel") || hostname.Contains("mi-")) iotScore += 30;
 
-        // ── 5. Final Decision ──
+        // ── 6. Final Decision ──
         var scores = new Dictionary<string, int>
         {
             { "macOS/iOS", iosScore },
             { "Windows", winScore },
             { "Linux/Android", linuxScore },
             { "IoT/Smart Device", iotScore },
-            { "Printer", printerScore }
+            { "Printer", printerScore },
+            { "Infrastructure", networkScore }
         };
 
         var winner = scores.OrderByDescending(x => x.Value).First();
 
-        // Threshold for a confident guess
-        if (winner.Value >= 30)
+        if (winner.Value >= 25)
         {
             node.OsGuess = winner.Key;
             
-            // Refine DeviceType and Icon based on winner
+            // Refine DeviceType and Icon based on specific keyword strength
             if (winner.Key == "macOS/iOS")
             {
-                if (hostname.Contains("iphone") || vendor.Contains("apple"))
+                if (hostname.Contains("iphone") || hostname.Contains("ipad") || exact.Contains("iphone"))
                 {
                     node.DeviceType = "Mobile Phone";
                     node.IconPath = "phone";
                 }
                 else
                 {
-                    node.DeviceType = "Computer";
+                    node.DeviceType = "Apple Computer";
                     node.IconPath = "pc";
                 }
             }
@@ -96,49 +107,69 @@ public static class DeviceClassifier
             }
             else if (winner.Key == "Printer")
             {
-                node.DeviceType = "Printer";
+                node.DeviceType = "Network Printer";
                 node.IconPath = "printer";
+            }
+            else if (winner.Key == "Infrastructure")
+            {
+                node.DeviceType = "Network Router/Switch";
+                node.IconPath = "router";
             }
             else if (winner.Key == "IoT/Smart Device")
             {
-                node.DeviceType = "IoT Device";
-                node.IconPath = "iot"; 
-                
-                if (exact.Contains("tv") || hostname.Contains("tv") || exact.Contains("tizen") || exact.Contains("webos")) 
+                // Sub-classification for IoT
+                if (exact.Contains("bulb") || exact.Contains("light") || exact.Contains("yeelight"))
+                {
+                    node.DeviceType = "Smart Lighting";
+                    node.IconPath = "iot";
+                }
+                else if (exact.Contains("tv") || hostname.Contains("tv") || exact.Contains("tizen"))
                 {
                     node.DeviceType = "Smart TV";
                     node.IconPath = "tv";
                 }
-                else if (exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("bose") || exact.Contains("spotify")) 
+                else if (exact.Contains("speaker") || exact.Contains("sonos") || exact.Contains("home-pod"))
                 {
                     node.DeviceType = "Smart Speaker";
                     node.IconPath = "speaker";
                 }
-                else if (hostname.Contains("android") || vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("huawei"))
+                else if (hostname.Contains("android") || (vendor.Contains("xiaomi") && !exact.Contains("light")))
                 {
                     node.DeviceType = "Mobile Phone";
                     node.IconPath = "phone";
+                }
+                else
+                {
+                    node.DeviceType = "IoT Device";
+                    node.IconPath = "iot";
                 }
             }
             else if (winner.Key == "Linux/Android")
             {
-                node.DeviceType = "Linux Device";
-                node.IconPath = "server";
-                if (hostname.Contains("android"))
+                if (hostname.Contains("android") || vendor.Contains("samsung") || vendor.Contains("huawei"))
                 {
                     node.DeviceType = "Mobile Phone";
                     node.IconPath = "phone";
                 }
+                else
+                {
+                    node.DeviceType = "Linux Host";
+                    node.IconPath = "server";
+                }
             }
         }
-        
-        // Final sanity check for common mobile vendors if still generic
-        if (node.IconPath == "default_device" || node.IconPath == "router")
+        else
         {
-            if (vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("huawei") || vendor.Contains("oppo"))
+            // Confidence too low - keep it generic but try vendor-only guess
+            if (vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("apple"))
             {
-                node.DeviceType = "Mobile Phone";
+                node.DeviceType = "Mobile Device";
                 node.IconPath = "phone";
+            }
+            else
+            {
+                node.DeviceType = "Generic Network Device";
+                node.IconPath = "router";
             }
         }
     }

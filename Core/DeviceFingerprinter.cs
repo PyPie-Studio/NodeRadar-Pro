@@ -23,29 +23,82 @@ public static class DeviceFingerprinter
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DiscoveryData> _discoveryCache = new();
 
-    public static async Task<string> TryGetHttpServerBannerAsync(string ip)
+    /// <summary>
+    /// Actively connects to open ports to "grab banners" and identify the device identity.
+    /// This is a deterministic approach used by professional tools like Nmap.
+    /// </summary>
+    public static async Task<string> GetActiveBannerAsync(string ip, int port, CancellationToken token)
     {
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"http://{ip}/");
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            if (response.Headers.Server != null)
+            using var tcp = new TcpClient();
+            var connectTask = tcp.ConnectAsync(ip, port, token).AsTask();
+            if (await Task.WhenAny(connectTask, Task.Delay(1500, token)) != connectTask) return string.Empty;
+            
+            using var stream = tcp.GetStream();
+            stream.ReadTimeout = 1500;
+            
+            if (port == 80 || port == 443 || port == 8080)
             {
-                return response.Headers.Server.ToString();
+                // HTTP Banner
+                string req = $"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n";
+                byte[] reqBytes = Encoding.ASCII.GetBytes(req);
+                await stream.WriteAsync(reqBytes, 0, reqBytes.Length, token);
+                
+                byte[] buffer = new byte[2048];
+                int read = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                string response = Encoding.UTF8.GetString(buffer, 0, read);
+                
+                var serverLine = response.Split('\n').FirstOrDefault(l => l.StartsWith("Server:", StringComparison.OrdinalIgnoreCase));
+                return serverLine?.Replace("Server:", "").Trim() ?? string.Empty;
             }
+            else
+            {
+                // TCP Greeting (SSH, FTP, etc.)
+                byte[] buffer = new byte[512];
+                int read = await stream.ReadAsync(buffer, 0, buffer.Length, token);
+                if (read > 0)
+                {
+                    string greeting = Encoding.UTF8.GetString(buffer, 0, read).Trim();
+                    // Clean up common control characters
+                    return new string(greeting.Where(c => !char.IsControl(c) || c == ' ' || c == '.').ToArray());
+                }
+            }
+        }
+        catch { }
+        return string.Empty;
+    }
+
+    public static async Task<string> TryGetHttpServerBannerAsync(string ip)
+    {
+        return await GetActiveBannerAsync(ip, 80, CancellationToken.None);
+    }
+
+    /// <summary>
+    /// Performs deep HTTP probes for specific indicators (Apple, IoT, Printers).
+    /// </summary>
+    public static async Task<string> ProbeHttpMetadataAsync(string ip)
+    {
+        // 1. Check for Apple devices via touch icon
+        try
+        {
+            var appleResponse = await _httpClient.GetAsync($"http://{ip}/apple-touch-icon.png");
+            if (appleResponse.IsSuccessStatusCode) return "Apple Device (HTTP-Icon)";
         }
         catch { }
 
-        try
+        // 2. Check for IoT / Printers via UPNP descriptors
+        string[] upnpPaths = { "/upnp/desc.xml", "/description.xml", "/rootDesc.xml", "/device-description.xml" };
+        foreach (var path in upnpPaths)
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"https://{ip}/");
-            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-            if (response.Headers.Server != null)
+            try
             {
-                return response.Headers.Server.ToString();
+                string url = $"http://{ip}{path}";
+                string details = await TryFetchSsdpLocationXmlAsync(url);
+                if (!string.IsNullOrEmpty(details)) return details;
             }
+            catch { }
         }
-        catch { }
 
         return string.Empty;
     }
@@ -59,7 +112,7 @@ public static class DeviceFingerprinter
         {
             var sb = new StringBuilder();
             if (!string.IsNullOrEmpty(data.MdnsName)) sb.Append($"{data.MdnsName} ");
-            foreach (var service in data.Services) sb.Append($"{service} ");
+            foreach (var service in data.Services.Distinct()) sb.Append($"{service} ");
             return sb.ToString().Trim();
         }
         return string.Empty;
@@ -139,7 +192,7 @@ public static class DeviceFingerprinter
     public static async Task StartDiscoverySweepAsync()
     {
         _discoveryCache.Clear();
-        using var cts = new CancellationTokenSource(3000);
+        using var cts = new CancellationTokenSource(4000); // 4 seconds for a broad sweep
         
         var mdnsTask = Task.Run(() => RunMdnsSweepAsync(cts.Token));
         var ssdpTask = Task.Run(() => RunSsdpSweepAsync(cts.Token));
@@ -173,7 +226,6 @@ public static class DeviceFingerprinter
                 var result = await udp.ReceiveAsync(token);
                 string senderIp = result.RemoteEndPoint.Address.ToString();
                 
-                // Low-level byte extraction for "Instance Name"
                 string instanceName = ExtractMdnsInstanceName(result.Buffer);
                 
                 var data = _discoveryCache.GetOrAdd(senderIp, _ => new DiscoveryData());
@@ -184,12 +236,43 @@ public static class DeviceFingerprinter
                         data.MdnsName = instanceName;
                 }
 
-                // Substring fallback for service matching
                 string raw = Encoding.UTF8.GetString(result.Buffer);
-                if (raw.Contains("Apple") || raw.Contains("AirPlay")) data.Services.Add("Apple/AirPlay");
+                if (raw.Contains("Apple") || raw.Contains("AirPlay")) data.Services.Add("Apple AirPlay");
                 if (raw.Contains("Google") || raw.Contains("Cast")) data.Services.Add("Google Cast");
                 if (raw.Contains("Spotify")) data.Services.Add("Spotify");
-                if (raw.Contains("Printer") || raw.Contains("ipp")) data.Services.Add("Printer");
+                if (raw.Contains("Printer") || raw.Contains("ipp")) data.Services.Add("Network Printer");
+
+                // Parse TXT records for model info
+                ParseMdnsTxtRecords(result.Buffer, data);
+            }
+        }
+        catch { }
+    }
+
+    private static void ParseMdnsTxtRecords(byte[] buffer, DiscoveryData data)
+    {
+        try
+        {
+            // Scan for common TXT keys: model=, am= (Apple Model), md= (Model Description)
+            string[] keys = { "model=", "am=", "md=" };
+            string raw = Encoding.UTF8.GetString(buffer);
+            
+            foreach (var key in keys)
+            {
+                int idx = raw.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+                if (idx != -1)
+                {
+                    int start = idx + key.Length;
+                    // Find end of string (non-printable or next record)
+                    int end = start;
+                    while (end < raw.Length && raw[end] >= 32 && raw[end] < 127) end++;
+                    
+                    if (end > start)
+                    {
+                        string val = raw.Substring(start, end - start).Trim();
+                        if (val.Length > 2 && !data.Services.Contains(val)) data.Services.Add(val);
+                    }
+                }
             }
         }
         catch { }
@@ -199,8 +282,6 @@ public static class DeviceFingerprinter
     {
         try
         {
-            // Simple heuristic: look for patterns like [length][name][length]local
-            // We search for ".local" in bytes: 05 6c 6f 63 61 6c 00
             byte[] localPattern = { 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00 };
             int localIdx = -1;
             for (int i = 0; i < buffer.Length - 7; i++)
@@ -216,7 +297,6 @@ public static class DeviceFingerprinter
                 if (localIdx - 1 - nameLen >= 0)
                 {
                     string name = Encoding.UTF8.GetString(buffer, localIdx - 1 - nameLen, nameLen);
-                    // Filter out generic service types (starting with _)
                     if (!name.StartsWith("_") && name.Length > 2) return name;
                 }
             }

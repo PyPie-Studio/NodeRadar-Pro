@@ -38,6 +38,7 @@ public class NetworkNode
 
     // ── Port Scanning Results ──
     public List<int> OpenPorts { get; set; } = new();
+    public Dictionary<int, string> PortBanners { get; set; } = new();
     public string OsGuess { get; set; } = "";
 
     // ── Per-Device Alert Preferences ──
@@ -106,7 +107,10 @@ public class NetworkNode
         get
         {
             string parts = "";
-            if (!string.IsNullOrEmpty(DeviceType)) parts = DeviceType;
+            
+            // Prioritize Detected OS for accuracy
+            if (!string.IsNullOrEmpty(OsGuess)) parts = OsGuess;
+            else if (!string.IsNullOrEmpty(DeviceType)) parts = DeviceType;
             else if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor") parts = Vendor;
             
             if (!string.IsNullOrEmpty(ExactModel) && ExactModel != DisplayName)

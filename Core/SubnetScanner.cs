@@ -323,15 +323,29 @@ public class SubnetScanner
             }
             catch { }
         }
+// HTTP banner fallback
+if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
+{
+    try
+    {
+        string banner = await DeviceFingerprinter.TryGetHttpServerBannerAsync(node.IpAddress);
+        if (!string.IsNullOrEmpty(banner))
+            node.Hostname = banner;
+    }
+    catch { }
+}
 
-        // HTTP banner fallback
-        if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
+// ── Deep Intelligence: Deep HTTP Metadata Probes ──
+        if (!token.IsCancellationRequested)
         {
             try
             {
-                string banner = await DeviceFingerprinter.TryGetHttpServerBannerAsync(node.IpAddress);
-                if (!string.IsNullOrEmpty(banner))
-                    node.Hostname = banner;
+                string deepMetadata = await DeviceFingerprinter.ProbeHttpMetadataAsync(node.IpAddress);
+                if (!string.IsNullOrEmpty(deepMetadata))
+                {
+                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = deepMetadata;
+                    else if (!node.ExactModel.Contains(deepMetadata)) node.ExactModel = $"{deepMetadata} ({node.ExactModel})";
+                }
             }
             catch { }
         }
@@ -360,7 +374,16 @@ public class SubnetScanner
         {
             try
             {
-                node.OpenPorts = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
+                var scanResults = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
+                node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
+                node.PortBanners = scanResults;
+
+                // If we found banners, append them to exact model if useful
+                foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
+                {
+                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
+                    else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
+                }
             }
             catch { }
         }

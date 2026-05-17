@@ -52,34 +52,41 @@ public static class PortScanner
         return new List<string>(openPorts);
     }
 
-    /// <summary>Scans ports and returns just port numbers. Supports fast scan mode.</summary>
-    public static async Task<List<int>> ScanPortsAsync(string ipAddress, bool fastScan = false, int timeoutMs = 500, CancellationToken token = default)
+    /// <summary>Scans ports and returns port numbers mapped to their banners. Supports fast scan mode.</summary>
+    public static async Task<Dictionary<int, string>> ScanPortsAsync(string ipAddress, bool fastScan = false, int timeoutMs = 500, CancellationToken token = default)
     {
-        var openPorts = new ConcurrentBag<int>();
+        var results = new ConcurrentDictionary<int, string>();
         var ports = fastScan ? _top100Ports : _commonPorts.Keys.ToArray();
 
         var tasks = ports.Select(port => Task.Run(async () =>
         {
             if (token.IsCancellationRequested) return;
             if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
-                openPorts.Add(port);
+            {
+                // Grab banner
+                string banner = await DeviceFingerprinter.GetActiveBannerAsync(ipAddress, port, token);
+                results.TryAdd(port, banner);
+            }
         }));
         await Task.WhenAll(tasks);
-        return openPorts.OrderBy(p => p).ToList();
+        return results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
     /// <summary>Scans a custom range of ports.</summary>
-    public static async Task<List<int>> ScanRangeAsync(string ipAddress, int startPort, int endPort, int timeoutMs = 500, CancellationToken token = default)
+    public static async Task<Dictionary<int, string>> ScanRangeAsync(string ipAddress, int startPort, int endPort, int timeoutMs = 500, CancellationToken token = default)
     {
-        var openPorts = new ConcurrentBag<int>();
+        var results = new ConcurrentDictionary<int, string>();
         var tasks = Enumerable.Range(startPort, endPort - startPort + 1).Select(port => Task.Run(async () =>
         {
             if (token.IsCancellationRequested) return;
             if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
-                openPorts.Add(port);
+            {
+                string banner = await DeviceFingerprinter.GetActiveBannerAsync(ipAddress, port, token);
+                results.TryAdd(port, banner);
+            }
         }));
         await Task.WhenAll(tasks);
-        return openPorts.OrderBy(p => p).ToList();
+        return results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
 
     /// <summary>Gets the service name for a well-known port.</summary>
