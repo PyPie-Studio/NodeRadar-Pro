@@ -26,6 +26,9 @@ We are always looking to expand NodeRadar Pro's capabilities. If you have an ide
 ### 3. Localization
 While the current UI is English-only, we are considering adding support for other languages. If you are interested in translating the app's string resources, please reach out to us via email.
 
+### 4. Build Instructions
+If you have been granted access to compile the project locally, please ensure you have the .NET 10 SDK installed. Run `dotnet build "NodeRadar Pro.csproj"` to build the application.
+
 ---
 
 ## 🏗️ Pull Request Policy

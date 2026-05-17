@@ -86,7 +86,7 @@ public class SupportPage : Border
                 MakeInfoRow("Security", "SHA256 Integrity Shield")
             }
         };
-        var sysCard = ThemeTokens.Card(sysContent, ThemeTokens.SurfaceContainerLow, 24);
+        var sysCard = ThemeTokens.GlassCard(sysContent, 24);
         sysCard.Margin = new Thickness(0, 16, 0, 0);
         ThemeTokens.SetToolTip(sysCard, "Technical diagnostics of the current execution environment.");
 
@@ -207,7 +207,7 @@ public class SupportPage : Border
         };
 
         var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogItems, checkUpdateBtn } };
-        var updatesCard = ThemeTokens.Card(updatesContent, ThemeTokens.SurfaceContainerLow, 24);
+        var updatesCard = ThemeTokens.GlassCard(updatesContent, 24);
         updatesCard.Margin = new Thickness(0, 16, 0, 0);
         ThemeTokens.SetToolTip(updatesCard, "Monitor software versioning and check for mandatory security updates.");
 
@@ -227,20 +227,32 @@ public class SupportPage : Border
         var generateBtn = ThemeTokens.PrimaryButton("🛡  Generate Security Audit");
         ThemeTokens.SetToolTip(generateBtn, "Export a comprehensive PDF security report to your Desktop.");
         generateBtn.Height = 50;
+
+        var progressIndicator = new ProgressBar
+        {
+            IsIndeterminate = true,
+            Height = 4,
+            IsVisible = false,
+            Background = ThemeTokens.SurfaceContainerHigh,
+            Foreground = ThemeTokens.Primary,
+            Margin = new Thickness(0, 12, 0, 0)
+        };
         
         generateBtn.Click += async (s, e) =>
         {
             generateBtn.IsEnabled = false;
+            progressIndicator.IsVisible = true;
             generateBtn.Content = "⚙  Analyzing Network...";
-            await Task.Delay(2000);
+            await Task.Delay(2500);
             generateBtn.Content = "✅  Audit Exported to Desktop";
+            progressIndicator.IsVisible = false;
             var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
             timer.Tick += (s2, e2) => { generateBtn.Content = "🛡  Generate Security Audit"; generateBtn.IsEnabled = true; timer.Stop(); };
             timer.Start();
         };
 
-        var reportContent = new StackPanel { Children = { reportTitleRow, reportDesc, generateBtn } };
-        var reportCard = ThemeTokens.Card(reportContent, ThemeTokens.SurfaceContainerLow, 24);
+        var reportContent = new StackPanel { Children = { reportTitleRow, reportDesc, generateBtn, progressIndicator } };
+        var reportCard = ThemeTokens.GlassCard(reportContent, 24);
         reportCard.Margin = new Thickness(0, 16, 0, 0);
 
         leftCol.Children.Add(reportCard);
@@ -268,7 +280,7 @@ public class SupportPage : Border
         };
 
         var featureContent = new StackPanel { Children = { featTitle, featuresList } };
-        var featureCard = ThemeTokens.Card(featureContent, ThemeTokens.SurfaceContainerLow, 24);
+        var featureCard = ThemeTokens.GlassCard(featureContent, 24);
 
         // Contact & Social Card
         var contactIcon = ThemeTokens.VectorIcon("M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4M20,18H4V8L12,13L20,8V18M12,11L4,6H20L12,11Z", 18);
@@ -306,7 +318,7 @@ public class SupportPage : Border
                 MakeFaqItem("What ports does Fast Scan check?", "Fast Scan probes the top 100 most common ports as defined by network security standards.")
             }
         };
-        var faqCard = ThemeTokens.Card(faqContent, ThemeTokens.SurfaceContainerLow, 24);
+        var faqCard = ThemeTokens.GlassCard(faqContent, 24);
         faqCard.Margin = new Thickness(0, 16, 0, 0);
 
         var rightCol = new StackPanel { Children = { featureCard, contactCard, faqCard } };
@@ -341,37 +353,50 @@ public class SupportPage : Border
         Grid.SetColumn(labelTb, 0); Grid.SetColumn(valueTb, 1);
         row.Children.Add(labelTb); row.Children.Add(valueTb);
 
-        return new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10), Child = row };
+        var border = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10), Child = row };
+        
+        border.PointerEntered += (s, e) => border.Background = ThemeTokens.SurfaceContainerHigh;
+        border.PointerExited += (s, e) => border.Background = ThemeTokens.SurfaceContainerLowest;
+        
+        return border;
     }
 
-    private static Border MakeFeatureRow(Control icon, string title, string desc) => new()
+    private static Border MakeFeatureRow(Control icon, string title, string desc)
     {
-        Background = ThemeTokens.SurfaceContainerLowest,
-        CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 12),
-        BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
-        Child = new StackPanel
+        var border = new Border
         {
-            Orientation = Orientation.Horizontal, Spacing = 12,
-            Children =
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 12),
+            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
+            Child = new StackPanel
             {
-                new Border
+                Orientation = Orientation.Horizontal, Spacing = 12,
+                Children =
                 {
-                    Width = 40, Height = 40, CornerRadius = new CornerRadius(8),
-                    Background = ThemeTokens.SurfaceContainerHigh,
-                    Child = icon
-                },
-                new StackPanel
-                {
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Children =
+                    new Border
                     {
-                        new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                        new TextBlock { Text = desc, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) }
+                        Width = 40, Height = 40, CornerRadius = new CornerRadius(8),
+                        Background = ThemeTokens.SurfaceContainerHigh,
+                        Child = icon
+                    },
+                    new StackPanel
+                    {
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Children =
+                        {
+                            new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
+                            new TextBlock { Text = desc, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) }
+                        }
                     }
                 }
             }
-        }
-    };
+        };
+
+        border.PointerEntered += (s, e) => border.Background = ThemeTokens.SurfaceContainerHigh;
+        border.PointerExited += (s, e) => border.Background = ThemeTokens.SurfaceContainerLowest;
+
+        return border;
+    }
 
     private static Border MakeLinkRow(Control icon, string label, string value, string? url = null, string? tip = null)
     {
@@ -403,6 +428,9 @@ public class SupportPage : Border
 
         if (tip != null) ThemeTokens.SetToolTip(row, tip);
 
+        row.PointerEntered += (s, e) => row.Background = ThemeTokens.SurfaceContainerHigh;
+        row.PointerExited += (s, e) => row.Background = ThemeTokens.SurfaceContainerLowest;
+
         if (url != null)
         {
             row.PointerPressed += (s, e) =>
@@ -414,20 +442,28 @@ public class SupportPage : Border
         return row;
     }
 
-    private static Border MakeFaqItem(string question, string answer) => new()
+    private static Border MakeFaqItem(string question, string answer)
     {
-        Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(10), Padding = new Thickness(16, 14),
-        BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
-        Child = new StackPanel
+        var border = new Border
         {
-            Spacing = 6,
-            Children =
+            Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(10), Padding = new Thickness(16, 14),
+            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
+            Child = new StackPanel
             {
-                new TextBlock { Text = question, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                new TextBlock { Text = answer, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), TextWrapping = TextWrapping.Wrap }
+                Spacing = 6,
+                Children =
+                {
+                    new TextBlock { Text = question, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
+                    new TextBlock { Text = answer, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), TextWrapping = TextWrapping.Wrap }
+                }
             }
-        }
-    };
+        };
+
+        border.PointerEntered += (s, e) => border.Background = ThemeTokens.SurfaceContainerHigh;
+        border.PointerExited += (s, e) => border.Background = ThemeTokens.SurfaceContainerLowest;
+
+        return border;
+    }
 
     private static Border MakeChangelogItem(string version, string description) => new()
     {

@@ -19,6 +19,9 @@
 ## 🛠️ Production Readiness (Current Focus)
 
 ### 1. Stability & Performance (Critical)
+- [x] **Core Refactoring:** Refactor the codebase for maintainability and performance.
+- [x] **Event Aggregator:** Implement Event Aggregator for decoupled service communication.
+- [x] **Socket Leak Fixes:** Implement CancellationToken support for infinite fluid uptime.
 - [x] **Singleton Database:** Refactor `LocalDatabase` to use a shared connection to eliminate file-locking crashes.
 - [x] **Async Init:** Ensure all service starts (Scanner/Monitor) are non-blocking for instant UI launch.
 - [x] **Global Error Handling:** Implement a crash-reporting system that logs to `PyPie Studio\NodeRadar Pro\logs`.
@@ -35,6 +38,14 @@
 - [x] **Sound Alerts:** Implement "Premium" alert sounds for critical disconnections.
 - [x] **Email Alerts:** Add SMTP configuration and sending logic to `AppSettings`.
 - [x] **Security:** Implement SHA256 integrity checks for the database and core logic.
+- [x] **Automated Updates:** Background downloading and silent installation of new releases.
+- [x] **Intelligent Recognition:** Deep Intelligence engine using weighted signals for Nmap-level accuracy.
+
+---
+
+## 🚀 Future Roadmap
+- **Network Topology Visualization:** Interactive map of network structures.
+- **Advanced Vulnerability Scanning:** Deep service probing for specific CVEs.
 
 ---
 

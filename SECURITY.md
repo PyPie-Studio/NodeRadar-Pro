@@ -32,8 +32,8 @@ Our architecture includes several enterprise-grade security layers to protect bo
 All local data (Device Inventory, Logs, and Alerts) is stored in a **LiteDB** instance protected by **AES-256 encryption**. This prevents unauthorized access to the database file even if the host machine is compromised.
 
 ### 2. SHA256 Integrity Shield
-NodeRadar Pro performs a self-audit on every startup:
-- It calculates a **SHA256 hash** of the core database and configuration files.
+NodeRadar Pro performs a self-audit on every startup (`DarkPurpleTheme.cs`):
+- It calculates a **SHA256 hash** of the core logic DLL (`NodeRadar Pro.dll`) and configuration files.
 - It verifies these hashes against "Last Known Good" signatures to detect unauthorized tampering or file corruption.
 - Discrepancies are logged in the **System Telemetry** for immediate audit by the administrator.
 
