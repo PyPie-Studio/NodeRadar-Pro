@@ -26,9 +26,6 @@ public class LocalDatabase : IDisposable
         Directory.CreateDirectory(myFolder);
         _dbPath = Path.Combine(myFolder, "noderadar.db");
         _db = new LiteDatabase($"Filename={_dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared;");
-
-        // Automatic backup on startup
-        BackupDatabase();
     }
 
     public void Dispose()
@@ -311,8 +308,12 @@ public class LocalDatabase : IDisposable
     {
         try
         {
-            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-            
+            if (!File.Exists(_dbPath)) 
+            {
+                Log(LogLevel.Info, "Database", "Backup skipped: Database file not found (new install?)");
+                return "";
+            }
+
             string destPath;
             string backupDir;
 
@@ -323,7 +324,7 @@ public class LocalDatabase : IDisposable
             }
             else
             {
-                backupDir = Path.Combine(Path.GetDirectoryName(dbPath)!, "Backups");
+                backupDir = Path.Combine(Path.GetDirectoryName(_dbPath)!, "Backups");
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 destPath = Path.Combine(backupDir, $"noderadar_backup_{timestamp}.db");
             }
@@ -331,7 +332,7 @@ public class LocalDatabase : IDisposable
             if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir)) 
                 Directory.CreateDirectory(backupDir);
 
-            File.Copy(dbPath, destPath, true);
+            File.Copy(_dbPath, destPath, true);
             Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
             
             if (customPath == null) CleanupOldBackups(backupDir);
