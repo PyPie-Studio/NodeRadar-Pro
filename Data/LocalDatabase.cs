@@ -312,13 +312,24 @@ public class LocalDatabase : IDisposable
         try
         {
             string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-            string backupDir = customPath ?? Path.Combine(Path.GetDirectoryName(dbPath)!, "Backups");
             
-            if (!Directory.Exists(backupDir)) Directory.CreateDirectory(backupDir);
+            string destPath;
+            string backupDir;
 
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string backupFileName = customPath != null ? Path.GetFileName(customPath) : $"noderadar_backup_{timestamp}.db";
-            string destPath = customPath ?? Path.Combine(backupDir, backupFileName);
+            if (customPath != null)
+            {
+                destPath = customPath;
+                backupDir = Path.GetDirectoryName(destPath) ?? "";
+            }
+            else
+            {
+                backupDir = Path.Combine(Path.GetDirectoryName(dbPath)!, "Backups");
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                destPath = Path.Combine(backupDir, $"noderadar_backup_{timestamp}.db");
+            }
+            
+            if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir)) 
+                Directory.CreateDirectory(backupDir);
 
             File.Copy(dbPath, destPath, true);
             Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
