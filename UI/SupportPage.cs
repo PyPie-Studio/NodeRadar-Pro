@@ -4,6 +4,7 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using NodeRadarPro.Core;
 using System;
 using System.Diagnostics;
 using System.Net.Http;
@@ -130,46 +131,78 @@ public class SupportPage : Border
         checkUpdateBtn.Margin = new Thickness(0, 16, 0, 0);
         checkUpdateBtn.Click += async (s, e) =>
         {
+            string currentContent = checkUpdateBtn.Content?.ToString() ?? "";
+            
+            // If already in download state, start the download/install process
+            if (currentContent.StartsWith("⬇"))
+            {
+                string? downloadUrl = checkUpdateBtn.Tag as string;
+                if (string.IsNullOrEmpty(downloadUrl)) return;
+
+                checkUpdateBtn.IsEnabled = false;
+                try
+                {
+                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress =>
+                    {
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                        {
+                            checkUpdateBtn.Content = $"⏳ Downloading: {progress:F1}%";
+                        });
+                    });
+                }
+                catch
+                {
+                    checkUpdateBtn.Content = "⚠ Download Failed";
+                    checkUpdateBtn.IsEnabled = true;
+                    
+                    // Reset after 5 seconds
+                    var resetTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                    resetTimer.Tick += (s2, e2) => { checkUpdateBtn.Content = "🔄  Check for Updates"; resetTimer.Stop(); };
+                    resetTimer.Start();
+                }
+                return;
+            }
+
+            // Normal check state
             checkUpdateBtn.IsEnabled = false;
             checkUpdateBtn.Content = "⏳  Checking...";
             try
             {
-                using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
-                // Check GitHub releases API for latest version
-                var response = await http.GetStringAsync("https://api.github.com/repos/pypiestudio/noderadar-pro/releases/latest");
-                // Simple JSON parse for tag_name
-                var tagIdx = response.IndexOf("\"tag_name\"");
-                if (tagIdx > 0)
+                var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
+                
+                if (hasUpdate)
                 {
-                    var valStart = response.IndexOf('"', tagIdx + 11) + 1;
-                    var valEnd = response.IndexOf('"', valStart);
-                    var latestVersion = response[valStart..valEnd].TrimStart('v');
-                    if (latestVersion != ThemeTokens.AppVersion && !string.IsNullOrEmpty(latestVersion))
-                        checkUpdateBtn.Content = $"⬆  Update available: v{latestVersion}";
-                    else
-                        checkUpdateBtn.Content = "✅  Up to date!";
+                    checkUpdateBtn.Content = $"⬇  Download & Install v{version}";
+                    checkUpdateBtn.Tag = downloadUrl;
                 }
                 else
                 {
                     checkUpdateBtn.Content = "✅  Up to date!";
                 }
             }
-            catch (HttpRequestException)
-            {
-                checkUpdateBtn.Content = "⚠  Could not reach update server";
-            }
             catch
             {
-                checkUpdateBtn.Content = "✅  Up to date!";
+                checkUpdateBtn.Content = "⚠  Update check failed";
             }
             finally
             {
                 checkUpdateBtn.IsEnabled = true;
-                // Reset after 5 seconds
-                var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                timer.Tick += (s2, e2) => { checkUpdateBtn.Content = "🔄  Check for Updates"; timer.Stop(); };
-                timer.Start();
+                
+                // If we didn't find an update, reset the button after 5 seconds
+                // If we DID find an update (content starts with ⬇), don't reset it
+                if (checkUpdateBtn.Content?.ToString()?.StartsWith("⬇") != true)
+                {
+                    var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                    timer.Tick += (s2, e2) => 
+                    { 
+                        if (checkUpdateBtn.Content?.ToString()?.StartsWith("⬇") != true)
+                        {
+                            checkUpdateBtn.Content = "🔄  Check for Updates"; 
+                        }
+                        timer.Stop(); 
+                    };
+                    timer.Start();
+                }
             }
         };
 
