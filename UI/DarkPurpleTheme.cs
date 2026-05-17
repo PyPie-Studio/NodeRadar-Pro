@@ -164,7 +164,7 @@ public class DarkPurpleTheme
                 WindowTransparencyLevel.Blur 
             },
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
+            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.ico"))),
         };
 
         // ═══════════════════════════════════════════
