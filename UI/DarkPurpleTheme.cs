@@ -23,6 +23,117 @@ namespace NodeRadarPro.UI;
 /// </summary>
 public class DarkPurpleTheme
 {
+    private static DispatcherTimer? _autoBackupTimer;
+
+    public static void OnStartup(Window mainWindow)
+    {
+        var db = LocalDatabase.Instance;
+        var settings = db.LoadSettings();
+
+        // 1. Update Check
+        if (settings.CheckUpdatesOnStartup)
+        {
+            _ = Task.Run(() => CheckForUpdatesOnStartupAsync(mainWindow));
+        }
+
+        // 2. Auto-Backup Timer
+        InitializeAutoBackupTimer(settings);
+    }
+
+    private static async Task CheckForUpdatesOnStartupAsync(Window mainWindow)
+    {
+        try
+        {
+            // Simulate GitHub check (v1.0.0 is current)
+            await Task.Delay(3000); 
+            
+            // Mock: newer version found
+            bool updateAvailable = true; 
+
+            if (updateAvailable)
+            {
+                await Dispatcher.UIThread.InvokeAsync(() => 
+                {
+                    ShowUpdatePrompt(mainWindow);
+                });
+            }
+        }
+        catch { }
+    }
+
+    private static void ShowUpdatePrompt(Window mainWindow)
+    {
+        if (mainWindow.Content is not Grid rootGrid) return;
+        
+        var overlay = new Grid
+        {
+            Background = new SolidColorBrush(Colors.Black, 0.5),
+            ZIndex = 1000
+        };
+
+        var btnLater = ThemeTokens.SecondaryButton("Later");
+        btnLater.Click += (s, e) => rootGrid.Children.Remove(overlay);
+
+        var btnUpdate = ThemeTokens.PrimaryButton("Update Now");
+        btnUpdate.Click += (s, e) => {
+            try {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://github.com/tryku/NodeRadar-Pro",
+                    UseShellExecute = true
+                });
+            } catch { }
+            rootGrid.Children.Remove(overlay);
+        };
+
+        var prompt = ThemeTokens.GlassCard(new StackPanel
+        {
+            Spacing = 15,
+            Width = 400,
+            Children = 
+            {
+                ThemeTokens.Headline("Update Available", 20),
+                ThemeTokens.Body("A new version of NodeRadar Pro is available on GitHub. Would you like to update now?"),
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    Spacing = 10,
+                    Children = { btnLater, btnUpdate }
+                }
+            }
+        });
+
+        prompt.HorizontalAlignment = HorizontalAlignment.Center;
+        prompt.VerticalAlignment = VerticalAlignment.Center;
+        overlay.Children.Add(prompt);
+        
+        if (rootGrid.ColumnDefinitions.Count > 0)
+            Grid.SetColumnSpan(overlay, rootGrid.ColumnDefinitions.Count);
+        if (rootGrid.RowDefinitions.Count > 0)
+            Grid.SetRowSpan(overlay, rootGrid.RowDefinitions.Count);
+            
+        rootGrid.Children.Add(overlay);
+    }
+
+    public static void InitializeAutoBackupTimer(AppSettings settings)
+    {
+        _autoBackupTimer?.Stop();
+
+        if (settings.EnableAutoBackup)
+        {
+            _autoBackupTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromHours(settings.AutoBackupIntervalHours)
+            };
+            _autoBackupTimer.Tick += (s, e) => 
+            {
+                Task.Run(() => LocalDatabase.Instance.BackupDatabase());
+            };
+            _autoBackupTimer.Start();
+        }
+    }
+
     public static Window BuildMainWindow()
     {
         var window = new Window

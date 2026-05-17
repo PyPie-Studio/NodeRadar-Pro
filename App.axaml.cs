@@ -21,6 +21,7 @@ namespace NodeRadar_Pro
             {
                 // Inject our PyPie Studio Dark Theme instead of the XAML MainWindow
                 desktop.MainWindow = DarkPurpleTheme.BuildMainWindow();
+                DarkPurpleTheme.OnStartup(desktop.MainWindow);
             }
 
             base.OnFrameworkInitializationCompleted();
