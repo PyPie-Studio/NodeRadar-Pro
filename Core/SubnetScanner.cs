@@ -313,15 +313,15 @@ public class SubnetScanner
         {
             try
             {
-                var nbTask = Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), token);
-                if (await Task.WhenAny(nbTask, Task.Delay(3000, token)) == nbTask)
-                {
-                    string netbios = await nbTask;
-                    if (!string.IsNullOrEmpty(netbios))
-                        node.Hostname = netbios;
-                }
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                cts.CancelAfter(3000);
+                
+                string netbios = await Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
+                if (!string.IsNullOrEmpty(netbios))
+                    node.Hostname = netbios;
             }
-            catch { }
+            catch (OperationCanceledException) { }
+            catch (Exception) { }
         }
 // HTTP banner fallback
 if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)

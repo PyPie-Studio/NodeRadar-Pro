@@ -32,8 +32,17 @@ public static class DeviceFingerprinter
         try
         {
             using var tcp = new TcpClient();
-            var connectTask = tcp.ConnectAsync(ip, port, token).AsTask();
-            if (await Task.WhenAny(connectTask, Task.Delay(1500, token)) != connectTask) return string.Empty;
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            cts.CancelAfter(1500);
+
+            try
+            {
+                await tcp.ConnectAsync(ip, port, cts.Token);
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested && !token.IsCancellationRequested)
+            {
+                return string.Empty;
+            }
             
             using var stream = tcp.GetStream();
             stream.ReadTimeout = 1500;

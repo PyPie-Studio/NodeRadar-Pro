@@ -88,15 +88,12 @@ public class TracerouteEngine
                 {
                     try
                     {
-                        var hostTask = Dns.GetHostEntryAsync(hop.IpAddress);
-                        if (await Task.WhenAny(hostTask, Task.Delay(1000)) == hostTask)
-                        {
-                            var entry = await hostTask;
-                            if (entry.HostName != hop.IpAddress)
-                                hop.Hostname = entry.HostName;
-                            else
-                                hop.Hostname = "";
-                        }
+                        using var cts = new CancellationTokenSource(1000);
+                        var entry = await Dns.GetHostEntryAsync(hop.IpAddress, cts.Token);
+                        if (entry.HostName != hop.IpAddress)
+                            hop.Hostname = entry.HostName;
+                        else
+                            hop.Hostname = "";
                     }
                     catch { hop.Hostname = ""; }
                 }
