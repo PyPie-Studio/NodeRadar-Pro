@@ -193,7 +193,7 @@ public class DarkPurpleTheme
         // ██  PAGES (Real implementations)
         // ═══════════════════════════════════════════
         var dashboardPage = new DashboardPage(activeNodesMap.Values.ToList());
-        var scannerPage = new ScannerPage(db, scanner, activeNodesMap.Values.ToList(), new object());
+        var scannerPage = new ScannerPage(db, scanner, activeNodesMap);
         var traceroutePage = new TraceroutePage();
         var inventoryPage = new InventoryPage(db, monitor, activeNodesMap.Values.ToList());
         var settingsPage = new SettingsPage(db);

@@ -11,6 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using System.Collections.Concurrent;
 
 namespace NodeRadarPro.UI;
 
@@ -22,8 +23,7 @@ public class ScannerPage : Border
 {
     private readonly LocalDatabase _db;
     private readonly SubnetScanner _scanner;
-    private List<NetworkNode> _activeNodes;
-    private readonly object _nodesLock = new();
+    private readonly ConcurrentDictionary<string, NetworkNode> _activeNodes;
     private readonly List<NetworkNode> _scanResults = new();
 
     private readonly TextBox _startIp;
@@ -45,27 +45,24 @@ public class ScannerPage : Border
     private CancellationTokenSource? _scanCts;
     private bool _isScanning = false;
     private DateTime _scanStartTime;
+    private int _inFlightDiscoveryCount = 0;
 
     public event Action? DataChanged;
     public event Action<NetworkNode>? DeviceSaved;
 
-    public ScannerPage(LocalDatabase db, SubnetScanner scanner, List<NetworkNode> activeNodes, object nodesLock)
+    public ScannerPage(LocalDatabase db, SubnetScanner scanner, ConcurrentDictionary<string, NetworkNode> activeNodes)
     {
         _db = db;
         _scanner = scanner;
         _activeNodes = activeNodes;
         Background = ThemeTokens.Surface;
 
-        // Subscribe to updates
+        // Subscribe to updates — sync our local view of the dictionary if needed
+        // (Since it's a reference to the same dictionary, we don't strictly need to re-assign it,
+        // but we might want to refresh the UI if the dictionary is cleared)
         EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
         {
-            Dispatcher.UIThread.Post(() =>
-            {
-                lock (_nodesLock)
-                {
-                    _activeNodes = msg.Nodes.ToList();
-                }
-            });
+            // The dictionary is shared, but we might want to trigger a refresh if we were showing it
         });
 
         // ═══════════════════════
@@ -479,35 +476,39 @@ public class ScannerPage : Border
 
     private async void OnNodeDiscovered(NetworkNode node)
     {
-        // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
-        if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
-
-        // Offload database I/O to background thread before updating UI
-        var (mergedNode, isNew) = await Task.Run(() => _db.MergeWithHistory(node));
-        node = mergedNode;
-
-        Dispatcher.UIThread.Post(() =>
+        Interlocked.Increment(ref _inFlightDiscoveryCount);
+        try
         {
-            lock (_nodesLock)
-            {
-                var existing = _activeNodes.FindIndex(n => n.MacAddress == node.MacAddress);
-                if (existing >= 0) _activeNodes[existing] = node;
-                else _activeNodes.Add(node);
-            }
+            // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
+            if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
 
-            // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
-            if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
+            // Offload database I/O to background thread before updating UI
+            var (mergedNode, isNew) = await Task.Run(() => _db.MergeWithHistory(node));
+            node = mergedNode;
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                _scanResults.Add(node);
-                int count = _scanResults.Count;
-                _discoveredCount.Text = $"DISCOVERED: {count}";
-                // Keep status text synced with real discovery list
-                if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
-                
-                _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
-                DataChanged?.Invoke();
-            }
-        });
+                // Update central dictionary directly (Fix for Dashboard/Nav sync)
+                _activeNodes.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+
+                // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
+                if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
+                {
+                    _scanResults.Add(node);
+                    int count = _scanResults.Count;
+                    _discoveredCount.Text = $"DISCOVERED: {count}";
+                    // Keep status text synced with real discovery list
+                    if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
+                    
+                    _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
+                    DataChanged?.Invoke();
+                }
+            });
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _inFlightDiscoveryCount);
+        }
     }
 
     private async void OnStartScan(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -550,8 +551,17 @@ public class ScannerPage : Border
                 await _scanner.ScanSubnetAsync(SubnetScanner.GetLocalBaseIp(), _scanCts.Token);
             }
 
-            if (!_scanCts.IsCancellationRequested)
-                _statusText.Text = $"Scan complete — {_scanResults.Count} devices found.";
+            // Fix for Issue: Wait for all in-flight discovery tasks to finish before updating final status
+            while (Volatile.Read(ref _inFlightDiscoveryCount) > 0)
+            {
+                await Task.Delay(50);
+            }
+
+            // Final UI sync to catch the last posted discovery events
+            await Dispatcher.UIThread.InvokeAsync(() => {
+                if (!_scanCts.IsCancellationRequested)
+                    _statusText.Text = $"Scan complete — {_scanResults.Count} devices found.";
+            });
         }
         catch (OperationCanceledException)
         {
