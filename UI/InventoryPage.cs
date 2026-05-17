@@ -831,8 +831,9 @@ public class InventoryPage : Border
         };
 
         var nameText = new TextBlock { Text = node.DisplayName, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new FontFamily("Inter") };
-        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) };
-        var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, ipText } };
+        var subText = new TextBlock { Text = node.SubtitleText, FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 1, 0, 0) };
+        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) };
+        var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, subText, ipText } };
         var leftGroup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { iconBox, textCol } };
 
         // Security Risk Dot
