@@ -607,7 +607,7 @@ public class InventoryPage : Border
         _detailArea.IsVisible = true;
 
         _detailName.Text = node.DisplayName;
-        _detailSubtitle.Text = !string.IsNullOrEmpty(node.Notes) ? node.Notes : node.SubtitleText;
+        _detailSubtitle.Text = node.SubtitleText;
 
         UpdatePill(_detailIpPill, node.IpAddress);
         UpdatePill(_detailMacPill, node.MacAddress);
@@ -627,12 +627,19 @@ public class InventoryPage : Border
             if (_threatBadge.Child is TextBlock tb) { tb.Foreground = fg; tb.Text = text; }
         }
 
-        string svgPath = node.DeviceType switch
+        string svgPath = (node.IconPath ?? "").ToLower() switch
         {
-            "Router" or "Router/Network" => ThemeTokens.SvgRouter,
-            "Server" or "NAS" => ThemeTokens.SvgServer,
-            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
-            _ => ThemeTokens.SvgDesktop
+            "phone" or "mobile" => ThemeTokens.SvgPhone,
+            "server" or "nas" => ThemeTokens.SvgServer,
+            "router" or "network" => ThemeTokens.SvgRouter,
+            "tv" => "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z",
+            _ => node.DeviceType switch
+            {
+                "Router" or "Gateway" or "Router/Network" => ThemeTokens.SvgRouter,
+                "Server" or "NAS" => ThemeTokens.SvgServer,
+                "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
+                _ => ThemeTokens.SvgDesktop
+            }
         };
         _deviceIconBox.Child = ThemeTokens.VectorIcon(svgPath, 32, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
@@ -640,13 +647,14 @@ public class InventoryPage : Border
         _packetLossText.Text = $"{node.PacketLossPct:F1}";
         _lastScanText.Text = node.LastSeen != default ? GetTimeAgo(node.LastSeen) : "—";
 
-        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] + [Vendor]
+        // Build accurate subtitle: Prefer [Vendor] • [Subtitle]
         string subtitle = node.SubtitleText;
+
+        if (!string.IsNullOrEmpty(node.Vendor) && node.Vendor != "Unknown Vendor" && !node.DisplayName.Contains(node.Vendor))
+            subtitle = $"{node.Vendor} • {subtitle}";
+
         if (!string.IsNullOrEmpty(node.OsGuess) && !subtitle.Contains(node.OsGuess))
             subtitle = $"{node.OsGuess} • {subtitle}";
-        
-        if (!string.IsNullOrEmpty(node.Notes))
-            subtitle = $"{subtitle} ({node.Notes})";
 
         _detailSubtitle.Text = subtitle;
         if (_detailSubtitle.Text.Contains("Unknown Vendor")) _detailSubtitle.Text = _detailSubtitle.Text.Replace("Unknown Vendor", "Generic Device");
@@ -810,12 +818,19 @@ public class InventoryPage : Border
     {
         bool isSelected = node.MacAddress == _selectedMac;
 
-        string svgPath = node.DeviceType switch
+        string svgPath = (node.IconPath ?? "").ToLower() switch
         {
-            "Router" or "Router/Network" => ThemeTokens.SvgRouter,
-            "Server" or "NAS" => ThemeTokens.SvgServer,
-            "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
-            _ => ThemeTokens.SvgDesktop
+            "phone" or "mobile" => ThemeTokens.SvgPhone,
+            "server" or "nas" => ThemeTokens.SvgServer,
+            "router" or "network" => ThemeTokens.SvgRouter,
+            "tv" => "M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3M21,17H3V5H21V17Z",
+            _ => node.DeviceType switch
+            {
+                "Router" or "Gateway" or "Router/Network" => ThemeTokens.SvgRouter,
+                "Server" or "NAS" => ThemeTokens.SvgServer,
+                "Phone" or "Mobile" or "Mobile Phone" or "iPhone" => ThemeTokens.SvgPhone,
+                _ => ThemeTokens.SvgDesktop
+            }
         };
 
         var icon = ThemeTokens.VectorIcon(svgPath, 18, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
