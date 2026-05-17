@@ -193,30 +193,31 @@ public static class ArpResolver
                 string output = outputTask.Result;
                 // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
                 foreach (var line in output.Split('\n'))
-            {
-                string trimmed = line.Trim();
-                if (string.IsNullOrEmpty(trimmed)) continue;
-
-                string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 3)
                 {
-                    string ip = parts[0];
-                    string mac = parts[1];
-                    string type = parts[2].ToLower();
+                    string trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed)) continue;
 
-                    // Validate IP format and skip broadcast/multicast
-                    if (!IPAddress.TryParse(ip, out var addr)) continue;
-                    if (addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
-                    
-                    // Skip invalid MACs
-                    if (mac.Length < 11) continue; // "aa-bb-cc-dd-ee-ff" = 17 chars
-                    if (mac == "ff-ff-ff-ff-ff-ff") continue; // Broadcast
-                    if (mac.StartsWith("01-00-5e")) continue; // Multicast
-                    if (type == "static" && mac == "ff-ff-ff-ff-ff-ff") continue;
+                    string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length >= 3)
+                    {
+                        string ip = parts[0];
+                        string mac = parts[1];
+                        string type = parts[2].ToLower();
 
-                    // Normalize MAC format: aa-bb-cc → AA:BB:CC
-                    string normalizedMac = mac.Replace("-", ":").ToUpper();
-                    results.Add((ip, normalizedMac));
+                        // Validate IP format and skip broadcast/multicast
+                        if (!IPAddress.TryParse(ip, out var addr)) continue;
+                        if (addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
+                        
+                        // Skip invalid MACs
+                        if (mac.Length < 11) continue; // "aa-bb-cc-dd-ee-ff" = 17 chars
+                        if (mac == "ff-ff-ff-ff-ff-ff") continue; // Broadcast
+                        if (mac.StartsWith("01-00-5e")) continue; // Multicast
+                        if (type == "static" && mac == "ff-ff-ff-ff-ff-ff") continue;
+
+                        // Normalize MAC format: aa-bb-cc → AA:BB:CC
+                        string normalizedMac = mac.Replace("-", ":").ToUpper();
+                        results.Add((ip, normalizedMac));
+                    }
                 }
             }
         }
