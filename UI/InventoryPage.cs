@@ -24,6 +24,12 @@ public class InventoryPage : Border
     private readonly ConnectivityMonitor _monitor;
     private List<NetworkNode> _activeNodes;
 
+    // Selection mode state
+    private bool _isSelectionMode;
+    private readonly HashSet<string> _selectedMacs = new();
+    private readonly Button _selectModeBtn;
+    private readonly CheckBox _selectAllCheckbox;
+
     // Left panel
     private readonly StackPanel _deviceListContainer;
     private readonly TextBox _searchBox;
@@ -135,13 +141,21 @@ public class InventoryPage : Border
         _deviceCountText = ThemeTokens.Body("(0)", 14);
         _deviceCountText.Margin = new Thickness(6, 0, 0, 0);
 
+        _selectModeBtn = ThemeTokens.TertiaryButton("Select");
+        _selectModeBtn.Padding = new Thickness(8, 4);
+        _selectModeBtn.Click += (s, e) => ToggleSelectionMode();
+
+        _selectAllCheckbox = new CheckBox { IsVisible = false, Margin = new Thickness(4, 0, 0, 0) };
+        _selectAllCheckbox.IsCheckedChanged += (s, e) => ToggleSelectAll(_selectAllCheckbox.IsChecked == true);
+
         var listTitleRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Children =
             {
                 ThemeTokens.Headline("Saved Devices", 18),
-                _deviceCountText
+                _deviceCountText,
+                _selectAllCheckbox
             }
         };
 
@@ -163,9 +177,14 @@ public class InventoryPage : Border
         var listHeader = new Grid { Margin = new Thickness(16, 8, 16, 8) };
         listHeader.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         listHeader.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        listHeader.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+
         Grid.SetColumn(listTitleRow, 0);
-        Grid.SetColumn(addBtn, 1);
+        Grid.SetColumn(_selectModeBtn, 1);
+        Grid.SetColumn(addBtn, 2);
+
         listHeader.Children.Add(listTitleRow);
+        listHeader.Children.Add(_selectModeBtn);
         listHeader.Children.Add(addBtn);
 
         _deviceListContainer = new StackPanel { Spacing = 4, Margin = new Thickness(8, 0) };
