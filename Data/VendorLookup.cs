@@ -273,6 +273,14 @@ public static class VendorLookup
         string v = vendor.ToLower();
         string h = hostname.ToLower();
 
+        if (v.Contains("randomized mac") || v.Contains("privacy"))
+        {
+            if (h.Contains("iphone")) return "iPhone";
+            if (h.Contains("ipad")) return "iPad";
+            if (h.Contains("android") || h.Contains("galaxy") || h.Contains("pixel")) return "Android Phone";
+            return "Mobile Device";
+        }
+
         if (v.Contains("mikrotik") || v.Contains("cisco") || v.Contains("juniper") || 
             v.Contains("fortinet") || v.Contains("aruba") || v.Contains("ubiquiti") ||
             h.Contains("router") || h.Contains("gateway"))

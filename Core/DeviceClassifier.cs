@@ -43,6 +43,12 @@ public static class DeviceClassifier
             else iotScore += 30;
         }
         if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("netgear")) networkScore += 20;
+        if (vendor.Contains("randomized mac") || vendor.Contains("privacy"))
+        {
+            iosScore += 20;
+            iotScore += 20;
+            linuxScore += 20;
+        }
 
         // ── 3. Protocol Signals (mDNS/SSDP) ──
         if (exact.Contains("apple") || exact.Contains("airplay") || exact.Contains("homekit")) 
@@ -74,9 +80,9 @@ public static class DeviceClassifier
         }
 
         // ── 5. Hostname Keywords ──
-        if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple-")) iosScore += 50;
+        if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple-") || exact.Contains("iphone") || exact.Contains("ipad")) iosScore += 50;
         if (hostname.Contains("windows") || hostname.Contains("desktop-") || hostname.Contains("laptop-")) winScore += 30;
-        if (hostname.Contains("android") || hostname.Contains("galaxy") || hostname.Contains("pixel") || hostname.Contains("mi-")) iotScore += 30;
+        if (hostname.Contains("android") || hostname.Contains("galaxy") || hostname.Contains("pixel") || hostname.Contains("mi-") || exact.Contains("android")) iotScore += 30;
 
         // ── 6. Final Decision ──
         var scores = new Dictionary<string, int>
@@ -155,7 +161,7 @@ public static class DeviceClassifier
             }
             else if (winner.Key == "Linux/Android")
             {
-                if (hostname.Contains("android") || vendor.Contains("samsung") || vendor.Contains("huawei"))
+                if (hostname.Contains("android") || vendor.Contains("samsung") || vendor.Contains("huawei") || exact.Contains("android"))
                 {
                     node.DeviceType = "Mobile Phone";
                     node.IconPath = "phone";
@@ -170,7 +176,7 @@ public static class DeviceClassifier
         else
         {
             // Confidence too low - keep it generic but try vendor-only guess
-            if (vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("apple"))
+            if (vendor.Contains("xiaomi") || vendor.Contains("samsung") || vendor.Contains("apple") || vendor.Contains("randomized mac") || vendor.Contains("privacy"))
             {
                 node.DeviceType = "Mobile Device";
                 node.IconPath = "phone";
