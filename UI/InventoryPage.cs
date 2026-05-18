@@ -41,6 +41,10 @@ public class InventoryPage : Border
     // Right panel
     private readonly Border _detailArea;
     private readonly Border _emptyDetail;
+    private readonly Border _bulkArea;
+    private readonly StackPanel _selectedDeviceList;
+    private readonly Button _bulkDeleteBtn;
+    private readonly TextBlock _bulkTitle;
     private NetworkNode? _currentNode;
     private readonly UptimeChartControl _uptimeChart;
     private readonly Grid _timeAxis;
@@ -580,6 +584,33 @@ public class InventoryPage : Border
         var rightCol = new Grid();
         rightCol.Children.Add(_emptyDetail);
         rightCol.Children.Add(_detailArea);
+
+        // ═══════════════════════
+        // BULK ACTIONS PANEL (hidden by default)
+        // ═══════════════════════
+        _bulkTitle = ThemeTokens.Headline("Bulk Actions", 22);
+        _selectedDeviceList = new StackPanel { Spacing = 4, Margin = new Thickness(0, 10) };
+        _bulkDeleteBtn = ThemeTokens.DangerButton("🗑 Delete Selected Devices");
+        _bulkDeleteBtn.Click += OnBulkDeleteClicked;
+
+        var cancelBulkBtn = ThemeTokens.SecondaryButton("Cancel Selection");
+        cancelBulkBtn.Click += (s, e) => ToggleSelectionMode();
+
+        var bulkContent = new StackPanel
+        {
+            Padding = new Thickness(20),
+            Children =
+            {
+                _bulkTitle,
+                new ScrollViewer { Content = _selectedDeviceList, Height = 400, Margin = new Thickness(0, 10) },
+                _bulkDeleteBtn,
+                new Panel { Height = 10 },
+                cancelBulkBtn
+            }
+        };
+        _bulkArea = ThemeTokens.Card(bulkContent, ThemeTokens.SurfaceContainerHigh, 24);
+        _bulkArea.IsVisible = false;
+        rightCol.Children.Add(_bulkArea);
 
         // ═══════════════════════
         // ROOT GRID
