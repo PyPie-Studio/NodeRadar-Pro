@@ -251,7 +251,18 @@ public static class VendorLookup
 
         string prefix = macAddress[..8].Replace("-", ":").ToUpper();
         
-        return _vendors.TryGetValue(prefix, out string? vendor) ? vendor : "Unknown Vendor";
+        if (_vendors.TryGetValue(prefix, out string? vendor))
+            return vendor;
+            
+        // Check for MAC Randomization (Locally Administered Bit is set)
+        if (macAddress.Length >= 2)
+        {
+            char c = macAddress[1];
+            if (c == '2' || c == '6' || c == 'A' || c == 'E' || c == 'a' || c == 'e')
+                return "Randomized MAC (Mobile/Privacy)";
+        }
+        
+        return "Unknown Vendor";
     }
 
     /// <summary>

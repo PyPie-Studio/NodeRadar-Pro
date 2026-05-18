@@ -347,6 +347,16 @@ public class DarkPurpleTheme
             SyncGlobalStats();
         };
 
+        inventoryPage.DevicesDeleted += (nodes) =>
+        {
+            foreach (var node in nodes)
+            {
+                activeNodesMap.TryRemove(node.MacAddress, out _);
+            }
+            try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
+            SyncGlobalStats();
+        };
+
         inventoryPage.DeviceStatusChanged += (node) =>
         {
             activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);

@@ -242,17 +242,23 @@ public static class ThemeTokens
     public static Button PrimaryButton(string text) => new()
     {
         Content = text,
-        Background = PrimaryContainer,
-        Foreground = OnSurface,
+        Background = new LinearGradientBrush
+        {
+            StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
+            EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
+            GradientStops = { new GradientStop(Color.Parse("#7C3AED"), 0), new GradientStop(Color.Parse("#6B21A8"), 1) }
+        },
+        Foreground = Brushes.White,
         FontSize = 15,
         FontWeight = FontWeight.SemiBold,
         FontFamily = new FontFamily("Inter"),
         Height = 44,
-        CornerRadius = new CornerRadius(ButtonRadius),
+        CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
-        Padding = new Thickness(20, 0)
+        Padding = new Thickness(24, 0),
+        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
 
     public static Button SecondaryButton(string text) => new()
@@ -263,13 +269,14 @@ public static class ThemeTokens
         FontSize = 15,
         FontFamily = new FontFamily("Inter"),
         Height = 44,
-        CornerRadius = new CornerRadius(ButtonRadius),
+        CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
         BorderBrush = GhostBorder20,
         BorderThickness = new Thickness(1),
-        Padding = new Thickness(20, 0)
+        Padding = new Thickness(24, 0),
+        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
 
     public static Button TertiaryButton(string text) => new()
@@ -288,17 +295,20 @@ public static class ThemeTokens
     public static Button DangerButton(string text) => new()
     {
         Content = text,
-        Background = ErrorContainer,
+        Background = Brushes.Transparent,
         Foreground = Error,
         FontSize = 15,
         FontWeight = FontWeight.SemiBold,
         FontFamily = new FontFamily("Inter"),
         Height = 44,
-        CornerRadius = new CornerRadius(ButtonRadius),
+        CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
-        Padding = new Thickness(20, 0)
+        Padding = new Thickness(24, 0),
+        BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3),
+        BorderThickness = new Thickness(1),
+        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
 
     // ═══════════════════════════════════════════

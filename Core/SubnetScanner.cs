@@ -326,99 +326,107 @@ public class SubnetScanner
     {
         if (token.IsCancellationRequested) return;
 
-        // Vendor lookup (instant)
+        // 1. Instant Lookups
         node.Vendor = Data.VendorLookup.GetVendor(node.MacAddress);
 
-        // DNS hostname (only if enabled)
-        if (EnableDnsResolve)
-            node.Hostname = await TryGetHostnameAsync(node.IpAddress);
-        else
-            node.Hostname = "Unknown Device";
-
-        // NetBIOS fallback
-        if (node.Hostname == "Unknown Device" && EnableDnsResolve && !token.IsCancellationRequested)
+        // ── Deep Intelligence: Protocol Discovery (mDNS / SSDP) (INSTANT CACHE LOOKUP) ──
+        try
         {
-            try
+            string mdnsModel = await DeviceFingerprinter.DiscoverExactModelViaMDnsAsync(node.IpAddress);
+            if (!string.IsNullOrEmpty(mdnsModel))
             {
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                cts.CancelAfter(3000);
-                
-                string netbios = await Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
-                if (!string.IsNullOrEmpty(netbios))
-                    node.Hostname = netbios;
+                node.ExactModel = mdnsModel;
+                Logger.Log(LogLevel.Info, "SubnetScanner", $"mDNS identification success for {node.IpAddress}: {mdnsModel}");
             }
-            catch (OperationCanceledException) { }
-            catch (Exception) { }
-        }
-// HTTP banner fallback
-if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
-{
-    try
-    {
-        string banner = await DeviceFingerprinter.TryGetHttpServerBannerAsync(node.IpAddress);
-        if (!string.IsNullOrEmpty(banner))
-            node.Hostname = banner;
-    }
-    catch { }
-}
 
-// ── Deep Intelligence: Deep HTTP Metadata Probes ──
-        if (!token.IsCancellationRequested)
+            string ssdpModel = await DeviceFingerprinter.DiscoverExactModelViaSSDPAsync(node.IpAddress);
+            if (!string.IsNullOrEmpty(ssdpModel))
+            {
+                Logger.Log(LogLevel.Info, "SubnetScanner", $"SSDP identification success for {node.IpAddress}: {ssdpModel}");
+                if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = ssdpModel;
+                else node.ExactModel = $"{node.ExactModel} ({ssdpModel})";
+            }
+        }
+        catch { }
+
+        // 2. Network Lookups (May Timeout)
+        try
         {
-            try
-            {
-                string deepMetadata = await DeviceFingerprinter.ProbeHttpMetadataAsync(node.IpAddress);
-                if (!string.IsNullOrEmpty(deepMetadata))
-                {
-                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = deepMetadata;
-                    else if (!node.ExactModel.Contains(deepMetadata)) node.ExactModel = $"{deepMetadata} ({node.ExactModel})";
-                }
-            }
-            catch { }
-        }
+            // DNS hostname (only if enabled)
+            if (EnableDnsResolve)
+                node.Hostname = await TryGetHostnameAsync(node.IpAddress);
+            else
+                node.Hostname = "Unknown Device";
 
-        // ── Deep Intelligence: Protocol Discovery (mDNS / SSDP) ──
-        if (!token.IsCancellationRequested)
+            // NetBIOS fallback
+            if (node.Hostname == "Unknown Device" && EnableDnsResolve && !token.IsCancellationRequested)
+            {
+                try
+                {
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(3000);
+                    
+                    string netbios = await Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
+                    if (!string.IsNullOrEmpty(netbios))
+                        node.Hostname = netbios;
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception) { }
+            }
+
+            // HTTP banner fallback
+            if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
+            {
+                try
+                {
+                    string banner = await DeviceFingerprinter.TryGetHttpServerBannerAsync(node.IpAddress);
+                    if (!string.IsNullOrEmpty(banner))
+                        node.Hostname = banner;
+                }
+                catch { }
+            }
+
+            // ── Deep Intelligence: Deep HTTP Metadata Probes ──
+            if (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    string deepMetadata = await DeviceFingerprinter.ProbeHttpMetadataAsync(node.IpAddress);
+                    if (!string.IsNullOrEmpty(deepMetadata))
+                    {
+                        if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = deepMetadata;
+                        else if (!node.ExactModel.Contains(deepMetadata)) node.ExactModel = $"{deepMetadata} ({node.ExactModel})";
+                    }
+                }
+                catch { }
+            }
+
+            // Inline port scanning (if enabled)
+            if (EnableInlinePortScan && !token.IsCancellationRequested)
+            {
+                try
+                {
+                    var scanResults = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
+                    node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
+                    node.PortBanners = scanResults;
+
+                    // If we found banners, append them to exact model if useful
+                    foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
+                    {
+                        if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
+                        else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
+                    }
+                }
+                catch { }
+            }
+        }
+        catch (OperationCanceledException)
         {
-            try
-            {
-                string mdnsModel = await DeviceFingerprinter.DiscoverExactModelViaMDnsAsync(node.IpAddress);
-                if (!string.IsNullOrEmpty(mdnsModel))
-                {
-                    node.ExactModel = mdnsModel;
-                    Logger.Log(LogLevel.Info, "SubnetScanner", $"mDNS identification success for {node.IpAddress}: {mdnsModel}");
-                }
-
-                string ssdpModel = await DeviceFingerprinter.DiscoverExactModelViaSSDPAsync(node.IpAddress);
-                if (!string.IsNullOrEmpty(ssdpModel))
-                {
-                    Logger.Log(LogLevel.Info, "SubnetScanner", $"SSDP identification success for {node.IpAddress}: {ssdpModel}");
-                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = ssdpModel;
-                    else node.ExactModel = $"{node.ExactModel} ({ssdpModel})";
-                }
-            }
-            catch { }
+            // Timeout reached, proceed to classification with what we have
         }
+        catch { }
 
-        // Inline port scanning (if enabled)
-        if (EnableInlinePortScan && !token.IsCancellationRequested)
-        {
-            try
-            {
-                var scanResults = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
-                node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
-                node.PortBanners = scanResults;
-
-                // If we found banners, append them to exact model if useful
-                foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
-                {
-                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
-                    else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
-                }
-            }
-            catch { }
-        }
-
+        // 3. Classification (Always Run)
         // ── Deep Intelligence: Intelligent Classification ──
         DeviceClassifier.ResolveDetails(node);
 

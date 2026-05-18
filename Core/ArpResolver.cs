@@ -39,6 +39,11 @@ public static class ArpResolver
         return "Unknown";
     }
 
+    // ── Cache for GetFullArpTable ──
+    private static List<(string Ip, string Mac)> _cachedArpTable = new();
+    private static DateTime _lastArpTableUpdate = DateTime.MinValue;
+    private static readonly object _arpTableLock = new();
+
     /// <summary>
     /// Reads the full ARP table from the OS to discover ALL devices that have
     /// recently communicated on the network — including WiFi devices and phones
@@ -46,17 +51,32 @@ public static class ArpResolver
     /// </summary>
     public static List<(string Ip, string Mac)> GetFullArpTable()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        lock (_arpTableLock)
         {
-            return GetWindowsArpTable();
-        }
-        
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-        {
-            return GetLinuxArpTable();
+            if ((DateTime.UtcNow - _lastArpTableUpdate).TotalSeconds < 5)
+            {
+                return new List<(string Ip, string Mac)>(_cachedArpTable);
+            }
         }
 
-        return new List<(string, string)>();
+        List<(string Ip, string Mac)> results = new();
+
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            results = GetWindowsArpTable();
+        }
+        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        {
+            results = GetLinuxArpTable();
+        }
+
+        lock (_arpTableLock)
+        {
+            _cachedArpTable = results;
+            _lastArpTableUpdate = DateTime.UtcNow;
+        }
+
+        return results;
     }
 
     // ── Windows: Single IP resolution via SendARP API ──

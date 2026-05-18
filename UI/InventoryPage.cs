@@ -38,11 +38,9 @@ public class InventoryPage : Border
     private string _activeFilter = "all";
     private readonly StackPanel _chipPanel;
 
-    // Right panel
     private readonly Border _detailArea;
     private readonly Border _emptyDetail;
     private readonly Border _bulkArea;
-    private readonly StackPanel _selectedDeviceList;
     private readonly Button _bulkDeleteBtn;
     private readonly TextBlock _bulkTitle;
     private NetworkNode? _currentNode;
@@ -82,6 +80,7 @@ public class InventoryPage : Border
 
     public event Action<NetworkNode>? DeviceSaved;
     public event Action<NetworkNode>? DeviceDeleted;
+    public event Action<IEnumerable<NetworkNode>>? DevicesDeleted;
     public event Action<NetworkNode>? DeviceStatusChanged;
     public event Action<NetworkNode>? DeviceSelected;
     public event Action<string>? ViewLogsRequested;
@@ -98,8 +97,21 @@ public class InventoryPage : Border
         {
             Dispatcher.UIThread.Post(() =>
             {
+                var oldMacs = _activeNodes.Select(n => n.MacAddress).ToHashSet();
+                var newMacs = msg.Nodes.Select(n => n.MacAddress).ToHashSet();
+                
+                bool membershipChanged = !oldMacs.SetEquals(newMacs);
                 _activeNodes = msg.Nodes.ToList();
-                RefreshData();
+                
+                if (membershipChanged)
+                {
+                    RefreshData();
+                }
+                else
+                {
+                    // Only update statuses/details of existing cards without full rebuild
+                    UpdateExistingCards();
+                }
             });
         });
 
@@ -199,13 +211,56 @@ public class InventoryPage : Border
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         };
 
+        // ═══════════════════════
+        // SELECTION BAR (contextual)
+        // ═══════════════════════
+        _bulkTitle = new TextBlock { VerticalAlignment = VerticalAlignment.Center, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface };
+        _bulkDeleteBtn = ThemeTokens.DangerButton("Delete");
+        _bulkDeleteBtn.Padding = new Thickness(12, 6);
+        _bulkDeleteBtn.Click += OnBulkDeleteClicked;
+
+        var exitBtn = ThemeTokens.SecondaryButton("Exit");
+        exitBtn.Padding = new Thickness(12, 6);
+        exitBtn.Click += (s, e) => ToggleSelectionMode();
+
+        var selectionContent = new Grid
+        {
+            Margin = new Thickness(16, 8),
+            ColumnDefinitions =
+            {
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
+                new ColumnDefinition(GridLength.Auto),
+                new ColumnDefinition(GridLength.Auto)
+            },
+            Children =
+            {
+                _bulkTitle,
+                new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { _bulkDeleteBtn, exitBtn } }
+            }
+        };
+        Grid.SetColumn(_bulkTitle, 0);
+        Grid.SetColumn(selectionContent.Children[1], 2); // The stackpanel
+        
+        _bulkArea = new Border
+        {
+            Background = ThemeTokens.SurfaceContainerHigh,
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            IsVisible = false,
+            Child = selectionContent
+        };
+
+        // Assemble left side
         var listDock = new DockPanel();
         DockPanel.SetDock(searchWrap, Dock.Top);
         DockPanel.SetDock(_chipPanel, Dock.Top);
         DockPanel.SetDock(listHeader, Dock.Top);
+        DockPanel.SetDock(_bulkArea, Dock.Top);
         listDock.Children.Add(searchWrap);
         listDock.Children.Add(_chipPanel);
         listDock.Children.Add(listHeader);
+        listDock.Children.Add(_bulkArea);
         listDock.Children.Add(listScroll);
 
         var leftCard = ThemeTokens.Card(listDock, ThemeTokens.SurfaceContainerLow, 0);
@@ -586,33 +641,6 @@ public class InventoryPage : Border
         rightCol.Children.Add(_detailArea);
 
         // ═══════════════════════
-        // BULK ACTIONS PANEL (hidden by default)
-        // ═══════════════════════
-        _bulkTitle = ThemeTokens.Headline("Bulk Actions", 22);
-        _selectedDeviceList = new StackPanel { Spacing = 4, Margin = new Thickness(0, 10) };
-        _bulkDeleteBtn = ThemeTokens.DangerButton("🗑 Delete Selected Devices");
-        _bulkDeleteBtn.Click += OnBulkDeleteClicked;
-
-        var cancelBulkBtn = ThemeTokens.SecondaryButton("Cancel Selection");
-        cancelBulkBtn.Click += (s, e) => ToggleSelectionMode();
-
-        var bulkContent = new StackPanel
-        {
-            Padding = new Thickness(20),
-            Children =
-            {
-                _bulkTitle,
-                new ScrollViewer { Content = _selectedDeviceList, Height = 400, Margin = new Thickness(0, 10) },
-                _bulkDeleteBtn,
-                new Panel { Height = 10 },
-                cancelBulkBtn
-            }
-        };
-        _bulkArea = ThemeTokens.Card(bulkContent, ThemeTokens.SurfaceContainerHigh, 24);
-        _bulkArea.IsVisible = false;
-        rightCol.Children.Add(_bulkArea);
-
-        // ═══════════════════════
         // ROOT GRID
         // ═══════════════════════
         var rootGrid = new Grid
@@ -656,20 +684,20 @@ public class InventoryPage : Border
         _selectModeBtn.Content = _isSelectionMode ? "Exit" : "Select";
         _selectAllCheckbox.IsVisible = _isSelectionMode;
         _selectAllCheckbox.IsChecked = false;
+        _deviceCountText.IsVisible = !_isSelectionMode;
         
-        if (_isSelectionMode)
+        _bulkArea.IsVisible = _isSelectionMode && _selectedMacs.Count > 0;
+        
+        if (!_isSelectionMode)
         {
-            _detailArea.IsVisible = false;
-            _emptyDetail.IsVisible = false;
-            _bulkArea.IsVisible = true;
-            UpdateBulkView();
-        }
-        else
-        {
-            _bulkArea.IsVisible = false;
             if (_currentNode != null) _detailArea.IsVisible = true;
             else _emptyDetail.IsVisible = true;
         }
+        else
+        {
+            UpdateBulkView();
+        }
+        
         RefreshDeviceList();
     }
 
@@ -689,21 +717,12 @@ public class InventoryPage : Border
 
     private void UpdateBulkView()
     {
-        _selectedDeviceList.Children.Clear();
-        _bulkTitle.Text = $"Selected Devices ({_selectedMacs.Count})";
-        _bulkDeleteBtn.Content = $"🗑 Delete {_selectedMacs.Count} Devices";
+        _bulkTitle.Text = $"{_selectedMacs.Count} selected";
+        _bulkDeleteBtn.Content = "Delete";
         _bulkDeleteBtn.IsEnabled = _selectedMacs.Count > 0;
-
-        var selectedNodes = _activeNodes.Where(n => _selectedMacs.Contains(n.MacAddress)).ToList();
-        foreach (var node in selectedNodes)
-        {
-            _selectedDeviceList.Children.Add(new Border {
-                Padding = new Thickness(8, 4),
-                Background = ThemeTokens.SurfaceContainerLowest,
-                CornerRadius = new CornerRadius(4),
-                Child = new TextBlock { Text = $"{node.DisplayName} ({node.IpAddress})", FontSize = 12, Foreground = ThemeTokens.OnSurface }
-            });
-        }
+        
+        // Contextually show/hide the bar if we are in selection mode
+        _bulkArea.IsVisible = _isSelectionMode && _selectedMacs.Count > 0;
     }
 
     private void OnBulkDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -728,9 +747,13 @@ public class InventoryPage : Border
     private void DoActualBulkDelete(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var macsToDelete = _selectedMacs.ToList();
+        var nodesToDelete = _activeNodes.Where(n => macsToDelete.Contains(n.MacAddress)).ToList();
+        
         _db.DeleteDevices(macsToDelete);
         foreach (var mac in macsToDelete) _monitor.RemoveDevice(mac);
         _activeNodes.RemoveAll(n => macsToDelete.Contains(n.MacAddress));
+        
+        DevicesDeleted?.Invoke(nodesToDelete);
         
         ToggleSelectionMode();
         RefreshDeviceList();
@@ -929,6 +952,68 @@ public class InventoryPage : Border
         foreach (var node in filtered) _deviceListContainer.Children.Add(BuildDeviceCard(node));
     }
 
+    private void UpdateExistingCards()
+    {
+        foreach (var child in _deviceListContainer.Children)
+        {
+            if (child is Border card && card.Tag is string mac)
+            {
+                var node = _activeNodes.FirstOrDefault(n => n.MacAddress == mac);
+                if (node != null)
+                {
+                    // Update only specific parts of the card
+                    UpdateCardUI(card, node);
+                }
+            }
+        }
+        
+        // Also update detail view if current node changed status
+        if (_currentNode != null) RefreshDetailView();
+    }
+
+    private void UpdateCardUI(Border card, NetworkNode node)
+    {
+        if (card.Child is Grid grid)
+        {
+            // Update icon
+            var leftGroup = grid.Children.OfType<StackPanel>().FirstOrDefault(c => Grid.GetColumn(c) == 0);
+            if (leftGroup != null && leftGroup.Children.Count > 0)
+            {
+                var iconIndex = _isSelectionMode ? 1 : 0;
+                if (leftGroup.Children.Count > iconIndex && leftGroup.Children[iconIndex] is Border iconBox)
+                {
+                    iconBox.Child = ThemeTokens.VectorIcon(GetDeviceSvg(node), 18, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+                }
+            }
+
+            // Update status badge safely
+            var existingBadge = grid.Children.OfType<Border>().FirstOrDefault(c => Grid.GetColumn(c) == 1);
+            var newBadge = node.IsOnline ? ThemeTokens.StatusBadge("Online", true) : (node.IsRegistered ? ThemeTokens.StatusBadge("Offline", false) : null);
+
+            if (existingBadge != null)
+            {
+                if (newBadge == null)
+                {
+                    grid.Children.Remove(existingBadge);
+                }
+                else if (existingBadge.Child is TextBlock etb && newBadge.Child is TextBlock ntb && etb.Text != ntb.Text)
+                {
+                    // Only replace if status actually changed
+                    grid.Children.Remove(existingBadge);
+                    newBadge.VerticalAlignment = VerticalAlignment.Center;
+                    Grid.SetColumn(newBadge, 1);
+                    grid.Children.Add(newBadge);
+                }
+            }
+            else if (newBadge != null)
+            {
+                newBadge.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(newBadge, 1);
+                grid.Children.Add(newBadge);
+            }
+        }
+    }
+
     private Border BuildDeviceCard(NetworkNode node)
     {
         bool isSelected = node.MacAddress == _selectedMac;
@@ -985,6 +1070,7 @@ public class InventoryPage : Border
 
         var card = new Border
         {
+            Tag = node.MacAddress,
             Padding = new Thickness(10, 10),
             CornerRadius = new CornerRadius(10),
             Background = isSelected ? ThemeTokens.SurfaceContainerHigh : Brushes.Transparent,
