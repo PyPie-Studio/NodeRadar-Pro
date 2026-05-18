@@ -649,6 +649,93 @@ public class InventoryPage : Border
         }
     }
 
+    private void ToggleSelectionMode()
+    {
+        _isSelectionMode = !_isSelectionMode;
+        _selectedMacs.Clear();
+        _selectModeBtn.Content = _isSelectionMode ? "Exit" : "Select";
+        _selectAllCheckbox.IsVisible = _isSelectionMode;
+        _selectAllCheckbox.IsChecked = false;
+        
+        if (_isSelectionMode)
+        {
+            _detailArea.IsVisible = false;
+            _emptyDetail.IsVisible = false;
+            _bulkArea.IsVisible = true;
+            UpdateBulkView();
+        }
+        else
+        {
+            _bulkArea.IsVisible = false;
+            if (_currentNode != null) _detailArea.IsVisible = true;
+            else _emptyDetail.IsVisible = true;
+        }
+        RefreshDeviceList();
+    }
+
+    private void ToggleSelectAll(bool selected)
+    {
+        if (selected)
+        {
+            foreach (var node in _activeNodes) _selectedMacs.Add(node.MacAddress);
+        }
+        else
+        {
+            _selectedMacs.Clear();
+        }
+        UpdateBulkView();
+        RefreshDeviceList();
+    }
+
+    private void UpdateBulkView()
+    {
+        _selectedDeviceList.Children.Clear();
+        _bulkTitle.Text = $"Selected Devices ({_selectedMacs.Count})";
+        _bulkDeleteBtn.Content = $"🗑 Delete {_selectedMacs.Count} Devices";
+        _bulkDeleteBtn.IsEnabled = _selectedMacs.Count > 0;
+
+        var selectedNodes = _activeNodes.Where(n => _selectedMacs.Contains(n.MacAddress)).ToList();
+        foreach (var node in selectedNodes)
+        {
+            _selectedDeviceList.Children.Add(new Border {
+                Padding = new Thickness(8, 4),
+                Background = ThemeTokens.SurfaceContainerLowest,
+                CornerRadius = new CornerRadius(4),
+                Child = new TextBlock { Text = $"{node.DisplayName} ({node.IpAddress})", FontSize = 12, Foreground = ThemeTokens.OnSurface }
+            });
+        }
+    }
+
+    private void OnBulkDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_selectedMacs.Count == 0) return;
+        _bulkDeleteBtn.Content = "⚠ Confirm Bulk Delete?";
+        _bulkDeleteBtn.Background = Brushes.DarkRed;
+        _bulkDeleteBtn.Click -= OnBulkDeleteClicked;
+        _bulkDeleteBtn.Click += DoActualBulkDelete;
+        
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        timer.Tick += (s, ev) => { 
+            _bulkDeleteBtn.Content = $"🗑 Delete {_selectedMacs.Count} Devices";
+            _bulkDeleteBtn.Background = ThemeTokens.ErrorContainer;
+            _bulkDeleteBtn.Click -= DoActualBulkDelete;
+            _bulkDeleteBtn.Click += OnBulkDeleteClicked;
+            timer.Stop(); 
+        };
+        timer.Start();
+    }
+
+    private void DoActualBulkDelete(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var macsToDelete = _selectedMacs.ToList();
+        _db.DeleteDevices(macsToDelete);
+        foreach (var mac in macsToDelete) _monitor.RemoveDevice(mac);
+        _activeNodes.RemoveAll(n => macsToDelete.Contains(n.MacAddress));
+        
+        ToggleSelectionMode();
+        RefreshDeviceList();
+    }
+
     public void ShowDevice(NetworkNode node)
     {
         _currentNode = node;
@@ -864,6 +951,12 @@ public class InventoryPage : Border
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, subText, ipText } };
         var leftGroup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { iconBox, textCol } };
 
+        if (_isSelectionMode)
+        {
+            var cardCheck = new CheckBox { IsChecked = _selectedMacs.Contains(node.MacAddress), Margin = new Thickness(0, 0, 8, 0), IsHitTestVisible = false };
+            leftGroup.Children.Insert(0, cardCheck);
+        }
+
         // Security Risk Dot
         if (node.ThreatLevel != ThreatLevel.Safe)
         {
@@ -905,7 +998,16 @@ public class InventoryPage : Border
 
         card.PointerEntered += (s, e) => { if (node.MacAddress != _selectedMac) card.Background = ThemeTokens.SurfaceContainerHigh; };
         card.PointerExited += (s, e) => { if (node.MacAddress != _selectedMac) card.Background = Brushes.Transparent; };
-        card.PointerPressed += (s, e) => ShowDevice(node);
+        card.PointerPressed += (s, e) => {
+            if (_isSelectionMode)
+            {
+                if (_selectedMacs.Contains(node.MacAddress)) _selectedMacs.Remove(node.MacAddress);
+                else _selectedMacs.Add(node.MacAddress);
+                UpdateBulkView();
+                RefreshDeviceList();
+            }
+            else ShowDevice(node);
+        };
 
         return card;
     }
