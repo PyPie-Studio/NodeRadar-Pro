@@ -191,6 +191,23 @@ public class LocalDatabase : IDisposable
         return false;
     }
 
+    public int DeleteDevices(IEnumerable<string> macAddresses)
+    {
+        var collection = _db.GetCollection<NetworkNode>("devices");
+        int deletedCount = 0;
+        foreach (var mac in macAddresses)
+        {
+            var existing = collection.FindOne(x => x.MacAddress == mac);
+            if (existing != null) 
+            { 
+                collection.Delete(existing.Id); 
+                deletedCount++;
+            }
+        }
+        Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
+        return deletedCount;
+    }
+
 
 
     public List<NetworkNode> GetRegisteredDevices()
