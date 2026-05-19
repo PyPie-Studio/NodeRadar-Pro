@@ -196,10 +196,10 @@ public static class ArpResolver
             }
 
             // Read output with timeout protection
-            var outputTask = proc.StandardOutput.ReadToEndAsync();
+            string output = proc.StandardOutput.ReadToEnd();
             if (proc.WaitForExit(5000))
             {
-                string output = outputTask.Result;
+
                 // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
                 foreach (var line in output.Split('\n'))
                 {
