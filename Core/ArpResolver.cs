@@ -181,7 +181,7 @@ public static class ArpResolver
         {
             var psi = new ProcessStartInfo
             {
-                FileName = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "arp.exe"),
+                FileName = "arp",
                 Arguments = "-a",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
