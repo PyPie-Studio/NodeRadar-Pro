@@ -100,19 +100,33 @@ public class AlertsPage : Border
         _filterRow.Children.Add(MakeFilterChip("All", "all", _filterMode == "all"));
 
         var allAlerts = _db.GetAlerts(500);
-        var active = allAlerts.Where(a => !a.IsResolved).ToList();
-        var resolved = allAlerts.Where(a => a.IsResolved).ToList();
 
-        _activeCount.Text = active.Count.ToString();
-        _resolvedCount.Text = resolved.Count.ToString();
-        _totalCount.Text = allAlerts.Count.ToString();
+        int activeCount = 0;
+        int resolvedCount = 0;
+        var filtered = new List<NodeRadarPro.Core.AlertEvent>();
 
-        var filtered = _filterMode switch
+        foreach (var a in allAlerts)
         {
-            "active" => active,
-            "resolved" => resolved,
-            _ => allAlerts
-        };
+            if (a.IsResolved)
+            {
+                resolvedCount++;
+                if (_filterMode == "resolved") filtered.Add(a);
+            }
+            else
+            {
+                activeCount++;
+                if (_filterMode == "active") filtered.Add(a);
+            }
+        }
+
+        if (_filterMode == "all")
+        {
+            filtered = allAlerts;
+        }
+
+        _activeCount.Text = activeCount.ToString();
+        _resolvedCount.Text = resolvedCount.ToString();
+        _totalCount.Text = allAlerts.Count.ToString();
 
         if (filtered.Count == 0)
         {

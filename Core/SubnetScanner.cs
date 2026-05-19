@@ -112,7 +112,14 @@ public class SubnetScanner
                     if (!int.TryParse(parts[3], out int lastOctet) || lastOctet < startIp || lastOctet > endIp) continue;
 
                     var node = BuildNode(ip, mac);
-                    await ResolveNodeMetadataAsync(node, token);
+                    using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    resolveCts.CancelAfter(5000);
+                    try
+                    {
+                        await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                    }
+                    catch (OperationCanceledException) { }
+                    catch { }
                     if (!token.IsCancellationRequested)
                     {
                         activeNodes.Add(node);
@@ -149,7 +156,14 @@ public class SubnetScanner
                     if (discoveredMacs.TryAdd(mac, true))
                     {
                         var node = BuildNode(ip, mac);
-                        await ResolveNodeMetadataAsync(node, token);
+                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        resolveCts.CancelAfter(5000);
+                        try
+                        {
+                            await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                        }
+                        catch (OperationCanceledException) { }
+                        catch { }
                         activeNodes.Add(node);
                         NodeDiscovered?.Invoke(node);
                     }
@@ -224,7 +238,14 @@ public class SubnetScanner
                     if (!allSubnets.Contains(ipSubnet)) continue;
 
                     var node = BuildNode(ip, mac);
-                    await ResolveNodeMetadataAsync(node, token);
+                    using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    resolveCts.CancelAfter(5000);
+                    try
+                    {
+                        await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                    }
+                    catch (OperationCanceledException) { }
+                    catch { }
                     if (!token.IsCancellationRequested)
                     {
                         activeNodes.Add(node);

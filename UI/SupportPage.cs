@@ -50,7 +50,7 @@ public class SupportPage : Border
 
         var logoIcon = new Border
         {
-            Width = 72, Height = 72, CornerRadius = new CornerRadius(0), // Issue 7 fix: Force square corners
+            Width = 72, Height = 72, CornerRadius = new CornerRadius(0),
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
