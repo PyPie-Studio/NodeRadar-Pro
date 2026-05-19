@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LiteDB;
+using System.Security.Cryptography;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Data;
@@ -19,13 +20,60 @@ public class LocalDatabase : IDisposable
     private readonly string _dbPath;
     private LiteDatabase _db;
 
+    private string _dbPassword;
+
     private LocalDatabase()
     {
         string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
         Directory.CreateDirectory(myFolder);
         _dbPath = Path.Combine(myFolder, "noderadar.db");
-        _db = new LiteDatabase($"Filename={_dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared;");
+
+        _dbPassword = GetOrGenerateSecurePassword(myFolder);
+
+        // Ensure the db_key.bin is created
+        if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
+        {
+             SaveSecurePassword(myFolder, _dbPassword);
+        }
+
+        _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+    }
+
+    private string GetOrGenerateSecurePassword(string folder)
+    {
+        string keyFile = Path.Combine(folder, "db_key.bin");
+        if (File.Exists(keyFile))
+        {
+            try
+            {
+                byte[] encrypted = File.ReadAllBytes(keyFile);
+                byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                return System.Text.Encoding.UTF8.GetString(decrypted);
+            }
+            catch
+            {
+                // If DPAPI decryption fails (e.g., moved to another machine), fallback to a new password
+                // Note: The existing DB won't be openable, but returning a new password avoids a crash here.
+                // The DB open will fail, prompting user to restore from backup or clear DB.
+            }
+        }
+
+        // Generate a new secure password
+        byte[] secret = new byte[32];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(secret);
+        }
+        return Convert.ToBase64String(secret);
+    }
+
+    private void SaveSecurePassword(string folder, string password)
+    {
+        string keyFile = Path.Combine(folder, "db_key.bin");
+        byte[] secret = System.Text.Encoding.UTF8.GetBytes(password);
+        byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(keyFile, encrypted);
     }
 
     public void Dispose()
@@ -194,16 +242,10 @@ public class LocalDatabase : IDisposable
     public int DeleteDevices(IEnumerable<string> macAddresses)
     {
         var collection = _db.GetCollection<NetworkNode>("devices");
-        int deletedCount = 0;
-        foreach (var mac in macAddresses)
-        {
-            var existing = collection.FindOne(x => x.MacAddress == mac);
-            if (existing != null) 
-            { 
-                collection.Delete(existing.Id); 
-                deletedCount++;
-            }
-        }
+
+        var macArray = macAddresses.ToArray();
+        int deletedCount = collection.DeleteMany(x => macArray.Contains(x.MacAddress));
+
         Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
         return deletedCount;
     }
@@ -255,12 +297,13 @@ public class LocalDatabase : IDisposable
     {
         var col = _db.GetCollection<AlertEvent>("alerts");
         var unresolved = col.Find(x => !x.IsResolved).ToList();
+        var now = DateTime.UtcNow;
         foreach (var a in unresolved)
         {
             a.IsResolved = true;
-            a.ResolvedAt = DateTime.UtcNow;
-            col.Update(a);
+            a.ResolvedAt = now;
         }
+        if (unresolved.Count > 0) col.Update(unresolved);
     }
 
     // ══════════════════════════════════
@@ -399,7 +442,7 @@ public class LocalDatabase : IDisposable
             File.Copy(backupPath, dbPath, true);
             
             // Re-initialize (Note: In a real app, we would probably trigger an app restart)
-            var connectionString = $"Filename={dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared";
+            var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
             _db = new LiteDatabase(connectionString);
             
             Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");

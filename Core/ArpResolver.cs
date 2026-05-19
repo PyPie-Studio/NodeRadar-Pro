@@ -181,7 +181,7 @@ public static class ArpResolver
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "arp",
+                FileName = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "arp.exe"),
                 Arguments = "-a",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
@@ -200,6 +200,13 @@ public static class ArpResolver
             {
                 string? line;
                 while ((line = proc.StandardOutput.ReadLine()) != null)
+            // Read output with timeout protection
+            string output = proc.StandardOutput.ReadToEnd();
+            if (proc.WaitForExit(5000))
+            {
+
+                // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
+                foreach (var line in output.Split('\n'))
                 {
                     string trimmed = line.Trim();
                     if (string.IsNullOrEmpty(trimmed)) continue;

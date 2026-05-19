@@ -160,7 +160,7 @@ public class SystemLogsPage : Border
         {
             // Delay scroll until after Avalonia has rendered the new rows (Issue 4 fix)
             Dispatcher.UIThread.Post(() => {
-                _logScroll.Offset = new Vector(0, _logScroll.Extent.Height);
+                _logScroll.ScrollToEnd();
             }, DispatcherPriority.Render);
         }
     }
