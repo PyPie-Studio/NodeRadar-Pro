@@ -28,6 +28,8 @@ public class PortScansPage : Border
     private readonly ProgressBar _progressBar;
     private readonly StackPanel _resultsBody;
     private readonly TextBlock _openCount;
+    private readonly TextBlock _elapsedTime;
+    private DateTime _scanStartTime;
     private CancellationTokenSource? _cts;
     private bool _isScanning;
 
@@ -114,9 +116,18 @@ public class PortScansPage : Border
         Grid.SetColumn(progLabel, 0); Grid.SetColumn(_progressPct, 1);
         progHeader.Children.Add(progLabel); progHeader.Children.Add(_progressPct);
         _progressBar = new ProgressBar { Minimum = 0, Maximum = 100, Value = 0, Height = 8, Foreground = ThemeTokens.Tertiary, Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(4), Margin = new Thickness(0, 6, 0, 0) };
-        _openCount = ThemeTokens.Label("OPEN PORTS: 0", 12); _openCount.LetterSpacing = 1.2; _openCount.Margin = new Thickness(0, 12, 0, 0);
+        _openCount = ThemeTokens.Label("OPEN PORTS: 0", 12); _openCount.LetterSpacing = 1.2;
+        _elapsedTime = ThemeTokens.Label("ELAPSED: 00:00", 12); _elapsedTime.LetterSpacing = 1.2; _elapsedTime.HorizontalAlignment = HorizontalAlignment.Right;
 
-        var statusContent = new StackPanel { Children = { sweepTitle, _statusText, progHeader, _progressBar, _openCount } };
+        var footerStats = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+        footerStats.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        footerStats.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        Grid.SetColumn(_openCount, 0);
+        Grid.SetColumn(_elapsedTime, 1);
+        footerStats.Children.Add(_openCount);
+        footerStats.Children.Add(_elapsedTime);
+
+        var statusContent = new StackPanel { Children = { sweepTitle, _statusText, progHeader, _progressBar, footerStats } };
         var statusCard = ThemeTokens.GlassCard(statusContent, 28);
 
         var bentoGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(2, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 20, 0, 0) };
@@ -157,6 +168,8 @@ public class PortScansPage : Border
         _cts = new CancellationTokenSource();
         _resultsBody.Children.Clear();
         _progressBar.Value = 0;
+        _scanStartTime = DateTime.UtcNow;
+        _elapsedTime.Text = "ELAPSED: 00:00";
         _openCount.Text = "OPEN PORTS: 0"; // Bug #4: Reset counter at scan start
         _statusText.Text = $"Scanning {ip}:{sp}-{ep}...";
         int totalPorts = ep - sp + 1;
@@ -215,7 +228,12 @@ public class PortScansPage : Border
                 if (c % 50 == 0 || c == totalPorts)
                 {
                     double pct = (double)c / totalPorts * 100;
-                    Dispatcher.UIThread.Post(() => { _progressBar.Value = pct; _progressPct.Text = $"{(int)pct}%"; });
+                    Dispatcher.UIThread.Post(() => {
+                        _progressBar.Value = pct;
+                        _progressPct.Text = $"{(int)pct}%";
+                        var elapsed = DateTime.UtcNow - _scanStartTime;
+                        _elapsedTime.Text = $"ELAPSED: {elapsed:mm\\:ss}";
+                    });
                 }
             });
             await Task.WhenAll(tasks);
