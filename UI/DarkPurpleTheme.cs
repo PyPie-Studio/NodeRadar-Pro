@@ -299,16 +299,35 @@ public class DarkPurpleTheme
 
         void SyncGlobalStats()
         {
+            // Pre-calculate stats off the UI thread
+            var values = activeNodesMap.Values;
+            var snapshot = new System.Collections.Generic.List<NetworkNode>(values.Count);
+
+            int online = 0;
+            long totalLatency = 0;
+            int latencyCount = 0;
+
+            foreach (var node in values)
+            {
+                snapshot.Add(node);
+                if (node.IsOnline)
+                {
+                    online++;
+                    if (node.PingLatencyMs >= 0)
+                    {
+                        totalLatency += node.PingLatencyMs;
+                        latencyCount++;
+                    }
+                }
+            }
+
+            long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
+
+            int alertCount = 0;
+            try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+
             Dispatcher.UIThread.Post(() =>
             {
-                var snapshot = activeNodesMap.Values.ToList();
-                int online = snapshot.Count(n => n.IsOnline);
-                var onlineWithLatency = snapshot.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
-                long avgLat = onlineWithLatency.Count > 0 ? (long)onlineWithLatency.Average(n => n.PingLatencyMs) : -1;
-                
-                int alertCount = 0;
-                try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
-
                 // Update Top Nav
                 topNav.UpdateStatus(online, avgLat, alertCount);
                 
