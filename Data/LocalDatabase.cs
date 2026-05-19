@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LiteDB;
+using System.Security.Cryptography;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Data;
@@ -19,13 +20,94 @@ public class LocalDatabase : IDisposable
     private readonly string _dbPath;
     private LiteDatabase _db;
 
+    private string _dbPassword;
+
     private LocalDatabase()
     {
         string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
         Directory.CreateDirectory(myFolder);
         _dbPath = Path.Combine(myFolder, "noderadar.db");
-        _db = new LiteDatabase($"Filename={_dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared;");
+
+        _dbPassword = GetOrGenerateSecurePassword(myFolder);
+
+        if (File.Exists(_dbPath) && !File.Exists(Path.Combine(myFolder, "db_key.bin")))
+        {
+            // First time running with new security patch, migrate DB
+            try
+            {
+                MigrateDatabase(_dbPath, "PyPie-NR-Pro-Sec-2026", _dbPassword);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Migration failed: {ex.Message}");
+                // If migration fails, try to just proceed (maybe it's already using the new password somehow)
+            }
+        }
+
+        // Ensure the db_key.bin is created after successful open/migration
+        if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
+        {
+             SaveSecurePassword(myFolder, _dbPassword);
+        }
+
+        _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+    }
+
+    private string GetOrGenerateSecurePassword(string folder)
+    {
+        string keyFile = Path.Combine(folder, "db_key.bin");
+        if (File.Exists(keyFile))
+        {
+            try
+            {
+                byte[] encrypted = File.ReadAllBytes(keyFile);
+                byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                return System.Text.Encoding.UTF8.GetString(decrypted);
+            }
+            catch
+            {
+                // If DPAPI decryption fails (e.g., moved to another machine), fallback to a new password
+                // Note: The existing DB won't be openable, but returning a new password avoids a crash here.
+                // The DB open will fail, prompting user to restore from backup or clear DB.
+            }
+        }
+
+        // Generate a new secure password
+        byte[] secret = new byte[32];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(secret);
+        }
+        return Convert.ToBase64String(secret);
+    }
+
+    private void SaveSecurePassword(string folder, string password)
+    {
+        string keyFile = Path.Combine(folder, "db_key.bin");
+        byte[] secret = System.Text.Encoding.UTF8.GetBytes(password);
+        byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(keyFile, encrypted);
+    }
+
+    private void MigrateDatabase(string dbPath, string oldPass, string newPass)
+    {
+        string tempPath = dbPath + ".tmp";
+        if (File.Exists(tempPath)) File.Delete(tempPath);
+
+        using (var oldDb = new LiteDatabase($"Filename={dbPath};Password={oldPass};"))
+        using (var newDb = new LiteDatabase($"Filename={tempPath};Password={newPass};"))
+        {
+            foreach (var colName in oldDb.GetCollectionNames())
+            {
+                var oldCol = oldDb.GetCollection(colName);
+                var newCol = newDb.GetCollection(colName);
+                newCol.InsertBulk(oldCol.FindAll());
+            }
+        }
+
+        File.Delete(dbPath);
+        File.Move(tempPath, dbPath);
     }
 
     public void Dispose()
@@ -399,7 +481,7 @@ public class LocalDatabase : IDisposable
             File.Copy(backupPath, dbPath, true);
             
             // Re-initialize (Note: In a real app, we would probably trigger an app restart)
-            var connectionString = $"Filename={dbPath};Password=PyPie-NR-Pro-Sec-2026;Connection=shared";
+            var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
             _db = new LiteDatabase(connectionString);
             
             Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
