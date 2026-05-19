@@ -88,10 +88,10 @@ public class NetworkNode
         get
         {
             if (!string.IsNullOrEmpty(CustomName)) return CustomName;
-            if (!string.IsNullOrEmpty(ExactModel)) return ExactModel;
             if (!string.IsNullOrEmpty(DeviceName)) return DeviceName;
-            if (!string.IsNullOrEmpty(DeviceModel)) return DeviceModel;
             if (Hostname != "Unknown Device" && Hostname != "Manual Entry") return Hostname;
+            if (!string.IsNullOrEmpty(DeviceModel)) return DeviceModel;
+            if (!string.IsNullOrEmpty(ExactModel)) return ExactModel;
             if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor")
                 return $"{Vendor} ({IpAddress})";
             return IpAddress;

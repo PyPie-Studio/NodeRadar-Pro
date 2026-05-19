@@ -89,10 +89,27 @@ public static class DeviceFingerprinter
     }
 
     /// <summary>
-    /// Performs deep HTTP probes for specific indicators (Apple, IoT, Printers).
+    /// Performs deep HTTP probes for specific indicators (Apple, IoT, Printers, Windows WSD).
     /// </summary>
     public static async Task<string> ProbeHttpMetadataAsync(string ip)
     {
+        // 0. Check for Windows WSD (Web Services for Devices) on port 5357
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"http://{ip}:5357/");
+            using var wsdCts = new CancellationTokenSource(1000);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, wsdCts.Token);
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                var serverHeader = response.Headers.Server?.ToString();
+                if (!string.IsNullOrEmpty(serverHeader) && serverHeader.Contains("Microsoft-HTTPAPI"))
+                {
+                    return "Windows Workstation (WSD)";
+                }
+            }
+        }
+        catch { }
+
         // 1. Check for Apple devices via touch icon
         try
         {
@@ -105,7 +122,7 @@ public static class DeviceFingerprinter
                 var contentType = response.Content.Headers.ContentType?.MediaType;
                 if (contentType != null && contentType.Contains("image/"))
                 {
-                    return "Apple Device (HTTP-Icon)";
+                    return "Web UI (Apple-Icon)";
                 }
             }
         }
@@ -236,7 +253,8 @@ public static class DeviceFingerprinter
             string[] services = { 
                 "_airplay._tcp.local", "_googlecast._tcp.local", "_raop._tcp.local", 
                 "_spotify-connect._tcp.local", "_workstation._tcp.local", "_printer._tcp.local",
-                "_ipp._tcp.local", "_smb._tcp.local" 
+                "_ipp._tcp.local", "_smb._tcp.local", "_apple-mobdev2._tcp.local",
+                "_companion-link._tcp.local", "_androidtv._tcp.local", "_amzn-alexa._tcp.local"
             };
 
             foreach (var service in services)
@@ -265,6 +283,9 @@ public static class DeviceFingerprinter
                 if (raw.Contains("Google") || raw.Contains("Cast")) data.Services.Add("Google Cast");
                 if (raw.Contains("Spotify")) data.Services.Add("Spotify");
                 if (raw.Contains("Printer") || raw.Contains("ipp")) data.Services.Add("Network Printer");
+                if (raw.Contains("Android") || raw.Contains("androidtv")) data.Services.Add("Android Device");
+                if (raw.Contains("iPhone") || raw.Contains("iPad") || raw.Contains("MacBook") || raw.Contains("companion-link") || raw.Contains("apple-mobdev2")) data.Services.Add("Apple Device");
+                if (raw.Contains("amzn-alexa")) data.Services.Add("Amazon Alexa");
 
                 // Parse TXT records for model info
                 ParseMdnsTxtRecords(result.Buffer, data);

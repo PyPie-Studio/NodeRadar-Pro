@@ -176,9 +176,30 @@ public static class VendorLookup
         Add("00:23:9C", "Juniper"); Add("3C:61:04", "Juniper"); Add("4C:96:14", "Juniper");
         Add("00:09:0F", "Fortinet"); Add("70:4C:A5", "Fortinet");
 
-        // ── OnePlus / Oppo / Vivo ──
-        Add("94:65:2D", "OnePlus"); Add("C0:EE:FB", "OnePlus");
-        Add("00:1E:AC", "Oppo");    Add("A4:3B:FA", "Oppo");
+        // ── Xiaomi / Huawei / Samsung (Modern Additions) ──
+        Add("00:9A:CD", "Huawei");  Add("04:33:89", "Huawei");  Add("0C:96:E6", "Huawei");
+        Add("10:1B:54", "Huawei");  Add("20:08:ED", "Huawei");  Add("24:DF:6A", "Huawei");
+        Add("48:43:5A", "Huawei");  Add("60:DE:F3", "Huawei");  Add("80:B6:86", "Huawei");
+
+        Add("00:EC:0A", "Xiaomi");  Add("0C:1D:AF", "Xiaomi");  Add("14:F6:5A", "Xiaomi");
+        Add("28:E3:1F", "Xiaomi");  Add("3C:BD:3E", "Xiaomi");  Add("50:8A:06", "Xiaomi");
+        Add("64:09:80", "Xiaomi");  Add("74:51:BA", "Xiaomi");  Add("8C:45:00", "Xiaomi");
+        Add("98:FA:E3", "Xiaomi");  Add("AC:C1:EE", "Xiaomi");  Add("C4:0B:CB", "Xiaomi");
+        Add("D4:A1:48", "Xiaomi");  Add("F4:J6:B3", "Xiaomi");  Add("FC:64:BA", "Xiaomi");
+
+        Add("00:12:36", "Samsung"); Add("00:15:99", "Samsung"); Add("00:1E:E3", "Samsung");
+        Add("00:26:37", "Samsung"); Add("08:D4:6A", "Samsung"); Add("10:19:94", "Samsung");
+        Add("14:89:FD", "Samsung"); Add("20:1F:3B", "Samsung"); Add("28:CC:01", "Samsung");
+        Add("38:AA:3C", "Samsung"); Add("48:4B:AA", "Samsung"); Add("50:85:69", "Samsung");
+        Add("5C:A8:6A", "Samsung"); Add("60:6B:FF", "Samsung"); Add("64:B3:10", "Samsung");
+        Add("70:F1:A1", "Samsung"); Add("78:59:5E", "Samsung"); Add("84:0B:2D", "Samsung");
+
+        // ── OnePlus / Oppo / Vivo / Realme / Tecno ──
+        Add("94:65:2D", "OnePlus"); Add("C0:EE:FB", "OnePlus"); Add("50:01:D9", "OnePlus");
+        Add("00:1E:AC", "Oppo");    Add("A4:3B:FA", "Oppo");    Add("84:B8:B8", "Oppo");
+        Add("24:11:05", "Vivo");    Add("60:0F:77", "Vivo");    Add("9C:52:F8", "Vivo");
+        Add("3C:05:18", "Realme");  Add("D8:45:1E", "Realme");
+        Add("48:A1:95", "Tecno");   Add("70:86:CE", "Tecno");
         Add("D0:53:49", "Liteon/Laptop WiFi");
 
         // ── LG ──
@@ -266,66 +287,13 @@ public static class VendorLookup
     }
 
     /// <summary>
-    /// Attempts to guess a device type from its vendor name and open ports.
+    /// Guessing is now completely offloaded to the far superior DeviceClassifier.cs engine.
+    /// This method is deprecated but kept temporarily so the UI doesn't break if it depends on it.
     /// </summary>
     public static string GuessDeviceType(string vendor, string hostname)
     {
-        string v = vendor.ToLower();
-        string h = hostname.ToLower();
-
-        if (v.Contains("mikrotik") || v.Contains("cisco") || v.Contains("juniper") || 
-            v.Contains("fortinet") || v.Contains("aruba") || v.Contains("ubiquiti") ||
-            h.Contains("router") || h.Contains("gateway"))
-            return "Router/Network";
-
-        if (v.Contains("apple"))
-        {
-            if (h.Contains("iphone")) return "iPhone";
-            if (h.Contains("ipad")) return "iPad";
-            if (h.Contains("watch")) return "Apple Watch";
-            if (h.Contains("macbook") || h.Contains("mac-mini") || h.Contains("imac")) return "Mac";
-            return "Mobile (Apple)";
-        }
-
-        if (v.Contains("samsung") || v.Contains("xiaomi") || v.Contains("huawei") || 
-            v.Contains("oneplus") || v.Contains("oppo") || v.Contains("vivo") || 
-            v.Contains("motorola") || v.Contains("google") || v.Contains("hmd") || v.Contains("nokia"))
-        {
-            if (h.Contains("tv")) return "Smart TV";
-            return "Mobile Phone";
-        }
-
-        if (v.Contains("sony") && !v.Contains("mobile"))
-            return "PlayStation";
-        if (v.Contains("nintendo"))
-            return "Nintendo Console";
-        if (v.Contains("microsoft"))
-            return h.Contains("xbox") ? "Xbox" : "PC / Windows";
-        
-        if (v.Contains("amazon"))
-            return h.Contains("fire") ? "Fire TV" : "Echo / Alexa";
-        
-        if (v.Contains("synology") || v.Contains("qnap") || v.Contains("wd") || v.Contains("terramaster"))
-            return "NAS Storage";
-            
-        if (v.Contains("sonos") || v.Contains("bose") || v.Contains("yamaha") || v.Contains("denon"))
-            return "Audio Speaker";
-            
-        if (v.Contains("roku") || v.Contains("lg") || v.Contains("vizio") || v.Contains("panasonic"))
-            return "Smart TV";
-            
-        if (v.Contains("hikvision") || v.Contains("dahua") || v.Contains("reolink") || v.Contains("axis") || v.Contains("bosch"))
-            return "IP Camera";
-
-        if (v.Contains("vmware") || v.Contains("virtual") || v.Contains("oracle"))
-            return "Virtual Machine";
-            
-        if (v.Contains("dell") || v.Contains("hp") || v.Contains("lenovo") || v.Contains("asus") || v.Contains("acer") || v.Contains("msi") || v.Contains("gigabyte"))
-            return "Workstation";
-
-        if (v.Contains("intel") || v.Contains("realtek") || v.Contains("broadcom"))
-            return "Computer";
-
-        return "Network Device";
+        // For backwards compatibility before we rip it out entirely.
+        // The real logic runs in Core.DeviceClassifier.ResolveDetails.
+        return "Generic Network Device";
     }
 }
