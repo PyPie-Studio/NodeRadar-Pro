@@ -89,10 +89,27 @@ public static class DeviceFingerprinter
     }
 
     /// <summary>
-    /// Performs deep HTTP probes for specific indicators (Apple, IoT, Printers).
+    /// Performs deep HTTP probes for specific indicators (Apple, IoT, Printers, Windows WSD).
     /// </summary>
     public static async Task<string> ProbeHttpMetadataAsync(string ip)
     {
+        // 0. Check for Windows WSD (Web Services for Devices) on port 5357
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, $"http://{ip}:5357/");
+            using var wsdCts = new CancellationTokenSource(1000);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, wsdCts.Token);
+            if (response.IsSuccessStatusCode || response.StatusCode == HttpStatusCode.NotFound || response.StatusCode == HttpStatusCode.BadRequest)
+            {
+                var serverHeader = response.Headers.Server?.ToString();
+                if (!string.IsNullOrEmpty(serverHeader) && serverHeader.Contains("Microsoft-HTTPAPI"))
+                {
+                    return "Windows Workstation (WSD)";
+                }
+            }
+        }
+        catch { }
+
         // 1. Check for Apple devices via touch icon
         try
         {
