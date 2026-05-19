@@ -490,6 +490,7 @@ public class ScannerPage : Border
             {
                 // Update central dictionary directly (Fix for Dashboard/Nav sync)
                 _activeNodes.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+                DataChanged?.Invoke();
 
                 // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
                 if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
