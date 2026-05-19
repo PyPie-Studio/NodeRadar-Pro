@@ -20,7 +20,6 @@
   </PropertyGroup>
   <PropertyGroup Label="Avalonia">
     <EnableAvaloniaXamlCompilation>True</EnableAvaloniaXamlCompilation>
-    <DefaultItemExcludes>$(DefaultItemExcludes);Core.Tests\**\*</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
@@ -29,12 +28,6 @@
 
   <ItemGroup>
     <Content Include="Resources\NodeRadar Pro Icon.ico" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Tests\**" />
-    <Content Remove="Tests\**" />
-    <None Remove="Tests\**" />
   </ItemGroup>
 
   <ItemGroup>
