@@ -20,6 +20,7 @@
   </PropertyGroup>
   <PropertyGroup Label="Avalonia">
     <EnableAvaloniaXamlCompilation>True</EnableAvaloniaXamlCompilation>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Core.Tests\**\*</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
