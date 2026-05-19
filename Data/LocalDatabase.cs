@@ -31,21 +31,7 @@ public class LocalDatabase : IDisposable
 
         _dbPassword = GetOrGenerateSecurePassword(myFolder);
 
-        if (File.Exists(_dbPath) && !File.Exists(Path.Combine(myFolder, "db_key.bin")))
-        {
-            // First time running with new security patch, migrate DB
-            try
-            {
-                MigrateDatabase(_dbPath, "PyPie-NR-Pro-Sec-2026", _dbPassword);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Migration failed: {ex.Message}");
-                // If migration fails, try to just proceed (maybe it's already using the new password somehow)
-            }
-        }
-
-        // Ensure the db_key.bin is created after successful open/migration
+        // Ensure the db_key.bin is created
         if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
         {
              SaveSecurePassword(myFolder, _dbPassword);
@@ -88,26 +74,6 @@ public class LocalDatabase : IDisposable
         byte[] secret = System.Text.Encoding.UTF8.GetBytes(password);
         byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
         File.WriteAllBytes(keyFile, encrypted);
-    }
-
-    private void MigrateDatabase(string dbPath, string oldPass, string newPass)
-    {
-        string tempPath = dbPath + ".tmp";
-        if (File.Exists(tempPath)) File.Delete(tempPath);
-
-        using (var oldDb = new LiteDatabase($"Filename={dbPath};Password={oldPass};"))
-        using (var newDb = new LiteDatabase($"Filename={tempPath};Password={newPass};"))
-        {
-            foreach (var colName in oldDb.GetCollectionNames())
-            {
-                var oldCol = oldDb.GetCollection(colName);
-                var newCol = newDb.GetCollection(colName);
-                newCol.InsertBulk(oldCol.FindAll());
-            }
-        }
-
-        File.Delete(dbPath);
-        File.Move(tempPath, dbPath);
     }
 
     public void Dispose()
