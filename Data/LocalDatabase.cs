@@ -255,12 +255,13 @@ public class LocalDatabase : IDisposable
     {
         var col = _db.GetCollection<AlertEvent>("alerts");
         var unresolved = col.Find(x => !x.IsResolved).ToList();
+        var now = DateTime.UtcNow;
         foreach (var a in unresolved)
         {
             a.IsResolved = true;
-            a.ResolvedAt = DateTime.UtcNow;
-            col.Update(a);
+            a.ResolvedAt = now;
         }
+        if (unresolved.Count > 0) col.Update(unresolved);
     }
 
     // ══════════════════════════════════
