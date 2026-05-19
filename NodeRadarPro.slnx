@@ -1,6 +1,3 @@
 <Solution>
-  <Folder Name="/Tests/">
-    <Project Path="Tests/NodeRadarPro.Tests/NodeRadarPro.Tests.csproj" />
-  </Folder>
   <Project Path="NodeRadar Pro.csproj" />
 </Solution>
