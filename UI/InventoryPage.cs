@@ -1188,7 +1188,11 @@ public class InventoryPage : Border
                 _pingResult.Foreground = ThemeTokens.Tertiary;
                 _currentNode.IsOnline = true; _currentNode.PingLatencyMs = latency; _currentNode.LastSeen = DateTime.UtcNow;
                 if (mac != "Unknown" && (_currentNode.MacAddress.StartsWith("MANUAL") || _currentNode.MacAddress == "Unknown"))
-                { _currentNode.MacAddress = mac; _currentNode.Vendor = VendorLookup.GetVendor(mac); _currentNode.DeviceType = VendorLookup.GuessDeviceType(_currentNode.Vendor, _currentNode.Hostname); }
+                {
+                    _currentNode.MacAddress = mac;
+                    _currentNode.Vendor = VendorLookup.GetVendor(mac);
+                    DeviceClassifier.ResolveDetails(_currentNode);
+                }
             }
             else { _pingResult.Text = "❌ Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
         }

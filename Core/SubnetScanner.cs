@@ -303,6 +303,40 @@ public class SubnetScanner
         }
         catch { }
 
+        // Broaden port sweep for "stealth" Windows devices that block ICMP and fail SendARP over VPNs
+        if (!isReachable && !token.IsCancellationRequested)
+        {
+            int[] stealthPorts = { 135, 137, 139, 445, 80, 443, 5357 }; // Windows WSD, SMB, NetBIOS
+            foreach (int port in stealthPorts)
+            {
+                try
+                {
+                    using var tcp = new TcpClient();
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    cts.CancelAfter(Math.Min(TimeoutMs, 200));
+
+                    var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
+                    await connectTask;
+                    if (tcp.Connected)
+                    {
+                        isReachable = true;
+                        if (mac == "Unknown")
+                        {
+                            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
+                            if (mac == "Unknown")
+                            {
+                                var table = ArpResolver.GetFullArpTable();
+                                var match = table.FirstOrDefault(x => x.Ip == ip);
+                                if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                            }
+                        }
+                        break;
+                    }
+                }
+                catch { }
+            }
+        }
+
         if (!isReachable) return null;
 
         // Final fallback: Use IP-based ID but flag it properly (Issue: prevents database link loss)
