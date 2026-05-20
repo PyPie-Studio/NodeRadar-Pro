@@ -1339,11 +1339,20 @@ public class InventoryPage : Border
     {
         string icon = (node.IconPath ?? "").ToLower();
         if (icon == "phone" || icon == "mobile") return ThemeTokens.SvgPhone;
-        if (icon == "server" || icon == "nas") return ThemeTokens.SvgServer;
+        if (icon == "tablet") return ThemeTokens.SvgTablet;
+        if (icon == "server") return ThemeTokens.SvgServer;
+        if (icon == "nas") return ThemeTokens.SvgNas;
         if (icon == "router" || icon == "network") return ThemeTokens.SvgRouter;
+        if (icon == "switch") return ThemeTokens.SvgSwitch;
+        if (icon == "firewall") return ThemeTokens.SvgFirewall;
+        if (icon == "accesspoint") return ThemeTokens.SvgAccessPoint;
         if (icon == "printer") return ThemeTokens.SvgPrinter;
         if (icon == "tv") return ThemeTokens.SvgTv;
         if (icon == "iot" || icon == "light") return ThemeTokens.SvgIot;
+        if (icon == "speaker") return ThemeTokens.SvgSpeaker;
+        if (icon == "camera") return ThemeTokens.SvgCamera;
+        if (icon == "dvr") return ThemeTokens.SvgDvr;
+        if (icon == "gamepad") return ThemeTokens.SvgGamepad;
         if (icon == "pc" || icon == "laptop") return ThemeTokens.SvgDesktop;
 
         string type = (node.DeviceType ?? "").ToLower();

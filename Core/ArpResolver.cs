@@ -195,16 +195,10 @@ public static class ArpResolver
                 return results;
             }
 
-            // Read output line-by-line asynchronously to avoid large string allocations
-            var readTask = System.Threading.Tasks.Task.Run(() =>
-            {
-                string? line;
-                while ((line = proc.StandardOutput.ReadLine()) != null)
             // Read output with timeout protection
             string output = proc.StandardOutput.ReadToEnd();
             if (proc.WaitForExit(5000))
             {
-
                 // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
                 foreach (var line in output.Split('\n'))
                 {
@@ -233,11 +227,6 @@ public static class ArpResolver
                         results.Add((ip, normalizedMac));
                     }
                 }
-            });
-
-            if (proc.WaitForExit(5000))
-            {
-                readTask.Wait(1000); // Give reader a moment to finish processing remaining lines
             }
             else
             {

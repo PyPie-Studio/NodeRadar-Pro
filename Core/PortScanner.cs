@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using NodeRadarPro.Core.Fingerprinting.Probes;
 
 namespace NodeRadarPro.Core;
 
@@ -64,7 +65,7 @@ public static class PortScanner
             if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
             {
                 // Grab banner
-                string banner = await DeviceFingerprinter.GetActiveBannerAsync(ipAddress, port, token);
+                string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
                 results.TryAdd(port, banner);
             }
         }));
@@ -81,7 +82,7 @@ public static class PortScanner
             if (token.IsCancellationRequested) return;
             if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
             {
-                string banner = await DeviceFingerprinter.GetActiveBannerAsync(ipAddress, port, token);
+                string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
                 results.TryAdd(port, banner);
             }
         }));

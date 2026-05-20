@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using NodeRadarPro.Core.Fingerprinting;
 
 namespace NodeRadarPro.Core;
 
@@ -50,7 +51,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
-        await DeviceFingerprinter.StartDiscoverySweepAsync();
+        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
@@ -136,7 +137,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
-        await DeviceFingerprinter.StartDiscoverySweepAsync();
+        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
@@ -347,30 +348,7 @@ public class SubnetScanner
     {
         if (token.IsCancellationRequested) return;
 
-        // 1. Instant Lookups
-        node.Vendor = Data.VendorLookup.GetVendor(node.MacAddress);
-
-        // ── Deep Intelligence: Protocol Discovery (mDNS / SSDP) (INSTANT CACHE LOOKUP) ──
-        try
-        {
-            string mdnsModel = await DeviceFingerprinter.DiscoverExactModelViaMDnsAsync(node.IpAddress);
-            if (!string.IsNullOrEmpty(mdnsModel))
-            {
-                node.ExactModel = mdnsModel;
-                Logger.Log(LogLevel.Info, "SubnetScanner", $"mDNS identification success for {node.IpAddress}: {mdnsModel}");
-            }
-
-            string ssdpModel = await DeviceFingerprinter.DiscoverExactModelViaSSDPAsync(node.IpAddress);
-            if (!string.IsNullOrEmpty(ssdpModel))
-            {
-                Logger.Log(LogLevel.Info, "SubnetScanner", $"SSDP identification success for {node.IpAddress}: {ssdpModel}");
-                if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = ssdpModel;
-                else node.ExactModel = $"{node.ExactModel} ({ssdpModel})";
-            }
-        }
-        catch { }
-
-        // 2. Network Lookups (May Timeout)
+        // 1. Network Lookups (May Timeout)
         try
         {
             // DNS hostname (only if enabled)
@@ -395,33 +373,6 @@ public class SubnetScanner
                 catch (Exception) { }
             }
 
-            // HTTP banner fallback
-            if (node.Hostname == "Unknown Device" && !token.IsCancellationRequested)
-            {
-                try
-                {
-                    string banner = await DeviceFingerprinter.TryGetHttpServerBannerAsync(node.IpAddress);
-                    if (!string.IsNullOrEmpty(banner))
-                        node.Hostname = banner;
-                }
-                catch { }
-            }
-
-            // ── Deep Intelligence: Deep HTTP Metadata Probes ──
-            if (!token.IsCancellationRequested)
-            {
-                try
-                {
-                    string deepMetadata = await DeviceFingerprinter.ProbeHttpMetadataAsync(node.IpAddress);
-                    if (!string.IsNullOrEmpty(deepMetadata))
-                    {
-                        if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = deepMetadata;
-                        else if (!node.ExactModel.Contains(deepMetadata)) node.ExactModel = $"{deepMetadata} ({node.ExactModel})";
-                    }
-                }
-                catch { }
-            }
-
             // Inline port scanning (if enabled)
             if (EnableInlinePortScan && !token.IsCancellationRequested)
             {
@@ -430,31 +381,43 @@ public class SubnetScanner
                     var scanResults = await PortScanner.ScanPortsAsync(node.IpAddress, FastScanMode, Math.Min(TimeoutMs, 500), token);
                     node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
                     node.PortBanners = scanResults;
-
-                    // If we found banners, append them to exact model if useful
-                    foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
-                    {
-                        if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
-                        else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
-                    }
                 }
                 catch { }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) { }
+        catch { }
+
+        // 2. Deep Fingerprinting Engine
+        try
         {
-            // Timeout reached, proceed to classification with what we have
+            var fingerprint = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, token);
+            node.Vendor = fingerprint.Vendor;
+            node.DeviceType = fingerprint.TypeString;
+            node.OsGuess = fingerprint.Os;
+            node.IconPath = fingerprint.IconSvgKey;
+            
+            if (!string.IsNullOrEmpty(fingerprint.Model))
+            {
+                node.ExactModel = fingerprint.Model;
+            }
+
+            // If we found port banners, append them
+            if (node.PortBanners != null)
+            {
+                foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
+                {
+                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
+                    else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
+                }
+            }
         }
         catch { }
 
-        // 3. Classification (Always Run)
-        // ── Deep Intelligence: Intelligent Classification ──
-        DeviceClassifier.ResolveDetails(node);
-
-        // ── Deep Intelligence: Vulnerability Scoring ──
+        // 3. Vulnerability Scoring
         VulnerabilityEngine.UpdateThreatLevel(node);
 
-        // ── UI Synchronization: Map discovery data to registration fields ──
+        // 4. UI Synchronization
         if (string.IsNullOrEmpty(node.DeviceName) && node.Hostname != "Unknown Device")
             node.DeviceName = node.Hostname;
         
