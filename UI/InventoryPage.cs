@@ -1190,8 +1190,16 @@ public class InventoryPage : Border
                 if (mac != "Unknown" && (_currentNode.MacAddress.StartsWith("MANUAL") || _currentNode.MacAddress == "Unknown"))
                 {
                     _currentNode.MacAddress = mac;
-                    _currentNode.Vendor = VendorLookup.GetVendor(mac);
-                    DeviceClassifier.ResolveDetails(_currentNode);
+                    var fingerprint = await NodeRadarPro.Core.Fingerprinting.DeepFingerprintEngine.Instance.FingerprintNodeAsync(_currentNode, System.Threading.CancellationToken.None);
+                    _currentNode.Vendor = fingerprint.Vendor;
+                    _currentNode.DeviceType = fingerprint.TypeString;
+                    _currentNode.OsGuess = fingerprint.Os;
+                    _currentNode.IconPath = fingerprint.IconSvgKey;
+                    if (!string.IsNullOrEmpty(fingerprint.Model))
+                    {
+                        if (string.IsNullOrEmpty(_currentNode.ExactModel)) _currentNode.ExactModel = fingerprint.Model;
+                        else if (!_currentNode.ExactModel.Contains(fingerprint.Model)) _currentNode.ExactModel = $"{fingerprint.Model} | {_currentNode.ExactModel}";
+                    }
                 }
             }
             else { _pingResult.Text = "❌ Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
