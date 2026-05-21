@@ -92,11 +92,20 @@ public static class DeviceClassifierEngine
         var winner = scores.OrderByDescending(x => x.Value).First();
         result.ConfidenceScore = winner.Value;
 
-        if (winner.Value < 25)
+        if (winner.Value <= 0)
         {
-            result.Type = DeviceTypeCategory.Unknown;
-            result.TypeString = "Generic Device";
-            result.Os = "";
+            if (node.OpenPorts != null && (node.OpenPorts.Contains(80) || node.OpenPorts.Contains(443)))
+            {
+                result.Type = DeviceTypeCategory.Unknown;
+                result.TypeString = "Network Device";
+                result.Os = "";
+            }
+            else
+            {
+                result.Type = DeviceTypeCategory.Unknown;
+                result.TypeString = "Generic Device";
+                result.Os = "";
+            }
         }
         else
         {

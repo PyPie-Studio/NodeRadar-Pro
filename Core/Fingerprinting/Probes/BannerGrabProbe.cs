@@ -24,14 +24,25 @@ public class BannerGrabProbe : IFingerprintProbe
             return result;
         }
 
-        foreach (int port in node.OpenPorts)
+        if (node.PortBanners != null && node.PortBanners.Count > 0)
         {
-            if (ct.IsCancellationRequested) break;
-
-            string banner = await GrabBannerAsync(node.IpAddress, port, ct);
-            if (!string.IsNullOrEmpty(banner))
+            foreach (var kvp in node.PortBanners)
             {
-                result.RawData[$"Port_{port}_Banner"] = banner;
+                if (!string.IsNullOrEmpty(kvp.Value))
+                    result.RawData[$"Port_{kvp.Key}_Banner"] = kvp.Value;
+            }
+        }
+        else
+        {
+            foreach (int port in node.OpenPorts)
+            {
+                if (ct.IsCancellationRequested) break;
+
+                string banner = await GrabBannerAsync(node.IpAddress, port, ct);
+                if (!string.IsNullOrEmpty(banner))
+                {
+                    result.RawData[$"Port_{port}_Banner"] = banner;
+                }
             }
         }
 

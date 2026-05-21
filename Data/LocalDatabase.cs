@@ -99,9 +99,14 @@ public class LocalDatabase : IDisposable
             scannedNode.CustomName = existing.CustomName;
             scannedNode.Notes = existing.Notes;
             scannedNode.Location = existing.Location;
-            scannedNode.DeviceName = existing.DeviceName;
-            scannedNode.DeviceModel = existing.DeviceModel;
-            scannedNode.IconPath = existing.IconPath;
+            if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
+            if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
+
+            if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
+                scannedNode.IconPath = existing.IconPath;
+
+            if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
+                scannedNode.DeviceType = existing.DeviceType;
             scannedNode.IsRegistered = existing.IsRegistered;
             scannedNode.FirstSeen = existing.FirstSeen;
             scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
@@ -152,6 +157,8 @@ public class LocalDatabase : IDisposable
             existing.ThreatLevel = scannedNode.ThreatLevel;
             existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
             if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
+            if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
+            if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
 
             collection.Update(existing);
         }
@@ -243,8 +250,11 @@ public class LocalDatabase : IDisposable
     {
         var collection = _db.GetCollection<NetworkNode>("devices");
 
-        var macArray = macAddresses.ToArray();
-        int deletedCount = collection.DeleteMany(x => macArray.Contains(x.MacAddress));
+        int deletedCount = 0;
+        foreach (var mac in macAddresses)
+        {
+            deletedCount += collection.DeleteMany(x => x.MacAddress == mac);
+        }
 
         Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
         return deletedCount;
