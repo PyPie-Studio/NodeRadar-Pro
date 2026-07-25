@@ -76,6 +76,11 @@ public class LocalDatabase : IDisposable
         File.WriteAllBytes(keyFile, encrypted);
     }
 
+    public void Checkpoint()
+    {
+        _db?.Checkpoint();
+    }
+
     public void Dispose()
     {
         _db?.Dispose();
