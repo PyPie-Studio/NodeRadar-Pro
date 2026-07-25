@@ -416,7 +416,8 @@ public class SubnetScanner
                     node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
                     node.PortBanners = scanResults;
                 }
-                catch { }
+                catch (OperationCanceledException) { }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan failed for {node.IpAddress}: {ex.Message}"); }
             }
         }
         catch (OperationCanceledException) { }
