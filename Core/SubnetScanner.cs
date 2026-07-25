@@ -117,7 +117,7 @@ public class SubnetScanner
                     resolveCts.CancelAfter(5000);
                     try
                     {
-                        await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                        await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                     }
                     catch (OperationCanceledException) { }
                     catch { }
@@ -161,7 +161,7 @@ public class SubnetScanner
                         resolveCts.CancelAfter(5000);
                         try
                         {
-                            await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                         }
                         catch (OperationCanceledException) { }
                         catch { }
@@ -243,7 +243,7 @@ public class SubnetScanner
                     resolveCts.CancelAfter(5000);
                     try
                     {
-                        await ResolveNodeMetadataAsync(node, resolveCts.Token);
+                        await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                     }
                     catch (OperationCanceledException) { }
                     catch { }
@@ -370,7 +370,7 @@ public class SubnetScanner
 
         try
         {
-            await ResolveNodeMetadataAsync(node, resolveCts.Token);
+            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
         }
         catch (OperationCanceledException) { }
         catch { }
