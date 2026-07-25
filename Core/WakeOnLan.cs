@@ -55,7 +55,7 @@ public static class WakeOnLan
 
             return true;
         }
-        catch (Exception ex)
+        catch (SocketException ex)
         {
             Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {ex.Message}");
             return false;
