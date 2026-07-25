@@ -431,7 +431,12 @@ public class LocalDatabase : IDisposable
             
             return destPath;
         }
-        catch (Exception ex)
+        catch (IOException ex)
+        {
+            Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
+            return "";
+        }
+        catch (UnauthorizedAccessException ex)
         {
             Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
             return "";
