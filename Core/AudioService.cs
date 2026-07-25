@@ -25,7 +25,12 @@ namespace NodeRadarPro.Core
                     SystemSounds.Asterisk.Play();
                 }
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
+            {
+                // Prevent crashes if audio is unavailable
+                Console.WriteLine($"AudioService: Failed to play sound alert. {ex.Message}");
+            }
+            catch (PlatformNotSupportedException ex)
             {
                 // Prevent crashes if audio is unavailable
                 Console.WriteLine($"AudioService: Failed to play sound alert. {ex.Message}");
