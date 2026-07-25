@@ -568,7 +568,12 @@ public class ScannerPage : Border
         {
             _statusText.Text = "Scan cancelled.";
         }
-        catch (Exception ex)
+        catch (System.Net.NetworkInformation.NetworkInformationException ex)
+        {
+            _db.Log(LogLevel.Error, "Scanner", ex.Message);
+            _statusText.Text = $"Scan failed: {ex.Message}";
+        }
+        catch (System.Net.Sockets.SocketException ex)
         {
             _db.Log(LogLevel.Error, "Scanner", ex.Message);
             _statusText.Text = $"Scan failed: {ex.Message}";
