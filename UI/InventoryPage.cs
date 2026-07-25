@@ -579,7 +579,12 @@ public class InventoryPage : Border
         ThemeTokens.SetToolTip(webBtn, "Open this device's IP in your default web browser.");
         webBtn.Click += (s, e) => {
             if (_currentNode != null) {
-                try { Process.Start(new ProcessStartInfo { FileName = $"http://{_currentNode.IpAddress}", UseShellExecute = true }); }
+                try {
+                    if (Uri.TryCreate($"http://{_currentNode.IpAddress}", UriKind.Absolute, out Uri? uri) &&
+                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)) {
+                        Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
+                    }
+                }
                 catch { }
             }
         };
