@@ -403,8 +403,8 @@ public class SubnetScanner
                     if (!string.IsNullOrEmpty(netbios))
                         node.Hostname = netbios;
                 }
-                catch (OperationCanceledException) { }
-                catch (Exception) { }
+                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"NetBIOS resolution timed out for {node.IpAddress}"); }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"NetBIOS resolution failed for {node.IpAddress}: {ex.Message}"); }
             }
 
             // Inline port scanning (if enabled)
