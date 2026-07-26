@@ -614,7 +614,9 @@ public class SubnetScanner
             if (hostEntry.HostName != ip)
                 return hostEntry.HostName;
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException) {
+            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Hostname resolution cancelled for {ip}");
+        }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound) { }
         catch (Exception) { }
 
