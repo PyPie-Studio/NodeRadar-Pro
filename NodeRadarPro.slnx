@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="Core.Tests/Core.Tests.csproj" />
   <Project Path="NodeRadar Pro.csproj" />
   <Project Path="NodeRadarPro.Tests/NodeRadarPro.Tests.csproj" />
 </Solution>
