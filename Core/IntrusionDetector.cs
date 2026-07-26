@@ -1,4 +1,5 @@
 using System;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Data;
@@ -32,7 +33,11 @@ public class IntrusionDetector
                     }
                 }
             }
-            catch (Exception ex)
+            catch (SocketException ex)
+            {
+                LocalDatabase.Instance.Log(LogLevel.Error, "IntrusionDetector", $"Sweep failed: {ex.Message}");
+            }
+            catch (TimeoutException ex)
             {
                 LocalDatabase.Instance.Log(LogLevel.Error, "IntrusionDetector", $"Sweep failed: {ex.Message}");
             }
