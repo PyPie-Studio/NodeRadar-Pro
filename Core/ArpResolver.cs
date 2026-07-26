@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.ComponentModel;
 
 namespace NodeRadarPro.Core;
 
@@ -233,7 +234,11 @@ public static class ArpResolver
                 Logger.Log(LogLevel.Warning, "ArpResolver", "The 'arp -a' process timed out after 5000ms.");
             }
         }
-        catch (Exception ex)
+        catch (Win32Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
+        }
+        catch (ObjectDisposedException ex)
         {
             Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
         }
