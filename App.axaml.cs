@@ -3,6 +3,8 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Styling;
 using NodeRadarPro.UI;
+using NodeRadarPro.Data;
+using NodeRadarPro.Core;
 
 namespace NodeRadar_Pro
 {
@@ -22,6 +24,15 @@ namespace NodeRadar_Pro
                 // Inject our PyPie Studio Dark Theme instead of the XAML MainWindow
                 desktop.MainWindow = DarkPurpleTheme.BuildMainWindow();
                 DarkPurpleTheme.OnStartup(desktop.MainWindow);
+            }
+
+            try
+            {
+                var db = LocalDatabase.Instance;
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "Database", $"Initialization failed: {ex.Message}");
             }
 
             base.OnFrameworkInitializationCompleted();
