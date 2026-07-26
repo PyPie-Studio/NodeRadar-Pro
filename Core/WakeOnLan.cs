@@ -20,6 +20,8 @@ public static class WakeOnLan
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(macAddress)) return false;
+
             // Normalize MAC address: AA:BB:CC... -> AABBCC...
             string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "");
             if (cleanMac.Length != 12) return false;
@@ -27,7 +29,11 @@ public static class WakeOnLan
             byte[] macBytes = new byte[6];
             for (int i = 0; i < 6; i++)
             {
-                macBytes[i] = Convert.ToByte(cleanMac.Substring(i * 2, 2), 16);
+                if (!byte.TryParse(cleanMac.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber, null, out byte parsedByte))
+                {
+                    return false;
+                }
+                macBytes[i] = parsedByte;
             }
 
             // Create Magic Packet: 6 bytes of 0xFF followed by 16 repetitions of the MAC

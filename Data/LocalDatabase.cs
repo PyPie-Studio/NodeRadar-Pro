@@ -458,13 +458,45 @@ public class LocalDatabase : IDisposable
             Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
             return true;
         }
+        catch (IOException ex)
+        {
+            TryReopenDatabase();
+            Log(LogLevel.Error, "Database", $"Database restore failed: File in use or I/O error. {ex.Message}");
+            return false;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            TryReopenDatabase();
+            Log(LogLevel.Error, "Database", $"Database restore failed: Permission denied when accessing file. {ex.Message}");
+            return false;
+        }
+        catch (LiteException ex)
+        {
+            TryReopenDatabase();
+            Log(LogLevel.Error, "Database", $"Database restore failed: Database structure invalid/corrupted. {ex.Message}");
+            return false;
+        }
         catch (Exception ex)
         {
-            // Try to re-open if possible
-            try { if (_db == null) _db = new LiteDatabase(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db")); } catch { }
+            TryReopenDatabase();
             Log(LogLevel.Error, "Database", $"Restore failed: {ex.Message}");
             return false;
         }
+    }
+
+    private void TryReopenDatabase()
+    {
+        // Try to re-open if possible
+        try
+        {
+            if (_db == null)
+            {
+                string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+                var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
+                _db = new LiteDatabase(connectionString);
+            }
+        }
+        catch { }
     }
 
     private void CleanupOldBackups(string backupDir)

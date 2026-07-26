@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);Tests\**</DefaultItemExcludes>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <OutputType>WinExe</OutputType>
 	<TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -23,7 +24,16 @@
     <EnableAvaloniaXamlCompilation>True</EnableAvaloniaXamlCompilation>
   </PropertyGroup>
 
+
   <ItemGroup>
+    <Compile Remove="NodeRadarPro.Tests\**" />
+    <Content Remove="NodeRadarPro.Tests\**" />
+    <EmbeddedResource Remove="NodeRadarPro.Tests\**" />
+    <None Remove="NodeRadarPro.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+
     <AvaloniaResource Include="Resources\**" />
   </ItemGroup>
 
@@ -63,5 +73,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.8" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="NodeRadarPro.Tests\**" />
+    <EmbeddedResource Remove="NodeRadarPro.Tests\**" />
+    <None Remove="NodeRadarPro.Tests\**" />
   </ItemGroup>
 </Project>
