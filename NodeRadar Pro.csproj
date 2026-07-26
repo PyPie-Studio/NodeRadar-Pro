@@ -23,7 +23,16 @@
     <EnableAvaloniaXamlCompilation>True</EnableAvaloniaXamlCompilation>
   </PropertyGroup>
 
+
   <ItemGroup>
+    <Compile Remove="NodeRadarPro.Tests\**" />
+    <Content Remove="NodeRadarPro.Tests\**" />
+    <EmbeddedResource Remove="NodeRadarPro.Tests\**" />
+    <None Remove="NodeRadarPro.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+
     <AvaloniaResource Include="Resources\**" />
   </ItemGroup>
 
