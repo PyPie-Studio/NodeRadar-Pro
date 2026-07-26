@@ -832,6 +832,8 @@ public class ScannerPage : Border
 
             _statusText.Text = $"Exported {count} devices to {path}";
         }
+        catch (UnauthorizedAccessException ex) { _statusText.Text = $"Export failed: Access denied. {ex.Message}"; }
+        catch (System.IO.IOException ex) { _statusText.Text = $"Export failed: IO error. {ex.Message}"; }
         catch (Exception ex) { _statusText.Text = $"Export failed: {ex.Message}"; }
     }
 }
