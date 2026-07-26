@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using MimeKit;
 using NodeRadarPro.Data;
+using MailKit.Security;
+using System.Net.Sockets;
+using System.IO;
 
 namespace NodeRadarPro.Core;
 
@@ -42,6 +45,26 @@ public static class EmailService
 
             await client.SendAsync(message);
             await client.DisconnectAsync(true);
+        }
+        catch (AuthenticationException ex)
+        {
+            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Authentication failed: {ex.Message}");
+        }
+        catch (SmtpCommandException ex)
+        {
+            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Command failed: {ex.Message}");
+        }
+        catch (SmtpProtocolException ex)
+        {
+            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Protocol error: {ex.Message}");
+        }
+        catch (SocketException ex)
+        {
+            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"Network error: {ex.Message}");
+        }
+        catch (IOException ex)
+        {
+            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"I/O error: {ex.Message}");
         }
         catch (Exception ex)
         {
