@@ -1,0 +1,6 @@
+🧹 [Code Health] Log OperationCanceledException in DeepFingerprintEngine
+
+🎯 **What:** Added a log statement inside the empty catch (OperationCanceledException) block in Core/Fingerprinting/DeepFingerprintEngine.cs.
+💡 **Why:** Ignored exceptions can hide important runtime context (e.g., probes being timed out). Logging the cancellation improves diagnostic visibility.
+✅ **Verification:** Verified the project builds successfully and existing unit tests were bypassed as none exist.
+✨ **Result:** Better visibility and maintainability of probe executions.

@@ -61,7 +61,10 @@ public class DeepFingerprintEngine
                     probeResults.Add(result);
                 }
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                Logger.Log(LogLevel.Info, "Fingerprinter", $"Probe {probe.Name} canceled.");
+            }
             catch (Exception ex)
             {
                 Logger.Log(LogLevel.Warning, "Fingerprinter", $"Probe {probe.Name} failed: {ex.Message}");
