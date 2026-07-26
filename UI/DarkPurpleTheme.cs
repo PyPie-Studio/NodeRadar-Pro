@@ -430,6 +430,7 @@ public class DarkPurpleTheme
                 node.ThreatLevel, 
                 node.ExactModel
             );
+            db.Checkpoint();
 
             monitor.AddDevice(node);
             activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
