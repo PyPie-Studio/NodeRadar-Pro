@@ -57,6 +57,7 @@ public class RadarCanvas : Control
             InvalidateVisual();
         };
         _radarTimer.Start();
+        ClipToBounds = true;
     }
 
     public void UpdateNodes(List<NetworkNode> nodes)
@@ -177,6 +178,7 @@ public class RadarCanvas : Control
         var bounds = Bounds;
         if (bounds.Width <= 0 || bounds.Height <= 0) return;
 
+        // ── FIX: Apply clipping to prevent zoom overlap ──
         using var clip = context.PushClip(new Rect(0, 0, bounds.Width, bounds.Height));
 
         var topLevel = TopLevel.GetTopLevel(this);
