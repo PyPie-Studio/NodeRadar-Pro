@@ -63,6 +63,8 @@ public static class WakeOnLan
         }
         catch (SocketException ex)
         {
+            // Specifically catching SocketException since sending UDP packets usually raises this.
+            // General exception catching might hide logical bugs.
             Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {ex.Message}");
             return false;
         }
