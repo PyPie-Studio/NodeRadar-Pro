@@ -22,15 +22,11 @@ public class IntrusionDetector
                 string baseIp = SubnetScanner.GetLocalBaseIp();
                 var results = await _scanner.ScanSubnetAsync(baseIp, token);
 
-                foreach (var node in results)
+                var newNodes = LocalDatabase.Instance.MergeWithHistoryBulk(results);
+                foreach (var node in newNodes)
                 {
                     if (token.IsCancellationRequested) break;
-
-                    var (_, isNew) = LocalDatabase.Instance.MergeWithHistory(node);
-                    if (isNew)
-                    {
-                        IntrusionAlerter.AlertNewDevice(node);
-                    }
+                    IntrusionAlerter.AlertNewDevice(node);
                 }
             }
             catch (SocketException ex)
