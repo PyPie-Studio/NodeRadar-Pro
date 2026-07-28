@@ -8,13 +8,27 @@ namespace NodeRadarPro.Core;
 
 public static class UpdateService
 {
-    public static async Task<(bool hasUpdate, string version, string downloadUrl)> CheckForUpdatesAsync(string currentVersion)
+    public static async Task<(bool hasUpdate, string version, string downloadUrl)> CheckForUpdatesAsync(string currentVersion, HttpClient? customClient = null)
     {
         try
         {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
-            var response = await http.GetStringAsync("https://api.github.com/repos/pypiestudio/noderadar-pro/releases/latest");
+            var http = customClient ?? new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            string response;
+            try
+            {
+                if (!http.DefaultRequestHeaders.UserAgent.TryParseAdd("NodeRadarPro/1.0"))
+                {
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
+                }
+                var request = new HttpRequestMessage(HttpMethod.Get, "https://api.github.com/repos/pypiestudio/noderadar-pro/releases/latest");
+                var result = await http.SendAsync(request);
+                result.EnsureSuccessStatusCode();
+                response = await result.Content.ReadAsStringAsync();
+            }
+            finally
+            {
+                if (customClient == null) http.Dispose();
+            }
             
             var tagIdx = response.IndexOf("\"tag_name\"");
             if (tagIdx < 0) return (false, "", "");
@@ -25,18 +39,18 @@ public static class UpdateService
 
             if (latestVersion != currentVersion && !string.IsNullOrEmpty(latestVersion))
             {
-                var exeUrlIdx = response.IndexOf(".exe\"");
-                if (exeUrlIdx > 0)
+                var urlStartPattern = "\"browser_download_url\": \"";
+                var urlStartIdx = response.IndexOf(urlStartPattern);
+                while (urlStartIdx > 0)
                 {
-                    var urlStartPattern = "\"browser_download_url\": \"";
-                    var urlStartIdx = response.LastIndexOf(urlStartPattern, exeUrlIdx);
-                    if (urlStartIdx > 0)
+                    var urlStart = urlStartIdx + urlStartPattern.Length;
+                    var urlEnd = response.IndexOf('"', urlStart);
+                    var downloadUrl = response[urlStart..urlEnd];
+                    if (downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     {
-                        var urlStart = urlStartIdx + urlStartPattern.Length;
-                        var urlEnd = response.IndexOf('"', urlStart);
-                        var downloadUrl = response[urlStart..urlEnd];
                         return (true, latestVersion, downloadUrl);
                     }
+                    urlStartIdx = response.IndexOf(urlStartPattern, urlEnd);
                 }
             }
         }
