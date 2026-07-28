@@ -92,91 +92,113 @@ public class LocalDatabase : IDisposable
 
     public (NetworkNode node, bool isNew) MergeWithHistory(NetworkNode scannedNode)
     {
-        if (scannedNode.MacAddress == "Unknown") return (scannedNode, false);
+        var result = MergeWithHistoryBulk(new[] { scannedNode });
+        bool isNew = result.Contains(scannedNode);
+        return (scannedNode, isNew);
+    }
 
+    public List<NetworkNode> MergeWithHistoryBulk(IEnumerable<NetworkNode> scannedNodes)
+    {
         var collection = _db.GetCollection<NetworkNode>("devices");
+        var validNodes = scannedNodes.Where(n => n != null && n.MacAddress != "Unknown").ToList();
+        if (validNodes.Count == 0) return new List<NetworkNode>();
 
-        var existing = collection.FindOne(x => x.MacAddress == scannedNode.MacAddress);
-        bool isNew = false;
+        var macs = validNodes.Select(n => n.MacAddress).Distinct().ToList();
+        var existingNodesList = collection.Find(x => macs.Contains(x.MacAddress)).ToList();
+        var existingNodesDict = existingNodesList.ToDictionary(x => x.MacAddress);
 
-        if (existing != null)
+        var toUpdate = new List<NetworkNode>();
+        var toInsert = new List<NetworkNode>();
+        var newNodes = new List<NetworkNode>();
+
+        var now = DateTime.UtcNow;
+
+        foreach (var scannedNode in validNodes)
         {
-            scannedNode.CustomName = existing.CustomName;
-            scannedNode.Notes = existing.Notes;
-            scannedNode.Location = existing.Location;
-            if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
-            if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
-
-            if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
-                scannedNode.IconPath = existing.IconPath;
-
-            if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
-                scannedNode.DeviceType = existing.DeviceType;
-            scannedNode.IsRegistered = existing.IsRegistered;
-            scannedNode.FirstSeen = existing.FirstSeen;
-            scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
-            scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
-            scannedNode.ThreatLevel = existing.ThreatLevel;
-            scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
-            if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
-
-            if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
-                scannedNode.Vendor = existing.Vendor;
-
-            // Merge open ports (keep existing + add new)
-            if (existing.OpenPorts?.Count > 0 && scannedNode.OpenPorts.Count == 0)
-                scannedNode.OpenPorts = existing.OpenPorts;
-            
-            // Merge port banners
-            if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
-                scannedNode.PortBanners = existing.PortBanners;
-            else if (scannedNode.PortBanners != null && existing.PortBanners != null)
+            if (existingNodesDict.TryGetValue(scannedNode.MacAddress, out var existing))
             {
-                // Combine them, keeping existing if new doesn't have it, but new overrides if both have it
-                foreach (var kvp in existing.PortBanners)
+                scannedNode.CustomName = existing.CustomName;
+                scannedNode.Notes = existing.Notes;
+                scannedNode.Location = existing.Location;
+                if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
+                if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
+
+                if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
+                    scannedNode.IconPath = existing.IconPath;
+
+                if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
+                    scannedNode.DeviceType = existing.DeviceType;
+                scannedNode.IsRegistered = existing.IsRegistered;
+                scannedNode.FirstSeen = existing.FirstSeen;
+                scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
+                scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
+                scannedNode.ThreatLevel = existing.ThreatLevel;
+                scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+                if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
+
+                if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
+                    scannedNode.Vendor = existing.Vendor;
+
+                if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
+                    scannedNode.OpenPorts = existing.OpenPorts;
+
+                if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
+                    scannedNode.PortBanners = existing.PortBanners;
+                else if (scannedNode.PortBanners != null && existing.PortBanners != null)
                 {
-                    if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
-                        scannedNode.PortBanners[kvp.Key] = kvp.Value;
+                    foreach (var kvp in existing.PortBanners)
+                    {
+                        if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
+                            scannedNode.PortBanners[kvp.Key] = kvp.Value;
+                    }
                 }
+
+                if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
+                    scannedNode.OsGuess = existing.OsGuess;
+
+                existing.IpAddress = scannedNode.IpAddress;
+                existing.IsOnline = true;
+                existing.PingLatencyMs = scannedNode.PingLatencyMs;
+                existing.LastSeen = now;
+                existing.Hostname = scannedNode.Hostname;
+                if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
+                    existing.Vendor = scannedNode.Vendor;
+                if (scannedNode.OpenPorts?.Count > 0)
+                    existing.OpenPorts = scannedNode.OpenPorts;
+
+                if (scannedNode.PortBanners?.Count > 0)
+                    existing.PortBanners = scannedNode.PortBanners;
+
+                if (!string.IsNullOrEmpty(scannedNode.OsGuess))
+                    existing.OsGuess = scannedNode.OsGuess;
+
+                existing.ThreatLevel = scannedNode.ThreatLevel;
+                existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
+                if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
+                if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
+                if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
+
+                toUpdate.Add(existing);
             }
-
-            if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
-                scannedNode.OsGuess = existing.OsGuess;
-
-            existing.IpAddress = scannedNode.IpAddress;
-            existing.IsOnline = true;
-            existing.PingLatencyMs = scannedNode.PingLatencyMs;
-            existing.LastSeen = DateTime.UtcNow;
-            existing.Hostname = scannedNode.Hostname;
-            if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
-                existing.Vendor = scannedNode.Vendor;
-            if (scannedNode.OpenPorts?.Count > 0)
-                existing.OpenPorts = scannedNode.OpenPorts;
-            
-            if (scannedNode.PortBanners?.Count > 0)
-                existing.PortBanners = scannedNode.PortBanners;
-
-            if (!string.IsNullOrEmpty(scannedNode.OsGuess))
-                existing.OsGuess = scannedNode.OsGuess;
-
-            existing.ThreatLevel = scannedNode.ThreatLevel;
-            existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
-            if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
-            if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
-            if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
-
-            collection.Update(existing);
+            else
+            {
+                scannedNode.FirstSeen = now;
+                scannedNode.LastSeen = now;
+                toInsert.Add(scannedNode);
+                newNodes.Add(scannedNode);
+            }
         }
-        else
+
+        if (toUpdate.Count > 0)
+            collection.Update(toUpdate);
+
+        if (toInsert.Count > 0)
         {
-            isNew = true;
-            scannedNode.FirstSeen = DateTime.UtcNow;
-            scannedNode.LastSeen = DateTime.UtcNow;
-            collection.Insert(scannedNode);
+            collection.InsertBulk(toInsert);
             collection.EnsureIndex(x => x.MacAddress);
         }
 
-        return (scannedNode, isNew);
+        return newNodes;
     }
 
     public void UpdateRegistration(string macAddress, string customName, string notes,
