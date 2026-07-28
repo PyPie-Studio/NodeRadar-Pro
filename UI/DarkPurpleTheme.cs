@@ -347,6 +347,7 @@ public class DarkPurpleTheme
 
         alertsPage.AlertsChanged += () =>
         {
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
@@ -356,6 +357,7 @@ public class DarkPurpleTheme
             monitor.AddDevice(node);
             activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
@@ -363,6 +365,7 @@ public class DarkPurpleTheme
         {
             activeNodesMap.TryRemove(node.MacAddress, out _);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
@@ -373,6 +376,7 @@ public class DarkPurpleTheme
                 activeNodesMap.TryRemove(node.MacAddress, out _);
             }
             try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
@@ -444,6 +448,7 @@ public class DarkPurpleTheme
             settings = newSettings;
             ApplySettings(newSettings, monitor, scanner);
             try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
