@@ -55,6 +55,7 @@ namespace Core.Tests
             Assert.False(result);
         }
 
+
         [Fact]
         public async Task WakeAsync_WithInvalidCharacters_ReturnsFalse()
         {
@@ -62,6 +63,35 @@ namespace Core.Tests
 
             bool result = await WakeOnLan.WakeAsync(invalidMac);
 
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task WakeAsync_WithNullMacAddress_ReturnsFalse()
+        {
+            bool result = await WakeOnLan.WakeAsync(null);
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task WakeAsync_WithEmptyMacAddress_ReturnsFalse()
+        {
+            bool result = await WakeOnLan.WakeAsync("");
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task WakeAsync_WithWhitespaceMacAddress_ReturnsFalse()
+        {
+            bool result = await WakeOnLan.WakeAsync("   ");
+            Assert.False(result);
+        }
+
+        [Fact]
+        public async Task WakeAsync_WithInvalidHexCharacters_ReturnsFalse()
+        {
+            string invalidMac = "AA:BB:CC:DD:EE:GG"; // G is not hex
+            bool result = await WakeOnLan.WakeAsync(invalidMac);
             Assert.False(result);
         }
     }
