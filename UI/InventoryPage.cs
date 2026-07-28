@@ -581,7 +581,8 @@ public class InventoryPage : Border
             if (_currentNode != null) {
                 try {
                     if (Uri.TryCreate($"http://{_currentNode.IpAddress}", UriKind.Absolute, out Uri? uri) &&
-                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)) {
+                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
+                        (uri.HostNameType == UriHostNameType.IPv4 || uri.HostNameType == UriHostNameType.IPv6)) {
                         Process.Start(new ProcessStartInfo { FileName = uri.AbsoluteUri, UseShellExecute = true });
                     }
                 }
