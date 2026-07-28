@@ -416,12 +416,12 @@ public class SubnetScanner
                     node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
                     node.PortBanners = scanResults;
                 }
-                catch (OperationCanceledException) { }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan failed for {node.IpAddress}: {ex.Message}"); }
+                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan/banner grabbing timed out for {node.IpAddress}"); }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan/banner grabbing failed for {node.IpAddress}: {ex.Message}"); }
             }
         }
-        catch (OperationCanceledException) { }
-        catch { }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
 
         // 2. Deep Fingerprinting Engine
         try
