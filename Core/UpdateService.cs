@@ -100,24 +100,28 @@ public static class UpdateService
 
         string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
         
-        string batContent = $@"@echo off
+        string batContent = @"@echo off
 echo Waiting for NodeRadar Pro to close...
 timeout /t 2 /nobreak >nul
 echo Installing update...
-start /wait """" ""{tempFile}"" /SILENT
+start /wait """" ""%~1"" /SILENT
 echo Restarting NodeRadar Pro...
-start """" ""{currentExe}""
+start """" ""%~2""
 del ""%~f0""
 ";
         File.WriteAllText(batFile, batContent);
 
-        Process.Start(new ProcessStartInfo
+        var startInfo = new ProcessStartInfo
         {
             FileName = batFile,
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Hidden,
             CreateNoWindow = true
-        });
+        };
+        startInfo.ArgumentList.Add(tempFile);
+        startInfo.ArgumentList.Add(currentExe);
+
+        Process.Start(startInfo);
 
         Environment.Exit(0);
     }
