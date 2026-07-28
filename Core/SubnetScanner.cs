@@ -618,8 +618,14 @@ public class SubnetScanner
         catch (OperationCanceledException) {
             Logger.Log(LogLevel.Warning, "SubnetScanner", $"Hostname resolution cancelled for {ip}");
         }
-        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound) { }
-        catch (Exception) { }
+        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound)
+        {
+            // Expected when a host doesn't have a DNS entry
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Error resolving hostname for {ip}: {ex.Message}");
+        }
 
         return "Unknown Device";
     }
