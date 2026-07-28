@@ -280,23 +280,37 @@ public class ConnectivityMonitor
             ? new[] { 80, 443, 22, 53, 8080, 135, 139, 445, 3389, 5353, 62078, 548, 5900, 8443, 9100 }
             : ports;
 
-        foreach (int port in extendedPorts)
+        using var cts = new CancellationTokenSource(300);
+        var tasks = extendedPorts.Select(async port =>
         {
             try
             {
                 using var tcp = new TcpClient();
-                using var cts = new CancellationTokenSource(300);
-                var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
-                try
+                await tcp.ConnectAsync(ip, port, cts.Token);
+                if (tcp.Connected)
                 {
-                    await connectTask;
-                    if (tcp.Connected) return true;
+                    return true;
                 }
-                catch (OperationCanceledException) { }
-                catch { }
             }
-            catch { }
+            catch
+            {
+                // Ignore exceptions (timeout, refused, etc.)
+            }
+            return false;
+        }).ToList();
+
+        while (tasks.Count > 0)
+        {
+            var completedTask = await Task.WhenAny(tasks);
+            tasks.Remove(completedTask);
+
+            if (await completedTask)
+            {
+                cts.Cancel(); // Cancel remaining attempts
+                return true;
+            }
         }
+
         return false;
     }
 }
