@@ -1,6 +1,5 @@
-🧹 [Code Health] Log OperationCanceledException in DeepFingerprintEngine
+🧪 Add tests for WakeOnLan.WakeAsync happy paths
 
-🎯 **What:** Added a log statement inside the empty catch (OperationCanceledException) block in Core/Fingerprinting/DeepFingerprintEngine.cs.
-💡 **Why:** Ignored exceptions can hide important runtime context (e.g., probes being timed out). Logging the cancellation improves diagnostic visibility.
-✅ **Verification:** Verified the project builds successfully and existing unit tests were bypassed as none exist.
-✨ **Result:** Better visibility and maintainability of probe executions.
+🎯 **What:** The testing gap in `WakeOnLan.WakeAsync` happy path has been addressed. The existing tests only verified validation failures (null, empty strings, invalid format).
+📊 **Coverage:** A new `Theory` test `WakeAsync_ValidMacAddress_ReturnsTrue` was added to verify valid MAC addresses (with colons, hyphens, dots, and no separators) parse correctly and execute successfully.
+✨ **Result:** Increased code coverage by testing the main valid operation branches in the code.

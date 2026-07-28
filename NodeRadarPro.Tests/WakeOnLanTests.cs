@@ -52,5 +52,16 @@ namespace NodeRadarPro.Tests
             // Assert
             Assert.False(result);
         }
+
+        [Theory]
+        [InlineData("AA:BB:CC:DD:EE:FF")]
+        [InlineData("AA-BB-CC-DD-EE-FF")]
+        [InlineData("AABBCCDDEEFF")]
+        [InlineData("AA.BB.CC.DD.EE.FF")]
+        public async Task WakeAsync_ValidMacAddress_ReturnsTrue(string macAddress)
+        {
+            bool result = await WakeOnLan.WakeAsync(macAddress);
+            Assert.True(result);
+        }
     }
 }
