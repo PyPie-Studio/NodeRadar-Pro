@@ -405,8 +405,8 @@ public class SubnetScanner
         {
             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
         }
-        catch (OperationCanceledException) { }
-        catch { }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
 
         return node;
     }
@@ -480,7 +480,8 @@ public class SubnetScanner
                 }
             }
         }
-        catch { }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Deep fingerprinting timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Deep fingerprinting failed for {node.IpAddress}: {ex.Message}"); }
 
         // 3. Vulnerability Scoring
         VulnerabilityEngine.UpdateThreatLevel(node);
