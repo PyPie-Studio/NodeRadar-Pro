@@ -1,5 +1,0 @@
-🧪 [Test] Add unit tests for ArpResolver
-
-🎯 **What:** Created `ArpResolverTests.cs` to add basic test coverage for `ArpResolver` methods like `ResolveMacAddress`, `TryResolveNetBiosName`, and `GetFullArpTable`.
-📊 **Coverage:** Covered invalid IPs, empty strings, and a non-responsive IP edge case (which properly times out). Also tested that fetching the full ARP table does not throw exceptions.
-✨ **Result:** Improved test coverage and reliability for ARP resolution functionality.
