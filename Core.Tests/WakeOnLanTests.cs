@@ -60,17 +60,7 @@ namespace Core.Tests
         {
             string invalidMac = "XYZABCMN1234"; // Not hex
 
-            bool result = false;
-            try
-            {
-                result = await WakeOnLan.WakeAsync(invalidMac);
-            }
-            catch (PlatformNotSupportedException)
-            {
-                // Core code catches Exception and calls the logger which relies on ProtectedData.
-                // It fails on non-Windows platforms. We treat this as successfully hitting the catch block.
-                result = false;
-            }
+            bool result = await WakeOnLan.WakeAsync(invalidMac);
 
             Assert.False(result);
         }
