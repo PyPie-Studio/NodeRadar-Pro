@@ -1,6 +1,5 @@
-🧹 [Code Health] Log OperationCanceledException in DeepFingerprintEngine
+🧪 [Test] Add unit tests for ArpResolver
 
-🎯 **What:** Added a log statement inside the empty catch (OperationCanceledException) block in Core/Fingerprinting/DeepFingerprintEngine.cs.
-💡 **Why:** Ignored exceptions can hide important runtime context (e.g., probes being timed out). Logging the cancellation improves diagnostic visibility.
-✅ **Verification:** Verified the project builds successfully and existing unit tests were bypassed as none exist.
-✨ **Result:** Better visibility and maintainability of probe executions.
+🎯 **What:** Created `ArpResolverTests.cs` to add basic test coverage for `ArpResolver` methods like `ResolveMacAddress`, `TryResolveNetBiosName`, and `GetFullArpTable`.
+📊 **Coverage:** Covered invalid IPs, empty strings, and a non-responsive IP edge case (which properly times out). Also tested that fetching the full ARP table does not throw exceptions.
+✨ **Result:** Improved test coverage and reliability for ARP resolution functionality.
