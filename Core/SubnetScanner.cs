@@ -542,9 +542,9 @@ public class SubnetScanner
                         }
                     }
                     catch (OperationCanceledException) { }
-                    catch { }
+                    catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Port scan connection failed for {ip}:{port}: {ex.Message}"); }
                 }
-                catch { }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Port scan setup failed for {ip}:{port}: {ex.Message}"); }
             }
         }
 
