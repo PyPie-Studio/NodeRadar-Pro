@@ -101,6 +101,7 @@ public class SubnetScanner
             try
             {
                 var arpTable = ArpResolver.GetFullArpTable();
+                var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
@@ -112,16 +113,25 @@ public class SubnetScanner
                     if (ipSubnet != baseIp) continue;
                     if (!int.TryParse(parts[3], out int lastOctet) || lastOctet < startIp || lastOctet > endIp) continue;
 
-                    var node = BuildNode(ip, mac);
-                    using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    resolveCts.CancelAfter(5000);
-                    try
+                    postSweepTasks.Add(Task.Run(async () =>
                     {
-                        await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
-                    }
-                    catch (OperationCanceledException) { }
-                    catch { }
-                    if (!token.IsCancellationRequested)
+                        var node = BuildNode(ip, mac);
+                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        resolveCts.CancelAfter(5000);
+                        try
+                        {
+                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                        }
+                        catch (OperationCanceledException) { }
+                        catch { }
+                        return node;
+                    }, token));
+                }
+
+                var resolvedNodes = await Task.WhenAll(postSweepTasks);
+                foreach (var node in resolvedNodes)
+                {
+                    if (node != null && !token.IsCancellationRequested)
                     {
                         activeNodes.Add(node);
                         NodeDiscovered?.Invoke(node);
@@ -146,6 +156,7 @@ public class SubnetScanner
         try
         {
             var arpTable = ArpResolver.GetFullArpTable();
+            var preSweepTasks = new List<Task<NetworkNode>>();
             foreach (var (ip, mac) in arpTable)
             {
                 if (token.IsCancellationRequested) break;
@@ -156,18 +167,30 @@ public class SubnetScanner
                 {
                     if (discoveredMacs.TryAdd(mac, true))
                     {
-                        var node = BuildNode(ip, mac);
-                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                        resolveCts.CancelAfter(5000);
-                        try
+                        preSweepTasks.Add(Task.Run(async () =>
                         {
-                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
-                        }
-                        catch (OperationCanceledException) { }
-                        catch { }
-                        activeNodes.Add(node);
-                        NodeDiscovered?.Invoke(node);
+                            var node = BuildNode(ip, mac);
+                            using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            resolveCts.CancelAfter(5000);
+                            try
+                            {
+                                await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                            }
+                            catch (OperationCanceledException) { }
+                            catch { }
+                            return node;
+                        }, token));
                     }
+                }
+            }
+
+            var resolvedNodes = await Task.WhenAll(preSweepTasks);
+            foreach (var node in resolvedNodes)
+            {
+                if (node != null && !token.IsCancellationRequested)
+                {
+                    activeNodes.Add(node);
+                    NodeDiscovered?.Invoke(node);
                 }
             }
         }
@@ -228,6 +251,7 @@ public class SubnetScanner
             try
             {
                 var arpTable = ArpResolver.GetFullArpTable();
+                var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
@@ -238,16 +262,25 @@ public class SubnetScanner
                     string ipSubnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
                     if (!allSubnets.Contains(ipSubnet)) continue;
 
-                    var node = BuildNode(ip, mac);
-                    using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    resolveCts.CancelAfter(5000);
-                    try
+                    postSweepTasks.Add(Task.Run(async () =>
                     {
-                        await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
-                    }
-                    catch (OperationCanceledException) { }
-                    catch { }
-                    if (!token.IsCancellationRequested)
+                        var node = BuildNode(ip, mac);
+                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                        resolveCts.CancelAfter(5000);
+                        try
+                        {
+                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                        }
+                        catch (OperationCanceledException) { }
+                        catch { }
+                        return node;
+                    }, token));
+                }
+
+                var resolvedNodes = await Task.WhenAll(postSweepTasks);
+                foreach (var node in resolvedNodes)
+                {
+                    if (node != null && !token.IsCancellationRequested)
                     {
                         activeNodes.Add(node);
                         NodeDiscovered?.Invoke(node);
