@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -30,7 +31,7 @@ namespace NodeRadar_Pro
             {
                 var db = LocalDatabase.Instance;
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 Logger.Log(LogLevel.Error, "Database", $"Initialization failed: {ex.Message}");
             }
