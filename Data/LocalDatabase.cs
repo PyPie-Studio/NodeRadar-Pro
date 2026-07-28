@@ -197,6 +197,7 @@ public class LocalDatabase : IDisposable
             collection.InsertBulk(toInsert);
             collection.EnsureIndex(x => x.MacAddress);
         }
+        Checkpoint();
 
         return newNodes;
     }
@@ -247,6 +248,7 @@ public class LocalDatabase : IDisposable
             collection.Insert(node);
             collection.EnsureIndex(x => x.MacAddress);
         }
+        Checkpoint();
     }
 
 
@@ -269,7 +271,7 @@ public class LocalDatabase : IDisposable
     {
         var collection = _db.GetCollection<NetworkNode>("devices");
         var existing = collection.FindOne(x => x.MacAddress == macAddress);
-        if (existing != null) { collection.Delete(existing.Id); return true; }
+        if (existing != null) { collection.Delete(existing.Id); Checkpoint(); return true; }
         return false;
     }
 
@@ -284,6 +286,7 @@ public class LocalDatabase : IDisposable
         }
 
         Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
+        Checkpoint();
         return deletedCount;
     }
 
@@ -419,6 +422,7 @@ public class LocalDatabase : IDisposable
     {
         var collection = _db.GetCollection<AppSettings>("settings");
         collection.Upsert(settings);
+        Checkpoint();
     }
 
     // ── Backup & Maintenance ──
