@@ -1209,7 +1209,8 @@ public class InventoryPage : Border
             }
             else { _pingResult.Text = "❌ Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
         }
-        catch (Exception ex) { _pingResult.Text = $"❌ {ex.Message}"; _pingResult.Foreground = ThemeTokens.Error; }
+        catch (System.Net.NetworkInformation.PingException ex) { _pingResult.Text = $"❌ {ex.Message}"; _pingResult.Foreground = ThemeTokens.Error; }
+        catch (PlatformNotSupportedException ex) { _pingResult.Text = $"❌ {ex.Message}"; _pingResult.Foreground = ThemeTokens.Error; }
         finally
         {
             _pingBtn.IsEnabled = true; _pingBtn.Content = "◎  Ping Device";
