@@ -104,22 +104,24 @@ public static class UpdateService
 echo Waiting for NodeRadar Pro to close...
 timeout /t 2 /nobreak >nul
 echo Installing update...
-start /wait """" ""%~1"" /SILENT
+start /wait """" ""%UPDATE_EXE%"" /SILENT
 echo Restarting NodeRadar Pro...
-start """" ""%~2""
+start """" ""%CURRENT_EXE%""
 del ""%~f0""
 ";
         File.WriteAllText(batFile, batContent);
 
         var startInfo = new ProcessStartInfo
         {
-            FileName = batFile,
-            UseShellExecute = true,
+            FileName = "cmd.exe",
+            UseShellExecute = false,
             WindowStyle = ProcessWindowStyle.Hidden,
             CreateNoWindow = true
         };
-        startInfo.ArgumentList.Add(tempFile);
-        startInfo.ArgumentList.Add(currentExe);
+        startInfo.ArgumentList.Add("/c");
+        startInfo.ArgumentList.Add(batFile);
+        startInfo.Environment["UPDATE_EXE"] = tempFile;
+        startInfo.Environment["CURRENT_EXE"] = currentExe;
 
         Process.Start(startInfo);
 
