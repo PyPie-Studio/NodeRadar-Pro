@@ -355,7 +355,7 @@ public class DarkPurpleTheme
         inventoryPage.DeviceSaved += (node) =>
         {
             monitor.AddDevice(node);
-            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+            activeNodesMap.UpdateNode(node);
             try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
             db.Checkpoint();
             SyncGlobalStats();
@@ -382,7 +382,7 @@ public class DarkPurpleTheme
 
         inventoryPage.DeviceStatusChanged += (node) =>
         {
-            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+            activeNodesMap.UpdateNode(node);
             SyncGlobalStats();
         };
 
@@ -436,7 +436,7 @@ public class DarkPurpleTheme
             );
 
             monitor.AddDevice(node);
-            activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+            activeNodesMap.UpdateNode(node);
             try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
             SyncGlobalStats();
         };
@@ -470,7 +470,7 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceOffline(node);
-                activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+                activeNodesMap.UpdateNode(node);
                 SyncGlobalStats();
             });
         };
@@ -480,7 +480,7 @@ public class DarkPurpleTheme
             Dispatcher.UIThread.Post(() =>
             {
                 IntrusionAlerter.AlertDeviceReconnected(node);
-                activeNodesMap.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+                activeNodesMap.UpdateNode(node);
                 SyncGlobalStats();
             });
         };
@@ -491,7 +491,7 @@ public class DarkPurpleTheme
             {
                 foreach (var updated in updatedNodes)
                 {
-                    activeNodesMap.AddOrUpdate(updated.MacAddress, updated, (k, v) => updated);
+                    activeNodesMap.UpdateNode(updated);
                 }
                 SyncGlobalStats();
             });

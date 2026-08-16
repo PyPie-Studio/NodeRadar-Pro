@@ -68,7 +68,7 @@ public class ConnectivityMonitor
     public void AddDevice(NetworkNode device)
     {
         if (device.MacAddress != "Unknown")
-            _trackedDevices.AddOrUpdate(device.MacAddress, device, (_, _) => device);
+            _trackedDevices.UpdateNode(device);
     }
 
     public void RemoveDevice(string macAddress) => _trackedDevices.TryRemove(macAddress, out _);
