@@ -25,6 +25,7 @@ public class ScannerPage : Border
     private readonly SubnetScanner _scanner;
     private readonly ConcurrentDictionary<string, NetworkNode> _activeNodes;
     private readonly List<NetworkNode> _scanResults = new();
+    private readonly HashSet<string> _scanResultMacs = new();
 
     private readonly TextBox _startIp;
     private readonly TextBox _endIp;
@@ -493,7 +494,7 @@ public class ScannerPage : Border
                 DataChanged?.Invoke();
 
                 // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
-                if (!_scanResults.Any(n => n.MacAddress == node.MacAddress))
+                if (_scanResultMacs.Add(node.MacAddress))
                 {
                     _scanResults.Add(node);
                     int count = _scanResults.Count;
@@ -524,6 +525,7 @@ public class ScannerPage : Border
             _isScanning = true;
             _scanCts = new CancellationTokenSource();
             _scanResults.Clear();
+            _scanResultMacs.Clear();
             _resultsBody.Children.Clear();
             _progressBar.Value = 0;
             _scanStartTime = DateTime.UtcNow;
