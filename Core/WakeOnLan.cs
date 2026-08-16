@@ -18,33 +18,33 @@ public static class WakeOnLan
     /// <returns>True if the packet was successfully broadcasted.</returns>
     public static async Task<bool> WakeAsync(string macAddress)
     {
+        if (string.IsNullOrWhiteSpace(macAddress)) return false;
+
+        // Normalize MAC address: AA:BB:CC... -> AABBCC...
+        string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "");
+        if (cleanMac.Length != 12) return false;
+
+        byte[] macBytes = new byte[6];
+        for (int i = 0; i < 6; i++)
+        {
+            if (!byte.TryParse(cleanMac.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber, null, out byte parsedByte))
+            {
+                return false;
+            }
+            macBytes[i] = parsedByte;
+        }
+
+        // Create Magic Packet: 6 bytes of 0xFF followed by 16 repetitions of the MAC
+        byte[] packet = new byte[102];
+        for (int i = 0; i < 6; i++) packet[i] = 0xFF;
+
+        for (int i = 1; i <= 16; i++)
+        {
+            Array.Copy(macBytes, 0, packet, i * 6, 6);
+        }
+
         try
         {
-            if (string.IsNullOrWhiteSpace(macAddress)) return false;
-
-            // Normalize MAC address: AA:BB:CC... -> AABBCC...
-            string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "");
-            if (cleanMac.Length != 12) return false;
-
-            byte[] macBytes = new byte[6];
-            for (int i = 0; i < 6; i++)
-            {
-                if (!byte.TryParse(cleanMac.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber, null, out byte parsedByte))
-                {
-                    return false;
-                }
-                macBytes[i] = parsedByte;
-            }
-
-            // Create Magic Packet: 6 bytes of 0xFF followed by 16 repetitions of the MAC
-            byte[] packet = new byte[102];
-            for (int i = 0; i < 6; i++) packet[i] = 0xFF;
-
-            for (int i = 1; i <= 16; i++)
-            {
-                Array.Copy(macBytes, 0, packet, i * 6, 6);
-            }
-
             // Broadcast packet via UDP on port 9 (standard WoL port)
             using var client = new UdpClient();
             client.EnableBroadcast = true;
