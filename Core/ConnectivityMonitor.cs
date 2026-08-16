@@ -24,6 +24,10 @@ public class ConnectivityMonitor
     // ── Alert cooldown trackers (prevent flooding) ──
     private readonly ConcurrentDictionary<string, DateTime> _lastLatencyAlert = new();
     private readonly ConcurrentDictionary<string, DateTime> _lastPacketLossAlert = new();
+
+    // Concurrency limit for synchronous ARP calls to prevent ThreadPool exhaustion
+    private static readonly SemaphoreSlim _arpSemaphore = new SemaphoreSlim(10);
+
     private static readonly TimeSpan AlertCooldown = TimeSpan.FromMinutes(5);
 
     // ── Events ──
@@ -116,8 +120,16 @@ public class ConnectivityMonitor
             // ARP check
             try
             {
-                string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
-                if (mac != "Unknown") arpOnline = true;
+                await _arpSemaphore.WaitAsync(token);
+                try
+                {
+                    string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
+                    if (mac != "Unknown") arpOnline = true;
+                }
+                finally
+                {
+                    _arpSemaphore.Release();
+                }
             }
             catch { }
 
