@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Security;
 
 namespace NodeRadarPro.Core;
 
@@ -60,6 +61,14 @@ public static class UpdateService
 
     public static async Task DownloadAndInstallAsync(string downloadUrl, Action<double>? progressCallback = null)
     {
+        if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
+            uri.Scheme != Uri.UriSchemeHttps ||
+            !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
+            !uri.AbsolutePath.StartsWith("/pypiestudio/noderadar-pro/releases/download/", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new SecurityException("Invalid or untrusted download URL.");
+        }
+
         string tempFile = Path.Combine(Path.GetTempPath(), "NodeRadarPro_Update.exe");
         string batFile = Path.Combine(Path.GetTempPath(), "noderadar_updater.bat");
         
