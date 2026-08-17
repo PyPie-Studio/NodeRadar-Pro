@@ -290,6 +290,7 @@ public static class VendorLookup
     /// Guessing is now completely offloaded to the far superior DeviceClassifier.cs engine.
     /// This method is deprecated but kept temporarily so the UI doesn't break if it depends on it.
     /// </summary>
+    [Obsolete("Guessing is now completely offloaded to the far superior DeviceClassifier.cs engine. This method is deprecated but kept temporarily so the UI doesn't break if it depends on it.")]
     public static string GuessDeviceType(string vendor, string hostname)
     {
         // For backwards compatibility before we rip it out entirely.
