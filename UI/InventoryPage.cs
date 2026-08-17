@@ -561,7 +561,7 @@ public class InventoryPage : Border
 
         _saveBtn = ThemeTokens.PrimaryButton("💾  Save & Register");
         ThemeTokens.SetToolTip(_saveBtn, "Commit these changes and permanently register this device in the database.");
-        _saveBtn.Click += OnSaveClicked;
+        _saveBtn.Click += (s, e) => SaveCurrentNode();
 
         _pingBtn = ThemeTokens.SecondaryButton("◎  Ping Device");
         ThemeTokens.SetToolTip(_pingBtn, "Send a live ICMP ping to check device responsiveness.");
@@ -1123,7 +1123,7 @@ public class InventoryPage : Border
         DeviceSaved?.Invoke(manualNode);
     }
 
-    private void OnSaveClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private void SaveCurrentNode()
     {
         if (_currentNode == null) return;
         _currentNode.CustomName = _nameInput.Text ?? "";
