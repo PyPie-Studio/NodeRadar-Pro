@@ -505,21 +505,15 @@ public class DarkPurpleTheme
             // Background data load
             settings = await Task.Run(() => db.LoadSettings());
 
-            // Task 2: System Integrity Shield (Verify Binaries)
+            // Verify System Integrity
             _ = Task.Run(() => {
                 try {
-                    // We verify the core logic DLL instead of the dynamic database
                     string appPath = AppDomain.CurrentDomain.BaseDirectory;
                     string dllPath = System.IO.Path.Combine(appPath, "NodeRadar Pro.dll");
                     
-                    if (System.IO.File.Exists(dllPath))
+                    string currentHash = SecurityService.ComputeFileHash(dllPath);
+                    if (currentHash != null)
                     {
-                        using var stream = new System.IO.FileStream(dllPath, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.ReadWrite);
-                        using var sha256 = System.Security.Cryptography.SHA256.Create();
-                        var hashBytes = sha256.ComputeHash(stream);
-                        string currentHash = BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
-
-                        // On first run or update, lock in the hash
                         if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
                         {
                             settings.LastKnownGoodHash = currentHash;
