@@ -437,6 +437,7 @@ public class DarkPurpleTheme
             monitor.AddDevice(node);
             activeNodesMap.UpdateNode(node);
             try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
+            db.Checkpoint();
             SyncGlobalStats();
         };
 
