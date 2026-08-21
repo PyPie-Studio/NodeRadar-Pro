@@ -1,10 +1,7 @@
-using System;
 using System.Reflection;
-using System.Threading.Tasks;
-using Xunit;
 using NodeRadarPro.Core;
 
-namespace Tests;
+namespace Core.Tests;
 
 public class ConnectivityMonitorTests
 {
@@ -130,5 +127,4 @@ public class ConnectivityMonitorTests
         Assert.True(updated.IsRegistered);
         Assert.Equal(new DateTime(2020, 1, 1), updated.FirstSeen);
     }
-
 }
