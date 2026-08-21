@@ -420,7 +420,6 @@ public class DarkPurpleTheme
         // ── Scanner device save → register device (I9) ──
         scannerPage.DeviceSaved += (node) =>
         {
-            // Fix: Persist to database immediately so it survives app restart
             db.UpdateRegistration(
                 node.MacAddress, 
                 node.CustomName, 
