@@ -7,15 +7,17 @@
 #define MySourceDir "..\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
 #define MyAppExePath MySourceDir + "\" + MyAppExeName
 
-; Dynamically read version from the compiled exe (Single Source of Truth)
-#define FullAppVersion GetFileVersion(SourcePath + "\" + MyAppExePath)
-#if FullAppVersion == ""
-  #define MyAppVersion "1.0.0"
-#else
-  #if Pos(".", FullAppVersion) > 0 && RPos(".", FullAppVersion) > Pos(".", FullAppVersion)
-    #define MyAppVersion Copy(FullAppVersion, 1, RPos(".", FullAppVersion) - 1)
+#ifndef MyAppVersion
+  ; Dynamically read version from the compiled exe (Single Source of Truth)
+  #define FullAppVersion GetFileVersion(SourcePath + "\" + MyAppExePath)
+  #if FullAppVersion == ""
+    #define MyAppVersion "1.0.0"
   #else
-    #define MyAppVersion FullAppVersion
+    #if Pos(".", FullAppVersion) > 0 && RPos(".", FullAppVersion) > Pos(".", FullAppVersion)
+      #define MyAppVersion Copy(FullAppVersion, 1, RPos(".", FullAppVersion) - 1)
+    #else
+      #define MyAppVersion FullAppVersion
+    #endif
   #endif
 #endif
 
@@ -65,7 +67,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#MySourceDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\LICENSE.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\EULA.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\SECURITY.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Obfuscated,*.pdb"
