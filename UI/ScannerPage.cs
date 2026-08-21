@@ -554,7 +554,7 @@ public class ScannerPage : Border
                 await _scanner.ScanSubnetAsync(SubnetScanner.GetLocalBaseIp(), _scanCts.Token);
             }
 
-            // Fix for Issue: Wait for all in-flight discovery tasks to finish before updating final status
+            // Wait for all in-flight discovery tasks to finish before updating final status
             while (Volatile.Read(ref _inFlightDiscoveryCount) > 0)
             {
                 await Task.Delay(50);
