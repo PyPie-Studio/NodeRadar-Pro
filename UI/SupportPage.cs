@@ -457,8 +457,7 @@ public class SupportPage : Border
         {
             row.PointerPressed += (s, e) =>
             {
-                try { Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }); }
-                catch { }
+                AppUtils.OpenSafeUrl(url);
             };
         }
         return row;
