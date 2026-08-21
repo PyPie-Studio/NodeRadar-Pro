@@ -59,7 +59,7 @@ public static class UpdateService
         return (false, "", "");
     }
 
-    public static async Task DownloadAndInstallAsync(string downloadUrl, Action<double>? progressCallback = null)
+    public static async Task DownloadAndInstallAsync(string downloadUrl, Action<double>? progressCallback = null, HttpClient? customClient = null)
     {
         if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
@@ -72,10 +72,16 @@ public static class UpdateService
         string tempFile = Path.Combine(Path.GetTempPath(), "NodeRadarPro_Update.exe");
         string batFile = Path.Combine(Path.GetTempPath(), "noderadar_updater.bat");
         
-        using var http = new HttpClient();
-        http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
-        
-        using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+        var disposeClient = customClient == null;
+        var http = customClient ?? new HttpClient();
+        try
+        {
+            if (!http.DefaultRequestHeaders.UserAgent.TryParseAdd("NodeRadarPro/1.0"))
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
+            }
+
+            using var response = await http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
         
         var totalBytes = response.Content.Headers.ContentLength ?? -1L;
@@ -132,8 +138,13 @@ del ""%~f0""
         startInfo.Environment["UPDATE_EXE"] = tempFile;
         startInfo.Environment["CURRENT_EXE"] = currentExe;
 
-        Process.Start(startInfo);
+            Process.Start(startInfo);
 
-        Environment.Exit(0);
+            Environment.Exit(0);
+        }
+        finally
+        {
+            if (disposeClient) http.Dispose();
+        }
     }
 }
