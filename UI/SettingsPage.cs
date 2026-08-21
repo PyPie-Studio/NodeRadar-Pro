@@ -288,7 +288,7 @@ public class SettingsPage : Border
         ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
         resetBtn.Height = 50;
         resetBtn.FontSize = 12;
-        resetBtn.Click += OnResetClicked;
+        resetBtn.Click += (s, e) => { _settings = new AppSettings(); _db.SaveSettings(_settings); Refresh(); SettingsSaved?.Invoke(_settings); };
 
         var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
         ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
@@ -428,14 +428,6 @@ public class SettingsPage : Border
             };
             timer.Start();
         }
-    }
-
-    private void OnResetClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        _settings = new AppSettings();
-        _db.SaveSettings(_settings);
-        Refresh();
-        SettingsSaved?.Invoke(_settings);
     }
 
     private async void OnBackupClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
