@@ -490,7 +490,7 @@ public class ScannerPage : Border
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 // Update central dictionary directly (Fix for Dashboard/Nav sync)
-                _activeNodes.AddOrUpdate(node.MacAddress, node, (k, v) => node);
+                _activeNodes.UpdateNode(node);
                 DataChanged?.Invoke();
 
                 // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
