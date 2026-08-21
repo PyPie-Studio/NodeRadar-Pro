@@ -140,13 +140,13 @@ public static class ArpResolver
     /// <summary>
     /// Attempts to resolve the NetBIOS name of a device via UDP port 137 (Professional fallback).
     /// </summary>
-    public static string TryResolveNetBiosName(string ipAddress)
+    public static string TryResolveNetBiosName(string ipAddress, int port = 137)
     {
         try
         {
             using var udp = new UdpClient();
             udp.Client.ReceiveTimeout = 1500;
-            udp.Connect(ipAddress, 137);
+            udp.Connect(ipAddress, port);
 
             // Standard NetBIOS Node Status Query packet
             byte[] query = {
