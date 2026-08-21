@@ -28,12 +28,12 @@ namespace NodeRadarPro.Core
             catch (InvalidOperationException ex)
             {
                 // Prevent crashes if audio is unavailable
-                Console.WriteLine($"AudioService: Failed to play sound alert. {ex.Message}");
+                Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
             }
             catch (PlatformNotSupportedException ex)
             {
                 // Prevent crashes if audio is unavailable
-                Console.WriteLine($"AudioService: Failed to play sound alert. {ex.Message}");
+                Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
             }
         }
     }

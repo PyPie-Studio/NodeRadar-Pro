@@ -1,0 +1,24 @@
+using Xunit;
+using NodeRadarPro.Core;
+
+namespace NodeRadarPro.Tests;
+
+public class AudioServiceTests
+{
+    [Fact]
+    public void PlayAlert_WhenDisabled_DoesNotThrow()
+    {
+        AudioService.Enabled = false;
+        AudioService.PlayAlert(true);
+        AudioService.PlayAlert(false);
+        AudioService.Enabled = true;
+    }
+
+    [Fact]
+    public void PlayAlert_WhenEnabled_HandlesExceptionsGracefully()
+    {
+        AudioService.Enabled = true;
+        var exception = Record.Exception(() => AudioService.PlayAlert(false));
+        Assert.Null(exception);
+    }
+}
