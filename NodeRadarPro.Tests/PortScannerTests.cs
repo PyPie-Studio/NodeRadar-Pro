@@ -190,6 +190,32 @@ namespace NodeRadarPro.Tests
             }
         }
 
+        [Theory]
+        [InlineData(new int[] { 62078 }, "iOS / iPadOS")]
+        [InlineData(new int[] { 548, 5353, 22 }, "macOS")]
+        [InlineData(new int[] { 548, 5353 }, "macOS")]
+        [InlineData(new int[] { 3389, 445, 135 }, "Windows")]
+        [InlineData(new int[] { 3389, 445 }, "Windows")]
+        [InlineData(new int[] { 3389 }, "Windows (RDP)")]
+        [InlineData(new int[] { 445, 135 }, "Windows")]
+        [InlineData(new int[] { 22 }, "Linux / Unix")]
+        [InlineData(new int[] { 22, 80 }, "Linux / Unix")]
+        [InlineData(new int[] { 80, 443 }, "Network Device")]
+        [InlineData(new int[] { 80, 443, 8080, 8443 }, "Network Device")]
+        [InlineData(new int[] { 80, 443, 8080, 8443, 22 }, "Linux / Unix")]
+        [InlineData(new int[] { }, "")]
+        [InlineData(new int[] { 80 }, "")]
+        public void GuessOs_ShouldReturnExpectedOs(int[] ports, string expectedOs)
+        {
+            // Arrange
+            var openPorts = new System.Collections.Generic.List<int>(ports);
+
+            // Act
+            var result = PortScanner.GuessOs(openPorts);
+
+            // Assert
+            Assert.Equal(expectedOs, result);
+        }
 
         [Theory]
         [InlineData(80, "HTTP")]
