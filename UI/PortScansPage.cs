@@ -170,7 +170,7 @@ public class PortScansPage : Border
         _progressBar.Value = 0;
         _scanStartTime = DateTime.UtcNow;
         _elapsedTime.Text = "ELAPSED: 00:00";
-        _openCount.Text = "OPEN PORTS: 0"; // Bug #4: Reset counter at scan start
+        _openCount.Text = "OPEN PORTS: 0";
         _statusText.Text = $"Scanning {ip}:{sp}-{ep}...";
         int totalPorts = ep - sp + 1;
         int scanned = 0;
