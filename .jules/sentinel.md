@@ -19,4 +19,9 @@ This journal records security hardening, encryption protocols, path validations,
 - **Decision**: Implemented dynamic version extraction (`GetFileVersion`) in `Inno/installer.iss` and synchronized named mutex `NodeRadarPro_App_Mutex_Active` in `Program.cs` alongside `CloseApplications=yes`.
 - **Impact**: Single source of truth for versioning, clean single-instance runtime enforcement, and zero locked-file errors during updates.
 
+## 2026-08-21 — Remote Updater Scheme/Host Whitelisting & Active Stream Security
+- **Problem**: Allowing arbitrary or non-HTTPS update download URLs could expose the application to malicious binary execution or man-in-the-middle attacks. Reading from raw socket streams during TLS probing leaked plain/encrypted boundary state.
+- **Decision**: Enforced HTTPS scheme, exact `github.com` host verification, and repository-scoped path boundaries in `UpdateService.cs`. Unified all TLS/plaintext socket reads onto the authenticated `activeStream` in `BannerGrabProbe.cs`.
+- **Impact**: Hardened update integrity and secure multi-protocol banner grabbing.
+
 

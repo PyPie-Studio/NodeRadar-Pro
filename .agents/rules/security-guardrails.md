@@ -7,7 +7,9 @@ alwaysApply: true
 
 - **DPAPI Credential Protection**: ALL local credentials, API tokens, and database encryption keys MUST use `System.Security.Cryptography.ProtectedData` (Windows DPAPI with `DataProtectionScope.CurrentUser`). Never persist plaintext secrets.
 - **LiteDB Encryption**: The local embedded LiteDB database (`LocalDatabase.cs`) MUST always be protected with AES-256 database password encryption.
-- **Path Sanitization**: ALWAYS use `Path.GetFullPath()` and verify that the target path starts with the authorized base directory + `Path.DirectorySeparatorChar`. Block directory traversal attacks (`../`, `..\`) in diagnostic log exporters and updater scripts.
+- **Path & Download URL Whitelisting**:
+  - Exporter/Updater local paths: ALWAYS use `Path.GetFullPath()` and verify target path starts with the authorized base directory + `Path.DirectorySeparatorChar`. Block directory traversal (`../`, `..\`).
+  - Remote updater URLs (`UpdateService.cs`): Enforce `Uri.UriSchemeHttps`, exact host match (`github.com`), and repository-scoped path (`/pypiestudio/noderadar-pro/releases/download/`). Reject arbitrary URL schemes or third-party download links.
 - **Constant-Time Comparison**: Use `CryptographicOperations.FixedTimeEquals()` when comparing secret tokens, database hashes, or integrity checksums. Never use `==` or `.Equals()` for secret comparison.
 - **Non-Admin Permission Fallback**: Never crash if elevated/admin rights are missing. Fallback gracefully from raw socket packet sniffing to standard user-mode Win32 `SendARP` or standard TCP/UDP socket probes.
 - **Binary Self-Integrity Shield**: Preserve and verify SHA-256 executable integrity hashing on application startup (`SecurityService.cs`) to prevent unauthorized binary modification.

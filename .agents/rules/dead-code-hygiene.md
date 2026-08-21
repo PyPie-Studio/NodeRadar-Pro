@@ -4,12 +4,12 @@ Applies to ALL agents and human edits. These rules are ENFORCED by the build —
 
 ## Enforced rules (hard errors — do not violate)
 
-These 17 analyzer rules are promoted from the suppression baseline and must never be violated:
+These analyzer rules are promoted from the suppression baseline and must never be violated:
 
 - **S1481** — unused local variables
 - **S4487** — unread private fields
 - **RCS1213** — unused/duplicated private members
-- **S1854** — dead stores / useless assignments
+- **S1854** — dead stores / useless assignments and re-assignments before read
 - **S108** — empty blocks (add a comment or merge)
 - **S2486** — empty catch blocks (handle OR comment why ignored)
 - **S3168** — `async void` (use `async Task`; fire-and-forget with `_ =`)
@@ -23,6 +23,11 @@ These 17 analyzer rules are promoted from the suppression baseline and must neve
 - **S5445** — temp files: use `Path.GetRandomFileName()`, never `GetTempFileName()`
 - **S4136** — overloads must be adjacent
 - **S8969** — remove redundant null-forgiving operators
+- **S2094** — remove empty classes (add properties or make interface)
+- **S4144** — methods with identical implementations (suppress or consolidate)
+- **S3626 / RCS1134** — remove redundant jumps and `continue` statements
+- **S2699** — test methods must contain assertions or `Record.Exception`
+- **CA2022** — avoid inexact stream reads (use `ReadAtLeastAsync` or bounded loop)
 
 ## The NoWarn baseline is SHRINK-ONLY
 
