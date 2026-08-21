@@ -58,6 +58,8 @@ public class SubnetScanner
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
         int totalIps = endIp - startIp + 1;
+        if (totalIps <= 0) return new List<NetworkNode>();
+
         int completed = 0;
         using var semaphore = new SemaphoreSlim(32);
 
