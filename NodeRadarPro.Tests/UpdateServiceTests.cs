@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Security;
 using Xunit;
 using NodeRadarPro.Core;
 
@@ -29,6 +30,7 @@ public class MockHttpMessageHandler : HttpMessageHandler
     {
         return Task.FromResult(_responseFactory(request));
     }
+
 }
 
 public class UpdateServiceTests
@@ -134,4 +136,17 @@ public class UpdateServiceTests
 
         Assert.False(result.hasUpdate);
     }
+
+
+    [Fact]
+    public async Task DownloadAndInstallAsync_UntrustedUrl_ThrowsSecurityException()
+    {
+        var untrustedUrl = "https://malicious-site.com/payload.exe";
+
+        var ex = await Assert.ThrowsAsync<SecurityException>(() =>
+            UpdateService.DownloadAndInstallAsync(untrustedUrl));
+
+        Assert.Equal("Invalid or untrusted download URL.", ex.Message);
+    }
+
 }
