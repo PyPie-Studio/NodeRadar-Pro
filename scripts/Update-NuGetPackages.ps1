@@ -4,14 +4,14 @@
     Checks for outdated NuGet packages and automatically upgrades them across the NodeRadar Pro solution.
 
 .DESCRIPTION
-    Uses `dotnet-outdated` (or `dotnet list package --outdated`) to inspect all projects in the solution.
+    Uses native `dotnet list package --outdated --format json` to inspect all projects in the solution.
     Supports automated upgrades, version constraint types (Minor, Patch, or Latest), and post-upgrade gate validation.
 
 .PARAMETER Upgrade
     When specified, automatically applies upgrades to the project files.
 
 .PARAMETER UpgradeType
-    Upgrade version target constraint: 'Auto' (default), 'Minor' (safe minor/patch only), or 'Always' (includes major).
+    Upgrade version target constraint: 'Auto' (default, upgrades all to latest), 'Minor' (safe minor/patch only), or 'Patch'.
 
 .PARAMETER Verify
     When specified, automatically runs test suites and the master gate after upgrading.
@@ -40,35 +40,74 @@ $solutionPath = Join-Path $root "NodeRadarPro.slnx"
 
 Write-Host "== NodeRadar Pro NuGet Package Manager ==" -ForegroundColor Cyan
 
-# 1. Ensure dotnet-outdated is available
-$hasOutdatedTool = Get-Command "dotnet-outdated" -ErrorAction SilentlyContinue
-if (-not $hasOutdatedTool) {
-    Write-Host "Installing dotnet-outdated-tool globally..." -ForegroundColor Yellow
-    & dotnet tool install --global dotnet-outdated-tool
-}
-
 Push-Location $root
 try {
-    if (-not $Upgrade) {
-        Write-Host "Scanning for outdated NuGet packages across solution..." -ForegroundColor Yellow
-        & dotnet-outdated $solutionPath
-        Write-Host "`nTo automatically upgrade packages, run:" -ForegroundColor Cyan
-        Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/Update-NuGetPackages.ps1 -Upgrade -Verify" -ForegroundColor DarkGray
-        Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/Update-NuGetPackages.ps1 -Upgrade -UpgradeType Minor -Verify" -ForegroundColor DarkGray
+    Write-Host "Analyzing dependencies across solution..." -ForegroundColor Yellow
+    $rawJson = & dotnet list $solutionPath package --outdated --format json
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Failed to list outdated packages." -ForegroundColor Red
+        exit 1
+    }
+
+    $data = $rawJson | ConvertFrom-Json
+    $outdatedCount = 0
+
+    foreach ($proj in $data.projects) {
+        $projName = [System.IO.Path]::GetFileName($proj.path)
+        $packagesToUpdate = @()
+
+        foreach ($fw in $proj.frameworks) {
+            foreach ($pkg in $fw.topLevelPackages) {
+                if ($pkg.latestVersion -and $pkg.resolvedVersion -ne $pkg.latestVersion) {
+                    $packagesToUpdate += $pkg
+                }
+            }
+        }
+
+        if ($packagesToUpdate.Count -eq 0) {
+            continue
+        }
+
+        $outdatedCount += $packagesToUpdate.Count
+        Write-Host "`nProject: $projName" -ForegroundColor Cyan
+
+        foreach ($pkg in $packagesToUpdate) {
+            $isMajor = $false
+            if ($pkg.resolvedVersion -and $pkg.latestVersion) {
+                $curMajor = ($pkg.resolvedVersion.Split('.')[0])
+                $newMajor = ($pkg.latestVersion.Split('.')[0])
+                if ($curMajor -ne $newMajor) { $isMajor = $true }
+            }
+
+            $color = if ($isMajor) { "Red" } else { "Green" }
+            Write-Host "  > $($pkg.id): $($pkg.resolvedVersion) -> $($pkg.latestVersion)" -ForegroundColor $color
+
+            if ($Upgrade) {
+                if ($UpgradeType -eq "Minor" -and $isMajor) {
+                    Write-Host "    [SKIPPED] Major upgrade prevented by -UpgradeType Minor" -ForegroundColor DarkGray
+                    continue
+                }
+
+                Write-Host "    [UPGRADING] $($pkg.id) to $($pkg.latestVersion)..." -ForegroundColor Yellow
+                & dotnet add "$($proj.path)" package "$($pkg.id)" --version "$($pkg.latestVersion)"
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Host "    [ERROR] Failed to upgrade $($pkg.id)" -ForegroundColor Red
+                }
+            }
+        }
+    }
+
+    if ($outdatedCount -eq 0) {
+        Write-Host "`nAll NuGet packages across the solution are up to date!" -ForegroundColor Green
         return
     }
 
-    Write-Host "Upgrading outdated NuGet packages (Constraint: $UpgradeType)..." -ForegroundColor Yellow
-    $outdatedArgs = @($solutionPath, "-u")
-    if ($UpgradeType -eq "Minor") {
-        $outdatedArgs += @("-version-lock", "Major")
-    } elseif ($UpgradeType -eq "Patch") {
-        $outdatedArgs += @("-version-lock", "Minor")
-    }
-
-    & dotnet-outdated @outdatedArgs
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "Package upgrade encountered warnings or errors." -ForegroundColor Yellow
+    if (-not $Upgrade) {
+        Write-Host "`nFound $outdatedCount outdated package(s)." -ForegroundColor Yellow
+        Write-Host "To automatically upgrade packages, run:" -ForegroundColor Cyan
+        Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/Update-NuGetPackages.ps1 -Upgrade -Verify" -ForegroundColor DarkGray
+        Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/Update-NuGetPackages.ps1 -Upgrade -UpgradeType Minor -Verify" -ForegroundColor DarkGray
+        return
     }
 
     Write-Host "`nRestoring solution packages..." -ForegroundColor Yellow
@@ -78,7 +117,7 @@ try {
         Write-Host "`nRunning test suite verification..." -ForegroundColor Yellow
         & dotnet test $solutionPath --configuration Release --nologo
         if ($LASTEXITCODE -ne 0) {
-            Write-Host "Test execution failed after package upgrade! Review broken APIs." -ForegroundColor Red
+            Write-Host "Test execution failed after package upgrade! Review breaking API changes." -ForegroundColor Red
             exit 1
         }
 

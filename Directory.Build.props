@@ -12,7 +12,7 @@
     <NoWarn>$(NoWarn);SYSLIB1045;S1144;S3459;S2933;S1450;S3398;S2325;S3220;S6968;S3260;S1066;S6608;S6562;S6444;S1104;S3604;S6964;S3458;S2365;S3878;S3218;S8970;S6966;S6960;S4036;S2068;S2245;S5034;S5693;S2955;S3267;S3358;S1075;S1313;S6561;RCS1181;RCS1188;RCS1001;RCS1161;RCS1199;RCS1146;RCS1163;RCS1238;RCS1192;RCS1021;RCS1118;RCS1123;RCS1124;RCS1077;RCS1085;RCS1061;RCS1261;RCS1006;RCS1043;RCS1015;RCS1246;RCS1169;RCS1129;RCS1037;RCS1112;RCS1168;RCS1069;RCS1171;RCS1267;RCS1032;RCS1073;RCS1205;RCS1268;RCS1068;RCS1189;RCS1155;RCS1214;RCS1201;RCS1141;RCS1003;RCS1005;RCS1075;RCS1102;RCS1179;RCS1186;RCS1196;RCS1211;RCS1212;RCS1213;RCS1225;RCS1266;S108;S1118;S1172;S1244;S125;S127;S1481;S1643;S1871;S2486;S2930;S3881;S4830;S5332;S6610;S8949</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.32.0.713" PrivateAssets="All" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
-    <PackageReference Include="Roslynator.Analyzers" Version="4.16.0" PrivateAssets="All" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.33.0.1635" PrivateAssets="All" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.0" PrivateAssets="All" IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>
 </Project>
