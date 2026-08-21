@@ -381,6 +381,12 @@ graphify-out/
 .claude/
 .windsurf/
 
+# Modern IDEs & Editors
+.vscode/
+.cursor/
+.idea/
+*.code-workspace
+
 # Inno Setup & Packaging Outputs
 Inno/Output/
 ReleasePackage/
@@ -389,16 +395,24 @@ Obfuscator_Output/
 # Test Outputs & Code Coverage
 [Tt]est[Rr]esults/
 coverage/
+*.trx
+*.cobertura.xml
+*.opencover.xml
 
-# Scratch & Backup Files
+# Scratch, Dump & Backup Files
 scratch/
 *.bak
 *.orig
+*.dump.txt
+conflicts_*.txt
+pr_description.md
+submit.py
 mcp_request.json
 
 # Local AI Agent Workspace & Privacy Scaffolding
 .agents/
 .jules/
+.superpowers/
 .githooks/
 opencode.json
 mcp.json
@@ -408,3 +422,8 @@ SUPERPOWERS.md
 
 # Ephemeral Reports
 docs/analyzer-report.txt
+
+# Windows OS Files
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
