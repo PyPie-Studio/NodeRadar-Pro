@@ -30,8 +30,9 @@ public class TracerouteEngine
     public event Action<RouteHop>? HopDiscovered;
     public event Action<bool>? TracerouteCompleted;
 
-    public async Task RunTracerouteAsync(string destination, int maxHops = 30, int timeoutMs = 2000, CancellationToken token = default)
+    public async Task RunTracerouteAsync(string destination, int maxHops = 30, int timeoutMs = 2000, CancellationToken token = default, Func<IPingClient>? pingClientFactory = null)
     {
+        pingClientFactory ??= () => new PingClientWrapper();
         try
         {
             IPAddress? destAddr;
@@ -51,7 +52,7 @@ public class TracerouteEngine
             {
                 if (token.IsCancellationRequested) break;
 
-                var hop = await ProbeHopAsync(destAddr, ttl, timeoutMs);
+                var hop = await ProbeHopAsync(destAddr, ttl, timeoutMs, pingClientFactory);
                 HopDiscovered?.Invoke(hop);
 
                 if (hop.IsDestination || token.IsCancellationRequested)
@@ -66,7 +67,7 @@ public class TracerouteEngine
         }
     }
 
-    private async Task<RouteHop> ProbeHopAsync(IPAddress destination, int ttl, int timeoutMs)
+    private async Task<RouteHop> ProbeHopAsync(IPAddress destination, int ttl, int timeoutMs, Func<IPingClient> pingClientFactory)
     {
         var hop = new RouteHop { HopNumber = ttl };
         byte[] buffer = Encoding.ASCII.GetBytes("NodeRadar-Trace-Probe");
@@ -74,7 +75,7 @@ public class TracerouteEngine
 
         try
         {
-            using var pinger = new Ping();
+            using var pinger = pingClientFactory();
             var reply = await pinger.SendPingAsync(destination, timeoutMs, buffer, options);
 
             if (reply.Status == IPStatus.TtlExpired || reply.Status == IPStatus.Success)
@@ -109,5 +110,44 @@ public class TracerouteEngine
         }
 
         return hop;
+    }
+}
+
+
+public interface IPingClient : IDisposable
+{
+    Task<IPingReply> SendPingAsync(IPAddress address, int timeout, byte[] buffer, PingOptions options);
+}
+
+public interface IPingReply
+{
+    IPStatus Status { get; }
+    IPAddress? Address { get; }
+    long RoundtripTime { get; }
+}
+
+public class PingReplyWrapper : IPingReply
+{
+    private readonly PingReply _reply;
+    public PingReplyWrapper(PingReply reply) => _reply = reply;
+
+    public IPStatus Status => _reply.Status;
+    public IPAddress? Address => _reply.Address;
+    public long RoundtripTime => _reply.RoundtripTime;
+}
+
+public class PingClientWrapper : IPingClient
+{
+    private readonly Ping _ping = new Ping();
+
+    public async Task<IPingReply> SendPingAsync(IPAddress address, int timeout, byte[] buffer, PingOptions options)
+    {
+        var reply = await _ping.SendPingAsync(address, timeout, buffer, options);
+        return new PingReplyWrapper(reply);
+    }
+
+    public void Dispose()
+    {
+        _ping.Dispose();
     }
 }
