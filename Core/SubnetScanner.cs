@@ -475,7 +475,9 @@ public class SubnetScanner
             }
 
             // Inline port scanning (if enabled)
-            if (EnableInlinePortScan && !token.IsCancellationRequested)
+            // OS detection and FastScan mode implicitly require port scanning to function properly
+            bool shouldPortScan = EnableInlinePortScan || EnableOsDetection || FastScanMode;
+            if (shouldPortScan && !token.IsCancellationRequested)
             {
                 try
                 {
