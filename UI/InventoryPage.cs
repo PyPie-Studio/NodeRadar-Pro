@@ -1281,7 +1281,7 @@ public class InventoryPage : Border
     private static Border MakeInfoPill(string label, string value)
     {
         var valTb = new TextBlock { Text = value, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, Tag = "value" };
-        ThemeTokens.AddCopyAction(valTb); // Fix: Remove hardcoded value, let AddCopyAction resolve live text
+        ThemeTokens.AddCopyAction(valTb);
 
         return new Border
         {

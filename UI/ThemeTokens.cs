@@ -133,13 +133,27 @@ public static class ThemeTokens
     public static void AddCopyAction(Control control, string? initialValue = null)
     {
         control.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+
+        string? GetLiveValue()
+        {
+            string? val = initialValue;
+            if (control is TextBlock tb) val = tb.Text;
+            else if (control is TextBox tbox) val = tbox.Text;
+            return val;
+        }
+
+        control.PointerEntered += (s, e) =>
+        {
+            string? liveValue = GetLiveValue();
+            if (!string.IsNullOrEmpty(liveValue) && liveValue != "Unknown" && liveValue != "—")
+            {
+                SetToolTip(control, $"Click to copy: {liveValue}");
+            }
+        };
         
         control.PointerPressed += async (s, e) =>
         {
-            // Resolve live value from control if possible, otherwise use initialValue
-            string? liveValue = initialValue;
-            if (control is TextBlock tb) liveValue = tb.Text;
-            else if (control is TextBox tbox) liveValue = tbox.Text;
+            string? liveValue = GetLiveValue();
 
             if (string.IsNullOrEmpty(liveValue) || liveValue == "Unknown" || liveValue == "—") return;
 
