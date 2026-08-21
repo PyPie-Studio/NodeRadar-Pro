@@ -676,7 +676,36 @@ public class ScannerPage : Border
         var macText = new TextBlock { Text = node.MacAddress, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         ThemeTokens.AddCopyAction(macText);
 
-        // Device identity with icon and OS/Vendor details
+        var devPanel = CreateDevicePanel(node);
+        var portsPanel = CreatePortsPanel(node);
+        var saveBtn = CreateSaveButton(node);
+
+        Grid.SetColumn(statusBadge, 0);
+        Grid.SetColumn(ipText, 1);
+        Grid.SetColumn(macText, 2);
+        Grid.SetColumn(devPanel, 3);
+        Grid.SetColumn(portsPanel, 4);
+        Grid.SetColumn(saveBtn, 5);
+
+        grid.Children.Add(statusBadge);
+        grid.Children.Add(ipText);
+        grid.Children.Add(macText);
+        grid.Children.Add(devPanel);
+        grid.Children.Add(portsPanel);
+        grid.Children.Add(saveBtn);
+
+        return new Border
+        {
+            Background = alternate ? ThemeTokens.SurfaceContainerLowest : Brushes.Transparent,
+            BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Padding = new Thickness(0, 14),
+            Child = grid
+        };
+    }
+
+    private StackPanel CreateDevicePanel(NetworkNode node)
+    {
         string devIcon = node.DeviceType switch
         {
             "Router" or "Router/Network" => "⊞",
@@ -686,7 +715,6 @@ public class ScannerPage : Border
             _ => "⊟"
         };
         
-        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
         string identitySubtitle = node.SubtitleText;
         if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess))
             identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
@@ -694,7 +722,7 @@ public class ScannerPage : Border
         if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor")) 
             identitySubtitle = "Unknown Device";
 
-        var devPanel = new StackPanel
+        return new StackPanel
         {
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(16, 0),
@@ -713,8 +741,10 @@ public class ScannerPage : Border
                 new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Opacity = 0.7 }
             }
         };
+    }
 
-        // Open Ports — show actual discovered open ports as badges
+    private StackPanel CreatePortsPanel(NetworkNode node)
+    {
         var portsPanel = new StackPanel
         {
             Orientation = Orientation.Horizontal,
@@ -736,8 +766,11 @@ public class ScannerPage : Border
         {
             portsPanel.Children.Add(new TextBlock { Text = "—", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center });
         }
+        return portsPanel;
+    }
 
-        // I9: Action column — Save button to register device
+    private Button CreateSaveButton(NetworkNode node)
+    {
         var saveBtn = new Button
         {
             Content = "💾",
@@ -762,29 +795,7 @@ public class ScannerPage : Border
             saveBtn.Content = "✓";
             saveBtn.IsEnabled = false;
         };
-
-        Grid.SetColumn(statusBadge, 0);
-        Grid.SetColumn(ipText, 1);
-        Grid.SetColumn(macText, 2);
-        Grid.SetColumn(devPanel, 3);
-        Grid.SetColumn(portsPanel, 4);
-        Grid.SetColumn(saveBtn, 5);
-
-        grid.Children.Add(statusBadge);
-        grid.Children.Add(ipText);
-        grid.Children.Add(macText);
-        grid.Children.Add(devPanel);
-        grid.Children.Add(portsPanel);
-        grid.Children.Add(saveBtn);
-
-        return new Border
-        {
-            Background = alternate ? ThemeTokens.SurfaceContainerLowest : Brushes.Transparent,
-            BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
-            BorderThickness = new Thickness(0, 0, 0, 1),
-            Padding = new Thickness(0, 14),
-            Child = grid
-        };
+        return saveBtn;
     }
 
     /// <summary>Helper: creates a port badge pill</summary>
