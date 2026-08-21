@@ -279,11 +279,8 @@ public class LocalDatabase : IDisposable
     {
         var collection = _db.GetCollection<NetworkNode>("devices");
 
-        int deletedCount = 0;
-        foreach (var mac in macAddresses)
-        {
-            deletedCount += collection.DeleteMany(x => x.MacAddress == mac);
-        }
+        var macList = System.Linq.Enumerable.ToList(macAddresses);
+        int deletedCount = collection.DeleteMany(x => macList.Contains(x.MacAddress));
 
         Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
         Checkpoint();
