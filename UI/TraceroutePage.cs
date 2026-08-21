@@ -137,7 +137,7 @@ public class TraceroutePage : Border
             _progressBar.Value = hop.HopNumber;
             _statusText.Text = $"Hop {hop.HopNumber}: {hop.IpAddress}";
             _scroll.ScrollToEnd();
-        });
+        }, DispatcherPriority.Render);
     }
 
     private void OnTraceCompleted(bool success)

@@ -158,7 +158,7 @@ public class SystemLogsPage : Border
 
         if (_autoScrollToggle.IsChecked == true && _logBody.Children.Count > 0)
         {
-            // Delay scroll until after Avalonia has rendered the new rows (Issue 4 fix)
+            // Delay scroll until after Avalonia has rendered the new rows
             Dispatcher.UIThread.Post(() => {
                 _logScroll.ScrollToEnd();
             }, DispatcherPriority.Render);
