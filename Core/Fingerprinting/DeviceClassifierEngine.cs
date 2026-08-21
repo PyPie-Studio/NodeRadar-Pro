@@ -18,7 +18,17 @@ public static class DeviceClassifierEngine
         int printerScore = 0;
         int networkScore = 0;
 
-        string combinedData = string.Join(" ", probeResults.SelectMany(pr => pr.RawData.Values)).ToLowerInvariant();
+        bool ContainsData(string term)
+        {
+            foreach (var pr in probeResults)
+            {
+                foreach (var val in pr.RawData.Values)
+                {
+                    if (val.Contains(term, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+            }
+            return false;
+        }
         string hostname = node.Hostname?.ToLowerInvariant() ?? "";
         
         string vendor = probeResults.FirstOrDefault(pr => pr.Source == "MAC OUI Lookup")?.GetValue("Vendor")?.ToLowerInvariant() ?? "";
@@ -33,14 +43,14 @@ public static class DeviceClassifierEngine
         if (vendor.Contains("randomized mac") || vendor.Contains("privacy")) { iosScore += 20; iotScore += 20; }
 
         // 2. Banner & Protocol Data Scoring
-        if (combinedData.Contains("openssh")) linuxScore += 40;
-        if (combinedData.Contains("microsoft-httpapi") || combinedData.Contains("iis")) winScore += 50;
-        if (combinedData.Contains("mikrotik") || combinedData.Contains("routeros")) networkScore += 100;
-        if (combinedData.Contains("nginx") || combinedData.Contains("apache")) linuxScore += 30;
-        if (combinedData.Contains("printer") || combinedData.Contains("ipp") || combinedData.Contains("canon") || combinedData.Contains("epson") || combinedData.Contains("hp jetdirect")) printerScore += 80;
-        if (combinedData.Contains("apple-icon") || combinedData.Contains("apple device") || combinedData.Contains("homekit")) iosScore += 60;
-        if (combinedData.Contains("cast") || combinedData.Contains("chromecast") || combinedData.Contains("spotify") || combinedData.Contains("speaker") || combinedData.Contains("tv") || combinedData.Contains("webos")) iotScore += 60;
-        if (combinedData.Contains("android")) { iotScore += 40; linuxScore += 20; }
+        if (ContainsData("openssh")) linuxScore += 40;
+        if (ContainsData("microsoft-httpapi") || ContainsData("iis")) winScore += 50;
+        if (ContainsData("mikrotik") || ContainsData("routeros")) networkScore += 100;
+        if (ContainsData("nginx") || ContainsData("apache")) linuxScore += 30;
+        if (ContainsData("printer") || ContainsData("ipp") || ContainsData("canon") || ContainsData("epson") || ContainsData("hp jetdirect")) printerScore += 80;
+        if (ContainsData("apple-icon") || ContainsData("apple device") || ContainsData("homekit")) iosScore += 60;
+        if (ContainsData("cast") || ContainsData("chromecast") || ContainsData("spotify") || ContainsData("speaker") || ContainsData("tv") || ContainsData("webos")) iotScore += 60;
+        if (ContainsData("android")) { iotScore += 40; linuxScore += 20; }
 
         // 3. Port Fingerprinting
         if (node.OpenPorts != null)
@@ -113,7 +123,7 @@ public static class DeviceClassifierEngine
             
             if (winner.Key == "macOS/iOS")
             {
-                if (combinedData.Contains("iphone") || combinedData.Contains("ipad"))
+                if (ContainsData("iphone") || ContainsData("ipad"))
                 {
                     result.Type = DeviceTypeCategory.Mobile;
                     result.TypeString = "Mobile Device";
@@ -136,28 +146,28 @@ public static class DeviceClassifierEngine
             }
             else if (winner.Key == "Infrastructure")
             {
-                if (combinedData.Contains("switch")) { result.Type = DeviceTypeCategory.Switch; result.TypeString = "Network Switch"; }
-                else if (combinedData.Contains("firewall")) { result.Type = DeviceTypeCategory.Firewall; result.TypeString = "Firewall"; }
-                else if (combinedData.Contains("unifi") || combinedData.Contains("ap")) { result.Type = DeviceTypeCategory.AccessPoint; result.TypeString = "Access Point"; }
+                if (ContainsData("switch")) { result.Type = DeviceTypeCategory.Switch; result.TypeString = "Network Switch"; }
+                else if (ContainsData("firewall")) { result.Type = DeviceTypeCategory.Firewall; result.TypeString = "Firewall"; }
+                else if (ContainsData("unifi") || ContainsData("ap")) { result.Type = DeviceTypeCategory.AccessPoint; result.TypeString = "Access Point"; }
                 else { result.Type = DeviceTypeCategory.Router; result.TypeString = "Router / Gateway"; }
             }
             else if (winner.Key == "IoT")
             {
-                if (combinedData.Contains("tv") || combinedData.Contains("tizen") || combinedData.Contains("webos")) { result.Type = DeviceTypeCategory.TV; result.TypeString = "Smart TV"; }
-                else if (combinedData.Contains("speaker") || combinedData.Contains("sonos")) { result.Type = DeviceTypeCategory.Speaker; result.TypeString = "Smart Speaker"; }
-                else if (combinedData.Contains("camera") || combinedData.Contains("hikvision") || combinedData.Contains("dahua")) { result.Type = DeviceTypeCategory.Camera; result.TypeString = "IP Camera"; }
-                else if (combinedData.Contains("android") || (vendor.Contains("xiaomi") && !combinedData.Contains("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
-                else if (combinedData.Contains("playstation") || combinedData.Contains("xbox") || combinedData.Contains("nintendo")) { result.Type = DeviceTypeCategory.GameConsole; result.TypeString = "Game Console"; }
+                if (ContainsData("tv") || ContainsData("tizen") || ContainsData("webos")) { result.Type = DeviceTypeCategory.TV; result.TypeString = "Smart TV"; }
+                else if (ContainsData("speaker") || ContainsData("sonos")) { result.Type = DeviceTypeCategory.Speaker; result.TypeString = "Smart Speaker"; }
+                else if (ContainsData("camera") || ContainsData("hikvision") || ContainsData("dahua")) { result.Type = DeviceTypeCategory.Camera; result.TypeString = "IP Camera"; }
+                else if (ContainsData("android") || (vendor.Contains("xiaomi") && !ContainsData("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
+                else if (ContainsData("playstation") || ContainsData("xbox") || ContainsData("nintendo")) { result.Type = DeviceTypeCategory.GameConsole; result.TypeString = "Game Console"; }
                 else { result.Type = DeviceTypeCategory.IoT; result.TypeString = "IoT Smart Device"; }
             }
             else if (winner.Key == "Linux/Android")
             {
-                if (combinedData.Contains("android") || vendor.Contains("samsung") || vendor.Contains("huawei"))
+                if (ContainsData("android") || vendor.Contains("samsung") || vendor.Contains("huawei"))
                 {
                     result.Type = DeviceTypeCategory.Mobile;
                     result.TypeString = "Mobile Phone";
                 }
-                else if (combinedData.Contains("synology") || combinedData.Contains("qnap"))
+                else if (ContainsData("synology") || ContainsData("qnap"))
                 {
                     result.Type = DeviceTypeCategory.NAS;
                     result.TypeString = "NAS Storage";
@@ -170,7 +180,7 @@ public static class DeviceClassifierEngine
             }
         }
 
-        result.IconSvgKey = DeviceIconMapper.GetIconKey(result.Type, vendor, hostname, combinedData);
+        result.IconSvgKey = DeviceIconMapper.GetIconKey(result.Type, vendor, hostname, ContainsData);
 
         return result;
     }
