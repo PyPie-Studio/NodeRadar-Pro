@@ -27,6 +27,11 @@ public static class IntrusionAlerter
         };
     }
 
+    public static void SetNotificationManagerForTesting(INotificationManager? manager)
+    {
+        _notificationManager = manager;
+    }
+
     public static void AlertDeviceOffline(NetworkNode node)
     {
         if (!Enabled || _notificationManager == null) return;
