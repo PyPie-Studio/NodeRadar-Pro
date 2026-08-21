@@ -14,7 +14,7 @@ namespace NodeRadarPro.Data;
 /// </summary>
 public class LocalDatabase : IDisposable
 {
-    private static readonly Lazy<LocalDatabase> _instance = new(() => new LocalDatabase());
+    private static Lazy<LocalDatabase> _instance = new(() => new LocalDatabase());
     public static LocalDatabase Instance => _instance.Value;
 
     private readonly string _dbPath;
@@ -22,26 +22,38 @@ public class LocalDatabase : IDisposable
 
     private string _dbPassword;
 
-    private LocalDatabase()
+    public LocalDatabase(string? customDbPath = null, string? customPassword = null)
     {
-        string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
-        Directory.CreateDirectory(myFolder);
-        _dbPath = Path.Combine(myFolder, "noderadar.db");
-
-        _dbPassword = GetOrGenerateSecurePassword(myFolder);
-
-        // Ensure the db_key.bin is created
-        if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
+        if (customDbPath != null)
         {
-             SaveSecurePassword(myFolder, _dbPassword);
+            _dbPath = customDbPath;
+            _dbPassword = customPassword ?? "test_password";
+            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
         }
+        else
+        {
+            string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
+            Directory.CreateDirectory(myFolder);
+            _dbPath = Path.Combine(myFolder, "noderadar.db");
 
-        _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            _dbPassword = GetOrGenerateSecurePassword(myFolder);
+
+            // Ensure the db_key.bin is created
+            if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
+            {
+                 SaveSecurePassword(myFolder, _dbPassword);
+            }
+
+            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+        }
     }
 
     private string GetOrGenerateSecurePassword(string folder)
     {
+        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
+            return "test_password";
+
         string keyFile = Path.Combine(folder, "db_key.bin");
         if (File.Exists(keyFile))
         {
@@ -70,6 +82,9 @@ public class LocalDatabase : IDisposable
 
     private void SaveSecurePassword(string folder, string password)
     {
+        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
+            return;
+
         string keyFile = Path.Combine(folder, "db_key.bin");
         byte[] secret = System.Text.Encoding.UTF8.GetBytes(password);
         byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
