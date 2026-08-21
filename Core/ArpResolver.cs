@@ -18,6 +18,7 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class ArpResolver
 {
+    public delegate int SendArpDelegate(int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen);
     // Native Windows API for ARP resolution
     [DllImport("iphlpapi.dll", ExactSpelling = true)]
     private static extern int SendARP(int DestIP, int SrcIP, byte[] pMacAddr, ref uint PhyAddrLen);
@@ -25,11 +26,11 @@ public static class ArpResolver
     /// <summary>
     /// Attempts to resolve the MAC address for a given IP address.
     /// </summary>
-    public static string ResolveMacAddress(string ipAddress, string sourceIp = "")
+    public static string ResolveMacAddress(string ipAddress, string sourceIp = "", SendArpDelegate? sendArp = null)
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || sendArp != null)
         {
-            return ResolveWindows(ipAddress, sourceIp);
+            return ResolveWindows(ipAddress, sourceIp, sendArp);
         }
         
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -82,7 +83,7 @@ public static class ArpResolver
 
     // ── Windows: Single IP resolution via SendARP API ──
 
-    private static string ResolveWindows(string ipAddress, string sourceIp)
+    private static string ResolveWindows(string ipAddress, string sourceIp, SendArpDelegate? sendArp)
     {
         try
         {
@@ -94,7 +95,9 @@ public static class ArpResolver
 
 #pragma warning disable CS0618 
             int srcIpInt = (int)srcIp.Address;
-            int result = SendARP((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen);
+            int result = sendArp != null
+                ? sendArp((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen)
+                : SendARP((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen);
 #pragma warning restore CS0618 
 
             if (result != 0) return "Unknown";

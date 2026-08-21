@@ -68,4 +68,21 @@ public class ArpResolverTests
         // Assert
         Assert.NotNull(result);
     }
+
+    [Fact]
+    public void ResolveMacAddress_SendArpException_ReturnsUnknown()
+    {
+        // Arrange
+        string validIp = "192.168.1.1";
+        ArpResolver.SendArpDelegate failingSendArp = (int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen) =>
+        {
+            throw new Exception("Simulated SendARP failure");
+        };
+
+        // Act
+        string result = ArpResolver.ResolveMacAddress(validIp, "", failingSendArp);
+
+        // Assert
+        Assert.Equal("Unknown", result);
+    }
 }

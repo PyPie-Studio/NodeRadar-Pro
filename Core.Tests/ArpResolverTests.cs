@@ -47,5 +47,22 @@ namespace Core.Tests
             Assert.NotNull(result);
             Assert.IsType<List<(string Ip, string Mac)>>(result);
         }
+
+        [Fact]
+        public void ResolveMacAddress_SendArpException_ReturnsUnknown()
+        {
+            // Arrange
+            string validIp = "192.168.1.1";
+            ArpResolver.SendArpDelegate failingSendArp = (int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen) =>
+            {
+                throw new Exception("Simulated SendARP failure");
+            };
+
+            // Act
+            string result = ArpResolver.ResolveMacAddress(validIp, "", failingSendArp);
+
+            // Assert
+            Assert.Equal("Unknown", result);
+        }
     }
 }
