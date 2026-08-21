@@ -44,7 +44,9 @@ public class AppSettings
     public int SmtpPort { get; set; } = 587;
     public string SmtpEmail { get; set; } = "admin@node.local";
     public string SmtpUser { get; set; } = "";
+    [BsonIgnore]
     public string SmtpPassword { get; set; } = "";
+    public string? SmtpPasswordEncrypted { get; set; }
 
     // ── Application Maintenance ──
     public bool CheckUpdatesOnStartup { get; set; } = true;

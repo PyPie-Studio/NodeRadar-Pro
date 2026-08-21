@@ -414,12 +414,83 @@ public class LocalDatabase : IDisposable
 
     public AppSettings LoadSettings()
     {
+        var bsonCol = _db.GetCollection("settings");
+        var doc = bsonCol.FindById(1);
+
+        if (doc != null && doc.ContainsKey("SmtpPassword") && !doc["SmtpPassword"].IsNull && !string.IsNullOrEmpty(doc["SmtpPassword"].AsString))
+        {
+            var plainPass = doc["SmtpPassword"].AsString;
+            try
+            {
+                var secret = System.Text.Encoding.UTF8.GetBytes(plainPass);
+                var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                doc["SmtpPasswordEncrypted"] = Convert.ToBase64String(encrypted);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                var secret = System.Text.Encoding.UTF8.GetBytes(plainPass);
+                doc["SmtpPasswordEncrypted"] = Convert.ToBase64String(secret);
+            }
+            catch (Exception ex)
+            {
+                Log(LogLevel.Error, "Database", $"Failed to encrypt legacy SmtpPassword: {ex.Message}");
+            }
+
+            doc.Remove("SmtpPassword");
+            bsonCol.Update(doc);
+        }
+
         var collection = _db.GetCollection<AppSettings>("settings");
-        return collection.FindById(1) ?? new AppSettings();
+        var settings = collection.FindById(1) ?? new AppSettings();
+
+        if (!string.IsNullOrEmpty(settings.SmtpPasswordEncrypted))
+        {
+            try
+            {
+                var encrypted = Convert.FromBase64String(settings.SmtpPasswordEncrypted);
+                var decrypted = System.Security.Cryptography.ProtectedData.Unprotect(encrypted, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                settings.SmtpPassword = System.Text.Encoding.UTF8.GetString(decrypted);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                var decoded = Convert.FromBase64String(settings.SmtpPasswordEncrypted);
+                settings.SmtpPassword = System.Text.Encoding.UTF8.GetString(decoded);
+            }
+            catch (Exception ex)
+            {
+                Log(LogLevel.Error, "Database", $"Failed to decrypt SmtpPassword: {ex.Message}");
+                settings.SmtpPassword = "";
+            }
+        }
+
+        return settings;
     }
 
     public void SaveSettings(AppSettings settings)
     {
+        if (!string.IsNullOrEmpty(settings.SmtpPassword))
+        {
+            try
+            {
+                var secret = System.Text.Encoding.UTF8.GetBytes(settings.SmtpPassword);
+                var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+                settings.SmtpPasswordEncrypted = Convert.ToBase64String(encrypted);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                var secret = System.Text.Encoding.UTF8.GetBytes(settings.SmtpPassword);
+                settings.SmtpPasswordEncrypted = Convert.ToBase64String(secret);
+            }
+            catch (Exception ex)
+            {
+                Log(LogLevel.Error, "Database", $"Failed to encrypt SmtpPassword during save: {ex.Message}");
+            }
+        }
+        else
+        {
+            settings.SmtpPasswordEncrypted = null;
+        }
+
         var collection = _db.GetCollection<AppSettings>("settings");
         collection.Upsert(settings);
         Checkpoint();
