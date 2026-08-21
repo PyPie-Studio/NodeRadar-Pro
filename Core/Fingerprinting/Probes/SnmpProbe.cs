@@ -80,8 +80,8 @@ public class SnmpProbe : IFingerprintProbe
         pdu.AddRange(new byte[] { 0x05, 0x00 }); // Null value
         
         // Fix lengths
-        pdu[15] = (byte)(pdu.Count - 17); // Varbind length
-        pdu[13] = (byte)(pdu.Count - 15); // Varbind list length
+        pdu[17] = (byte)(pdu.Count - 19); // Varbind length
+        pdu[15] = (byte)(pdu.Count - 17); // Varbind list length
         pdu[1] = (byte)(pdu.Count - 2);   // PDU length
         
         packet.AddRange(pdu);
