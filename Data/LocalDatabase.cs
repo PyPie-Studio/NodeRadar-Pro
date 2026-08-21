@@ -342,12 +342,26 @@ public class LocalDatabase : IDisposable
 
     public NetworkNode? GetRegisteredDeviceByIp(string ip)
     {
-        return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
+        try
+        {
+            return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public List<NetworkNode> GetRegisteredDevices()
     {
-        return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
+        try
+        {
+            return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
+        }
+        catch
+        {
+            return new List<NetworkNode>();
+        }
     }
 
     // ══════════════════════════════════
