@@ -1,0 +1,42 @@
+{
+  "entities": [
+    {
+      "name": "NodeRadar Pro Architecture",
+      "entityType": "ArchitectureDecision",
+      "observations": [
+        "Standalone Avalonia 12 UI (.NET 10) desktop utility by PyPie Studio.",
+        "Core engines handle ARP resolution, ICMP sweeps, port scanning, and intrusion detection.",
+        "Embedded LiteDB v5 database protected by AES-256 and Windows DPAPI."
+      ]
+    },
+    {
+      "name": "UI/UX Formatting Standards",
+      "entityType": "Rule",
+      "observations": [
+        "12-Hour AM/PM time formatting standard is mandatory: yyyy-MM-dd hh:mm:ss tt. Never use 24-hour military time.",
+        "Dark-Purple Glassmorphic theme with 100% English LTR layout across all views."
+      ]
+    },
+    {
+      "name": "Security & Cryptography Guardrails",
+      "entityType": "SecurityGuardrail",
+      "observations": [
+        "Local credentials and DB passwords encrypted via System.Security.Cryptography.ProtectedData (DPAPI).",
+        "Path sanitization via Path.GetFullPath mandatory for export and updater paths.",
+        "Constant-time validation via CryptographicOperations.FixedTimeEquals."
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "from": "NodeRadar Pro Architecture",
+      "to": "UI/UX Formatting Standards",
+      "relationType": "enforces"
+    },
+    {
+      "from": "NodeRadar Pro Architecture",
+      "to": "Security & Cryptography Guardrails",
+      "relationType": "enforces"
+    }
+  ]
+}

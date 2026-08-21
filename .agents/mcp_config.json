@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "env": {
+        "MEMORY_FILE_PATH": "c:/Users/tryku/Desktop/Coding/Projects/C#/Cross-Platform/NodeRadar Pro/.agents/memory/memory.json"
+      }
+    },
+    "graphify": {
+      "command": "C:/Users/tryku/.local/bin/graphify-mcp.exe",
+      "args": ["graphify-out/graph.json"]
+    }
+  }
+}

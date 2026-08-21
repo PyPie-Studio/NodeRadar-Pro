@@ -1,0 +1,17 @@
+#!/usr/bin/env pwsh
+# NodeRadar Pro Pre-Push Git Hook
+# Runs the local master gate before pushing to master/main branches.
+
+$branch = (git rev-parse --abbrev-ref HEAD).Trim()
+if ($branch -in @("master", "main")) {
+    Write-Host "== [pre-push] Pushing to protected branch '$branch' - executing local quality gate ==" -ForegroundColor Cyan
+    $gateScript = Join-Path $PSScriptRoot "..\scripts\Test-MasterGate.ps1"
+    if (Test-Path $gateScript) {
+        & pwsh -NoProfile -ExecutionPolicy Bypass -File $gateScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "== [pre-push] Gate failed with exit code $LASTEXITCODE. Push rejected. ==" -ForegroundColor Red
+            exit 1
+        }
+    }
+}
+exit 0

@@ -1,0 +1,93 @@
+root = true
+
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+[*.cs]
+# Roslyn Code Analysis Diagnostics (CA rules) enforced as warnings
+dotnet_analyzer_diagnostic.severity = warning
+
+# Remove unused usings - enforced by gate + CI via dotnet format analyzers
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Visual Studio IDE Code Style Rules (IDE0001-IDE0390, whitespace, formatting) as silent editor suggestions
+dotnet_analyzer_diagnostic.category.Style.severity = silent
+dotnet_diagnostic.IDE0001.severity = silent
+dotnet_diagnostic.IDE0002.severity = silent
+dotnet_diagnostic.IDE0004.severity = silent
+dotnet_diagnostic.IDE0007.severity = silent
+dotnet_diagnostic.IDE0008.severity = silent
+dotnet_diagnostic.IDE0010.severity = silent
+dotnet_diagnostic.IDE0011.severity = silent
+dotnet_diagnostic.IDE0017.severity = silent
+dotnet_diagnostic.IDE0021.severity = silent
+dotnet_diagnostic.IDE0022.severity = silent
+dotnet_diagnostic.IDE0028.severity = silent
+dotnet_diagnostic.IDE0031.severity = silent
+dotnet_diagnostic.IDE0032.severity = silent
+dotnet_diagnostic.IDE0037.severity = silent
+dotnet_diagnostic.IDE0040.severity = silent
+dotnet_diagnostic.IDE0042.severity = silent
+dotnet_diagnostic.IDE0044.severity = silent
+dotnet_diagnostic.IDE0045.severity = silent
+dotnet_diagnostic.IDE0046.severity = silent
+dotnet_diagnostic.IDE0047.severity = silent
+dotnet_diagnostic.IDE0048.severity = silent
+dotnet_diagnostic.IDE0051.severity = silent
+dotnet_diagnostic.IDE0052.severity = silent
+dotnet_diagnostic.IDE0055.severity = silent
+dotnet_diagnostic.IDE0057.severity = silent
+dotnet_diagnostic.IDE0058.severity = silent
+dotnet_diagnostic.IDE0059.severity = silent
+dotnet_diagnostic.IDE0060.severity = silent
+dotnet_diagnostic.IDE0063.severity = silent
+dotnet_diagnostic.IDE0072.severity = silent
+dotnet_diagnostic.IDE0074.severity = silent
+dotnet_diagnostic.IDE0078.severity = silent
+dotnet_diagnostic.IDE0090.severity = silent
+dotnet_diagnostic.IDE0160.severity = silent
+dotnet_diagnostic.IDE0200.severity = silent
+dotnet_diagnostic.IDE0270.severity = silent
+dotnet_diagnostic.IDE0290.severity = silent
+dotnet_diagnostic.IDE0300.severity = silent
+dotnet_diagnostic.IDE0301.severity = silent
+dotnet_diagnostic.IDE0305.severity = silent
+dotnet_diagnostic.IDE0306.severity = silent
+dotnet_diagnostic.IDE0330.severity = silent
+dotnet_diagnostic.IDE0370.severity = silent
+dotnet_diagnostic.IDE0390.severity = silent
+dotnet_diagnostic.IDE0079.severity = silent
+dotnet_diagnostic.IDE1005.severity = silent
+dotnet_diagnostic.IDE1006.severity = silent
+
+# Specific Roslyn Rule Overrides (Production)
+dotnet_diagnostic.CA1716.severity = none         # Identifiers matching reserved keywords
+dotnet_diagnostic.CA2007.severity = none         # Consider Calling ConfigureAwait (.NET 10 desktop)
+dotnet_diagnostic.CA1014.severity = none         # Mark assemblies with CLSCompliant attribute
+dotnet_diagnostic.CA1848.severity = none         # Use LoggerMessage delegates
+dotnet_diagnostic.CA1873.severity = none         # Logging argument evaluation check
+dotnet_diagnostic.CA1416.severity = none         # Platform compatibility checks (Windows DPAPI / Win32 SendARP)
+dotnet_diagnostic.MVVMTK0042.severity = none     # Convert backing field to partial property
+dotnet_diagnostic.SYSLIB1054.severity = none     # Use LibraryImport instead of DllImport for P/Invoke
+dotnet_diagnostic.CA1822.severity = none         # Mark members as static
+dotnet_diagnostic.CA1861.severity = none         # Constant arrays passed as arguments
+dotnet_diagnostic.CA1847.severity = none         # Use char overload for single char string lookups
+dotnet_diagnostic.xUnit2032.severity = none      # Assert.IsAssignableFrom vs Assert.IsType
+
+[*.Tests.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA2201.severity = none
+dotnet_diagnostic.CA1852.severity = none
+dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.xUnit2032.severity = none
+
+[*.{axaml,xml,json,md,yml,yaml}]
+indent_style = space
+indent_size = 4

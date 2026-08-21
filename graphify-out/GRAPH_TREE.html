@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>/ — graphify tree viewer</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1 {
+      margin: 20px 0 0 24px;
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #1e3a56;
+    }
+    .controls {
+      margin: 20px 0 15px 24px;
+    }
+    button {
+      margin-right: 10px;
+      padding: 8px 18px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background 0.2s ease-in-out;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    button:active {
+      background: #004085;
+    }
+    #tree-container {
+      width: calc(100vw - 48px); /* Adjust for body margin/padding */
+      height: 85vh;
+      overflow: auto;
+      border-radius: 8px;
+      background: #fff;
+      margin-left: 24px;
+      margin-right: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #ddd;
+    }
+    svg {
+      background: #fff;
+      border-radius: 8px;
+      display: block; /* Important for D3 */
+    }
+    .node circle {
+      stroke-width: 2.5px;
+    }
+    .node text { /* Base style for the <text> container */
+      font: 13px 'Segoe UI', sans-serif;
+      paint-order: stroke fill; /* Ensures text is readable over lines */
+      stroke: #fff; /* White halo */
+      stroke-width: 3px; /* Halo thickness */
+      stroke-linejoin: round;
+      stroke-opacity: 0.85; /* Halo opacity */
+    }
+    .link {
+      fill: none;
+      stroke-opacity: 0.7;
+      stroke-width: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>/ — Knowledge Graph</h1>
+  <div class="controls">
+    <button onclick="expandAll()">Expand All</button>
+    <button onclick="collapseAll()">Collapse All</button>
+    <button onclick="resetView()">Reset View</button>
+  </div>
+  <div id="tree-container">
+    <svg id="tree-svg" width="6000" height="8000"></svg>
+  </div>
+
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    const initialJsonData = {"name":"/","total_count":425,"children":[{"name":".agents","total_count":10,"children":[{"name":"skills","total_count":10,"children":[{"name":"superpowers-workflow","total_count":10,"children":[{"name":"scripts","total_count":10,"children":[{"name":"record_activation.py","total_count":2,"children":[{"name":"find_repo_root()","total_count":1,"children":[]},{"name":"main()","total_count":1,"children":[]}]},{"name":"spawn_subagent.py","total_count":6,"children":[{"name":"find_repo_root()","total_count":1,"children":[]},{"name":"Load skill instructions from SKILL.md file.","total_count":1,"children":[]},{"name":"load_skill_instructions()","total_count":1,"children":[]},{"name":"main()","total_count":1,"children":[]},{"name":"spawn_subagent()","total_count":1,"children":[]},{"name":"Traverse upwards to find the repository root (containing .agents/).","total_count":1,"children":[]}]},{"name":"write_artifact.py","total_count":2,"children":[{"name":"find_repo_root()","total_count":1,"children":[]},{"name":"main()","total_count":1,"children":[]}]}]}]}]}]},{"name":"App.axaml.cs","total_count":4,"children":[{"name":".Initialize()","total_count":1,"children":[]},{"name":".OnFrameworkInitializationCompleted()","total_count":1,"children":[]},{"name":"App","total_count":1,"children":[]},{"name":"NodeRadar_Pro","total_count":1,"children":[]}]},{"name":"Core","total_count":183,"children":[{"name":"AlertEvent.cs","total_count":3,"children":[{"name":"AlertEvent","total_count":1,"children":[]},{"name":"AlertType","total_count":1,"children":[]},{"name":"NodeRadarPro.Core","total_count":1,"children":[]}]},{"name":"AppSettings.cs","total_count":1,"children":[{"name":"AppSettings","total_count":1,"children":[]}]},{"name":"ArpResolver.cs","total_count":7,"children":[{"name":".GetFullArpTable()","total_count":1,"children":[]},{"name":".GetWindowsArpTable()","total_count":1,"children":[]},{"name":".ResolveMacAddress()","total_count":1,"children":[]},{"name":".ResolveWindows()","total_count":1,"children":[]},{"name":".SendARP()","total_count":1,"children":[]},{"name":".TryResolveNetBiosName()","total_count":1,"children":[]},{"name":"ArpResolver","total_count":1,"children":[]}]},{"name":"AudioService.cs","total_count":2,"children":[{"name":".PlayAlert()","total_count":1,"children":[]},{"name":"AudioService","total_count":1,"children":[]}]},{"name":"ConnectivityMonitor.cs","total_count":10,"children":[{"name":".AddDevice()","total_count":1,"children":[]},{"name":".CheckAllDevicesAsync()","total_count":1,"children":[]},{"name":".GetAllDevices()","total_count":1,"children":[]},{"name":".GetLocalBindingIp()","total_count":1,"children":[]},{"name":".RemoveDevice()","total_count":1,"children":[]},{"name":".SetDatabase()","total_count":1,"children":[]},{"name":".StartMonitoringAsync()","total_count":1,"children":[]},{"name":".TryTcpProbeAsync()","total_count":1,"children":[]},{"name":".UpdateTrackedDevices()","total_count":1,"children":[]},{"name":"ConnectivityMonitor","total_count":1,"children":[]}]},{"name":"Discovery","total_count":22,"children":[{"name":"ArpDiscoveryMethod.cs","total_count":6,"children":[{"name":".DiscoverAsync()","total_count":1,"children":[]},{"name":".GetMacVendor()","total_count":1,"children":[]},{"name":".ResolveMac()","total_count":1,"children":[]},{"name":".SendARP()","total_count":1,"children":[]},{"name":"ArpDiscoveryMethod","total_count":1,"children":[]},{"name":"NodeRadarPro.Core.Discovery","total_count":1,"children":[]}]},{"name":"DiagnosticLogger.cs","total_count":2,"children":[{"name":".Log()","total_count":1,"children":[]},{"name":"DiagnosticLogger","total_count":1,"children":[]}]},{"name":"DiscoveryEngine.cs","total_count":2,"children":[{"name":".RunDiscoveryAsync()","total_count":1,"children":[]},{"name":"DiscoveryEngine","total_count":1,"children":[]}]},{"name":"IDiscoveryMethod.cs","total_count":2,"children":[{"name":".DiscoverAsync()","total_count":1,"children":[]},{"name":"IDiscoveryMethod","total_count":1,"children":[]}]},{"name":"MdnsDiscoveryMethod.cs","total_count":6,"children":[{"name":".CreateMdnsQuery()","total_count":1,"children":[]},{"name":".DiscoverAsync()","total_count":1,"children":[]},{"name":".GetDeviceTypeFromMdns()","total_count":1,"children":[]},{"name":".GetVendorFromMdns()","total_count":1,"children":[]},{"name":".ParseMdnsHostname()","total_count":1,"children":[]},{"name":"MdnsDiscoveryMethod","total_count":1,"children":[]}]},{"name":"NetworkDevice.cs","total_count":1,"children":[{"name":"NetworkDevice","total_count":1,"children":[]}]},{"name":"SsdpDiscoveryMethod.cs","total_count":3,"children":[{"name":".DiscoverAsync()","total_count":1,"children":[]},{"name":".ParseVendorFromServerHeader()","total_count":1,"children":[]},{"name":"SsdpDiscoveryMethod","total_count":1,"children":[]}]}]},{"name":"EmailService.cs","total_count":2,"children":[{"name":".SendAlertAsync()","total_count":1,"children":[]},{"name":"EmailService","total_count":1,"children":[]}]},{"name":"Fingerprinting","total_count":66,"children":[{"name":"DeepFingerprintEngine.cs","total_count":5,"children":[{"name":".FingerprintNodeAsync()","total_count":1,"children":[]},{"name":".StartDiscoverySweepAsync()","total_count":1,"children":[]},{"name":".TriggerDhcpForceRenewAsync()","total_count":1,"children":[]},{"name":"DeepFingerprintEngine","total_count":1,"children":[]},{"name":"NodeRadarPro.Core.Fingerprinting","total_count":1,"children":[]}]},{"name":"DeviceClassifierEngine.cs","total_count":4,"children":[{"name":".Classify()","total_count":1,"children":[]},{"name":".IsMobileVendor()","total_count":1,"children":[]},{"name":".IsValidModel()","total_count":1,"children":[]},{"name":"DeviceClassifierEngine","total_count":1,"children":[]}]},{"name":"DeviceIconMapper.cs","total_count":2,"children":[{"name":".GetIconKey()","total_count":1,"children":[]},{"name":"DeviceIconMapper","total_count":1,"children":[]}]},{"name":"FingerprintResult.cs","total_count":4,"children":[{"name":".GetValue()","total_count":1,"children":[]},{"name":"DeviceTypeCategory","total_count":1,"children":[]},{"name":"FingerprintResult","total_count":1,"children":[]},{"name":"ProbeResult","total_count":1,"children":[]}]},{"name":"IFingerprintProbe.cs","total_count":2,"children":[{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":"IFingerprintProbe","total_count":1,"children":[]}]},{"name":"Probes","total_count":49,"children":[{"name":"BannerGrabProbe.cs","total_count":5,"children":[{"name":".GrabBannerAsync()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".ProbeHttpMetadataAsync()","total_count":1,"children":[]},{"name":"BannerGrabProbe","total_count":1,"children":[]},{"name":"NodeRadarPro.Core.Fingerprinting.Probes","total_count":1,"children":[]}]},{"name":"DhcpFingerprintProbe.cs","total_count":6,"children":[{"name":".ParseDhcpPacket()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".SendForceRenewAsync()","total_count":1,"children":[]},{"name":".StartSweepAsync()","total_count":1,"children":[]},{"name":"DhcpData","total_count":1,"children":[]},{"name":"DhcpFingerprintProbe","total_count":1,"children":[]}]},{"name":"MacOuiProbe.cs","total_count":2,"children":[{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":"MacOuiProbe","total_count":1,"children":[]}]},{"name":"MdnsProbe.cs","total_count":10,"children":[{"name":".CreateMdnsQuery()","total_count":1,"children":[]},{"name":".ExtractMdnsInstanceName()","total_count":1,"children":[]},{"name":".ExtractSrvHostname()","total_count":1,"children":[]},{"name":".ParseTxtRecords()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".ReadDnsName()","total_count":1,"children":[]},{"name":".SkipDnsName()","total_count":1,"children":[]},{"name":".StartSweepAsync()","total_count":1,"children":[]},{"name":"MdnsData","total_count":1,"children":[]},{"name":"MdnsProbe","total_count":1,"children":[]}]},{"name":"MndpProbe.cs","total_count":7,"children":[{"name":".FormatUptime()","total_count":1,"children":[]},{"name":".ListenForMndpPackets()","total_count":1,"children":[]},{"name":".ParseMndpPayload()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".StartSweepAsync()","total_count":1,"children":[]},{"name":"MndpData","total_count":1,"children":[]},{"name":"MndpProbe","total_count":1,"children":[]}]},{"name":"NbnsProbe.cs","total_count":3,"children":[{"name":".ParseNodeStatusResponse()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":"NbnsProbe","total_count":1,"children":[]}]},{"name":"SnmpProbe.cs","total_count":4,"children":[{"name":".BuildSnmpSysDescrRequest()","total_count":1,"children":[]},{"name":".ParseSnmpResponse()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":"SnmpProbe","total_count":1,"children":[]}]},{"name":"SsdpProbe.cs","total_count":6,"children":[{"name":".ExtractXmlValue()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".StartSweepAsync()","total_count":1,"children":[]},{"name":".TryFetchSsdpLocationXmlAsync()","total_count":1,"children":[]},{"name":"SsdpData","total_count":1,"children":[]},{"name":"SsdpProbe","total_count":1,"children":[]}]},{"name":"WsDiscoveryProbe.cs","total_count":6,"children":[{"name":".ExtractXmlValue()","total_count":1,"children":[]},{"name":".ParseScopes()","total_count":1,"children":[]},{"name":".ProbeAsync()","total_count":1,"children":[]},{"name":".StartSweepAsync()","total_count":1,"children":[]},{"name":"WsdData","total_count":1,"children":[]},{"name":"WsDiscoveryProbe","total_count":1,"children":[]}]}]}]},{"name":"IntrusionAlerter.cs","total_count":5,"children":[{"name":".AlertDeviceOffline()","total_count":1,"children":[]},{"name":".AlertDeviceReconnected()","total_count":1,"children":[]},{"name":".AlertNewDevice()","total_count":1,"children":[]},{"name":".Initialize()","total_count":1,"children":[]},{"name":"IntrusionAlerter","total_count":1,"children":[]}]},{"name":"IntrusionDetector.cs","total_count":2,"children":[{"name":".StartAsync()","total_count":1,"children":[]},{"name":"IntrusionDetector","total_count":1,"children":[]}]},{"name":"LogEntry.cs","total_count":2,"children":[{"name":"LogEntry","total_count":1,"children":[]},{"name":"LogLevel","total_count":1,"children":[]}]},{"name":"Logger.cs","total_count":6,"children":[{"name":".CheckRotation()","total_count":1,"children":[]},{"name":".CleanupOldLogs()","total_count":1,"children":[]},{"name":".GetLogDirectory()","total_count":1,"children":[]},{"name":".Log()","total_count":1,"children":[]},{"name":".ProcessQueue()","total_count":1,"children":[]},{"name":"Logger","total_count":1,"children":[]}]},{"name":"Messaging","total_count":10,"children":[{"name":"EventAggregator.cs","total_count":7,"children":[{"name":".GetDelegate()","total_count":1,"children":[]},{"name":".Publish()","total_count":1,"children":[]},{"name":".Subscribe()","total_count":1,"children":[]},{"name":".Unsubscribe()","total_count":1,"children":[]},{"name":"EventAggregator","total_count":1,"children":[]},{"name":"NodeRadarPro.Core.Messaging","total_count":1,"children":[]},{"name":"WeakSubscription","total_count":1,"children":[]}]},{"name":"Messages.cs","total_count":3,"children":[{"name":"GlobalStatsUpdatedMessage","total_count":1,"children":[]},{"name":"NavigateToPageMessage","total_count":1,"children":[]},{"name":"NodesUpdatedMessage","total_count":1,"children":[]}]}]},{"name":"NetworkNode.cs","total_count":3,"children":[{"name":".RecordPing()","total_count":1,"children":[]},{"name":"NetworkNode","total_count":1,"children":[]},{"name":"ThreatLevel","total_count":1,"children":[]}]},{"name":"PortScanner.cs","total_count":7,"children":[{"name":".GetServiceName()","total_count":1,"children":[]},{"name":".GuessOs()","total_count":1,"children":[]},{"name":".IsPortOpenAsync()","total_count":1,"children":[]},{"name":".ScanCommonPortsAsync()","total_count":1,"children":[]},{"name":".ScanPortsAsync()","total_count":1,"children":[]},{"name":".ScanRangeAsync()","total_count":1,"children":[]},{"name":"PortScanner","total_count":1,"children":[]}]},{"name":"ScannerDiagnostics.cs","total_count":9,"children":[{"name":".RunDiagnosticsAsync()","total_count":1,"children":[]},{"name":".TestArpTableParsing()","total_count":1,"children":[]},{"name":".TestDeviceClassifier()","total_count":1,"children":[]},{"name":".TestDiscoveryEngineComponents()","total_count":1,"children":[]},{"name":".TestInterfaceDetection()","total_count":1,"children":[]},{"name":".TestQuickProbeAsync()","total_count":1,"children":[]},{"name":".TestScannerSweepAndDeduplicationAsync()","total_count":1,"children":[]},{"name":".TestSubnetRetrieval()","total_count":1,"children":[]},{"name":"ScannerDiagnostics","total_count":1,"children":[]}]},{"name":"SecurityService.cs","total_count":2,"children":[{"name":".ComputeFileHash()","total_count":1,"children":[]},{"name":"SecurityService","total_count":1,"children":[]}]},{"name":"SubnetScanner.cs","total_count":12,"children":[{"name":".BuildNode()","total_count":1,"children":[]},{"name":".GetAllLocalBaseIps()","total_count":1,"children":[]},{"name":".GetLocalBaseIp()","total_count":1,"children":[]},{"name":".IsIpOnLocalSubnet()","total_count":1,"children":[]},{"name":".ProbeAndResolveAsync()","total_count":1,"children":[]},{"name":".QuickProbeAsync()","total_count":1,"children":[]},{"name":".ResolveBindingIp()","total_count":1,"children":[]},{"name":".ResolveNodeMetadataAsync()","total_count":1,"children":[]},{"name":".ScanRangeAsync()","total_count":1,"children":[]},{"name":".ScanSubnetAsync()","total_count":1,"children":[]},{"name":".TryGetHostnameAsync()","total_count":1,"children":[]},{"name":"SubnetScanner","total_count":1,"children":[]}]},{"name":"TracerouteEngine.cs","total_count":4,"children":[{"name":".ProbeHopAsync()","total_count":1,"children":[]},{"name":".RunTracerouteAsync()","total_count":1,"children":[]},{"name":"RouteHop","total_count":1,"children":[]},{"name":"TracerouteEngine","total_count":1,"children":[]}]},{"name":"UpdateService.cs","total_count":3,"children":[{"name":".CheckForUpdatesAsync()","total_count":1,"children":[]},{"name":".DownloadAndInstallAsync()","total_count":1,"children":[]},{"name":"UpdateService","total_count":1,"children":[]}]},{"name":"UptimeSnapshot.cs","total_count":1,"children":[{"name":"UptimeSnapshot","total_count":1,"children":[]}]},{"name":"VulnerabilityEngine.cs","total_count":2,"children":[{"name":".UpdateThreatLevel()","total_count":1,"children":[]},{"name":"VulnerabilityEngine","total_count":1,"children":[]}]},{"name":"WakeOnLan.cs","total_count":2,"children":[{"name":".WakeAsync()","total_count":1,"children":[]},{"name":"WakeOnLan","total_count":1,"children":[]}]}]},{"name":"Data","total_count":36,"children":[{"name":"LocalDatabase.cs","total_count":26,"children":[{"name":".BackupDatabase()","total_count":1,"children":[]},{"name":".CleanupOldBackups()","total_count":1,"children":[]},{"name":".DeleteDevice()","total_count":1,"children":[]},{"name":".DeleteDevices()","total_count":1,"children":[]},{"name":".Dispose()","total_count":1,"children":[]},{"name":".GetAlerts()","total_count":1,"children":[]},{"name":".GetLogs()","total_count":1,"children":[]},{"name":".GetOrGenerateSecurePassword()","total_count":1,"children":[]},{"name":".GetRegisteredDevices()","total_count":1,"children":[]},{"name":".GetUnresolvedAlertCount()","total_count":1,"children":[]},{"name":".GetUptimeHistory()","total_count":1,"children":[]},{"name":".InsertAlert()","total_count":1,"children":[]},{"name":".InsertLog()","total_count":1,"children":[]},{"name":".InsertUptimeSnapshots()","total_count":1,"children":[]},{"name":".LoadSettings()","total_count":1,"children":[]},{"name":".Log()","total_count":1,"children":[]},{"name":".MergeWithHistory()","total_count":1,"children":[]},{"name":".ResolveAlert()","total_count":1,"children":[]},{"name":".ResolveAllAlerts()","total_count":1,"children":[]},{"name":".RestoreDatabase()","total_count":1,"children":[]},{"name":".SaveSecurePassword()","total_count":1,"children":[]},{"name":".SaveSettings()","total_count":1,"children":[]},{"name":".UpdateDeviceAlertPrefs()","total_count":1,"children":[]},{"name":".UpdateRegistration()","total_count":1,"children":[]},{"name":"LocalDatabase","total_count":1,"children":[]},{"name":"NodeRadarPro.Data","total_count":1,"children":[]}]},{"name":"OuiDatabase.cs","total_count":6,"children":[{"name":".Dispose()","total_count":1,"children":[]},{"name":".GetCount()","total_count":1,"children":[]},{"name":".GetVendor()","total_count":1,"children":[]},{"name":".Seed()","total_count":1,"children":[]},{"name":"OuiDatabase","total_count":1,"children":[]},{"name":"OuiEntry","total_count":1,"children":[]}]},{"name":"VendorLookup.cs","total_count":4,"children":[{"name":".Add()","total_count":1,"children":[]},{"name":".GetVendor()","total_count":1,"children":[]},{"name":".GuessDeviceType()","total_count":1,"children":[]},{"name":"VendorLookup","total_count":1,"children":[]}]}]},{"name":"mcp.json","total_count":6,"children":[{"name":"@modelcontextprotocol/server-memory","total_count":1,"children":[]},{"name":"graphify","total_count":1,"children":[]},{"name":"memory","total_count":1,"children":[]},{"name":"MEMORY_FILE_PATH","total_count":1,"children":[]},{"name":"npx","total_count":1,"children":[]},{"name":"python","total_count":1,"children":[]}]},{"name":"NodeRadar Pro.csproj","total_count":14,"children":[{"name":"Avalonia (12.0.2)","total_count":1,"children":[]},{"name":"Avalonia.Desktop (12.0.2)","total_count":1,"children":[]},{"name":"Avalonia.Fonts.Inter (12.0.2)","total_count":1,"children":[]},{"name":"Avalonia.Themes.Fluent (12.0.2)","total_count":1,"children":[]},{"name":"AvaloniaUI.DiagnosticsSupport (2.2.1)","total_count":1,"children":[]},{"name":"LiteDB (5.0.21)","total_count":1,"children":[]},{"name":"MailKit (4.16.0)","total_count":1,"children":[]},{"name":"Microsoft.NET.Sdk","total_count":1,"children":[]},{"name":"net10.0-windows10.0.19041.0","total_count":1,"children":[]},{"name":"NodeRadar Pro","total_count":1,"children":[]},{"name":"Obfuscar (2.2.50)","total_count":1,"children":[]},{"name":"System.Management (10.0.7)","total_count":1,"children":[]},{"name":"System.Security.Cryptography.ProtectedData (10.0.8)","total_count":1,"children":[]},{"name":"System.Windows.Extensions (10.0.7)","total_count":1,"children":[]}]},{"name":"opencode.json","total_count":22,"children":[{"name":"$schema","total_count":1,"children":[]},{"name":"-m","total_count":1,"children":[]},{"name":"-y","total_count":1,"children":[]},{"name":"@dietrichgebert/ponytail","total_count":1,"children":[]},{"name":"@modelcontextprotocol/server-memory","total_count":1,"children":[]},{"name":"command","total_count":1,"children":[]},{"name":"command","total_count":1,"children":[]},{"name":"cwd","total_count":1,"children":[]},{"name":"enabled","total_count":1,"children":[]},{"name":"enabled","total_count":1,"children":[]},{"name":"environment","total_count":1,"children":[]},{"name":"graphify","total_count":1,"children":[]},{"name":"graphify-out/graph.json","total_count":1,"children":[]},{"name":"graphify.serve","total_count":1,"children":[]},{"name":"mcp","total_count":1,"children":[]},{"name":"memory","total_count":1,"children":[]},{"name":"MEMORY_FILE_PATH","total_count":1,"children":[]},{"name":"npx","total_count":1,"children":[]},{"name":"plugin","total_count":1,"children":[]},{"name":"python","total_count":1,"children":[]},{"name":"type","total_count":1,"children":[]},{"name":"type","total_count":1,"children":[]}]},{"name":"Program.cs","total_count":3,"children":[{"name":".BuildAvaloniaApp()","total_count":1,"children":[]},{"name":".Main()","total_count":1,"children":[]},{"name":"Program","total_count":1,"children":[]}]},{"name":"scripts","total_count":3,"children":[{"name":"Build-ReleasePackage.ps1","total_count":1,"children":[]},{"name":"Get-AnalyzerReport.ps1","total_count":1,"children":[]},{"name":"Test-MasterGate.ps1","total_count":1,"children":[]}]},{"name":"UI","total_count":143,"children":[{"name":"AlertsPage.cs","total_count":7,"children":[{"name":".BuildAlertCard()","total_count":1,"children":[]},{"name":".GetTimeAgo()","total_count":1,"children":[]},{"name":".MakeFilterChip()","total_count":1,"children":[]},{"name":".MakeStatCard()","total_count":1,"children":[]},{"name":".RefreshAlerts()","total_count":1,"children":[]},{"name":"AlertsPage","total_count":1,"children":[]},{"name":"NodeRadarPro.UI","total_count":1,"children":[]}]},{"name":"DarkPurpleTheme.cs","total_count":7,"children":[{"name":".ApplySettings()","total_count":1,"children":[]},{"name":".BuildMainWindow()","total_count":1,"children":[]},{"name":".CheckForUpdatesOnStartupAsync()","total_count":1,"children":[]},{"name":".InitializeAutoBackupTimer()","total_count":1,"children":[]},{"name":".OnStartup()","total_count":1,"children":[]},{"name":".ShowUpdatePrompt()","total_count":1,"children":[]},{"name":"DarkPurpleTheme","total_count":1,"children":[]}]},{"name":"DashboardPage.cs","total_count":5,"children":[{"name":".MakeBentoStat()","total_count":1,"children":[]},{"name":".MakePingRow()","total_count":1,"children":[]},{"name":".RefreshData()","total_count":1,"children":[]},{"name":".RefreshPingsList()","total_count":1,"children":[]},{"name":"DashboardPage","total_count":1,"children":[]}]},{"name":"InventoryPage.cs","total_count":35,"children":[{"name":".BuildDeviceCard()","total_count":1,"children":[]},{"name":".DoActualBulkDelete()","total_count":1,"children":[]},{"name":".DoActualDelete()","total_count":1,"children":[]},{"name":".GetDeviceSvg()","total_count":1,"children":[]},{"name":".GetRichSubtitle()","total_count":1,"children":[]},{"name":".GetTimeAgo()","total_count":1,"children":[]},{"name":".MakeAlertToggleRow()","total_count":1,"children":[]},{"name":".MakeFieldLabel()","total_count":1,"children":[]},{"name":".MakeFilterChip()","total_count":1,"children":[]},{"name":".MakeInfoPill()","total_count":1,"children":[]},{"name":".MakeTimeTab()","total_count":1,"children":[]},{"name":".OnAddDevice()","total_count":1,"children":[]},{"name":".OnBulkDeleteClicked()","total_count":1,"children":[]},{"name":".OnDeleteClicked()","total_count":1,"children":[]},{"name":".OnPingClicked()","total_count":1,"children":[]},{"name":".OnPortScanClicked()","total_count":1,"children":[]},{"name":".OnSaveClicked()","total_count":1,"children":[]},{"name":".OnWakeClicked()","total_count":1,"children":[]},{"name":".RefreshData()","total_count":1,"children":[]},{"name":".RefreshDetailView()","total_count":1,"children":[]},{"name":".RefreshDeviceList()","total_count":1,"children":[]},{"name":".RefreshTimeAxis()","total_count":1,"children":[]},{"name":".RefreshTimeTabs()","total_count":1,"children":[]},{"name":".RefreshUptimeChart()","total_count":1,"children":[]},{"name":".ResetDeleteButton()","total_count":1,"children":[]},{"name":".ShowDevice()","total_count":1,"children":[]},{"name":".ToggleSelectAll()","total_count":1,"children":[]},{"name":".ToggleSelectionMode()","total_count":1,"children":[]},{"name":".UpdateBulkView()","total_count":1,"children":[]},{"name":".UpdateCardUI()","total_count":1,"children":[]},{"name":".UpdateExistingCards()","total_count":1,"children":[]},{"name":".UpdatePill()","total_count":1,"children":[]},{"name":".UpdateStatusDot()","total_count":1,"children":[]},{"name":".UpdateUptimeChart()","total_count":1,"children":[]},{"name":"InventoryPage","total_count":1,"children":[]}]},{"name":"PortScansPage.cs","total_count":6,"children":[{"name":".MakeProfileChip()","total_count":1,"children":[]},{"name":".MakeResultRow()","total_count":1,"children":[]},{"name":".MakeTableHeader()","total_count":1,"children":[]},{"name":".OnStartScan()","total_count":1,"children":[]},{"name":".OnStopScan()","total_count":1,"children":[]},{"name":"PortScansPage","total_count":1,"children":[]}]},{"name":"RadarCanvas.cs","total_count":9,"children":[{"name":".GetNodePosition()","total_count":1,"children":[]},{"name":".OnPointerMoved()","total_count":1,"children":[]},{"name":".OnPointerPressed()","total_count":1,"children":[]},{"name":".OnPointerReleased()","total_count":1,"children":[]},{"name":".OnPointerWheelChanged()","total_count":1,"children":[]},{"name":".Render()","total_count":1,"children":[]},{"name":".SelectNode()","total_count":1,"children":[]},{"name":".UpdateNodes()","total_count":1,"children":[]},{"name":"RadarCanvas","total_count":1,"children":[]}]},{"name":"ScannerPage.cs","total_count":14,"children":[{"name":".Cleanup()","total_count":1,"children":[]},{"name":".GetDeviceSvg()","total_count":1,"children":[]},{"name":".LogToTerminal()","total_count":1,"children":[]},{"name":".MakePortBadge()","total_count":1,"children":[]},{"name":".MakeTableHeader()","total_count":1,"children":[]},{"name":".MakeTableRow()","total_count":1,"children":[]},{"name":".OnExportResults()","total_count":1,"children":[]},{"name":".OnNodeDiscovered()","total_count":1,"children":[]},{"name":".OnProgress()","total_count":1,"children":[]},{"name":".OnStartScan()","total_count":1,"children":[]},{"name":".OnStopScan()","total_count":1,"children":[]},{"name":".RefreshFilteredResults()","total_count":1,"children":[]},{"name":".UpdateDiagnosticLogBox()","total_count":1,"children":[]},{"name":"ScannerPage","total_count":1,"children":[]}]},{"name":"SettingsPage.cs","total_count":13,"children":[{"name":".MakeCheckboxCard()","total_count":1,"children":[]},{"name":".MakeSliderCard()","total_count":1,"children":[]},{"name":".MakeThresholdBar()","total_count":1,"children":[]},{"name":".MakeThresholdSliderCard()","total_count":1,"children":[]},{"name":".MakeToggleCard()","total_count":1,"children":[]},{"name":".MakeToggleCardWithBadge()","total_count":1,"children":[]},{"name":".OnBackupClicked()","total_count":1,"children":[]},{"name":".OnResetClicked()","total_count":1,"children":[]},{"name":".OnRestoreClicked()","total_count":1,"children":[]},{"name":".OnSaveClicked()","total_count":1,"children":[]},{"name":".PopulateNetworkInterfaces()","total_count":1,"children":[]},{"name":".Refresh()","total_count":1,"children":[]},{"name":"SettingsPage","total_count":1,"children":[]}]},{"name":"SideNavBar.cs","total_count":3,"children":[{"name":".MakeNavItem()","total_count":1,"children":[]},{"name":".SetActive()","total_count":1,"children":[]},{"name":"SideNavBar","total_count":1,"children":[]}]},{"name":"SupportPage.cs","total_count":6,"children":[{"name":".MakeChangelogItem()","total_count":1,"children":[]},{"name":".MakeFaqItem()","total_count":1,"children":[]},{"name":".MakeFeatureRow()","total_count":1,"children":[]},{"name":".MakeInfoRow()","total_count":1,"children":[]},{"name":".MakeLinkRow()","total_count":1,"children":[]},{"name":"SupportPage","total_count":1,"children":[]}]},{"name":"SystemLogsPage.cs","total_count":9,"children":[{"name":".BuildLogRow()","total_count":1,"children":[]},{"name":".ClearAllFilters()","total_count":1,"children":[]},{"name":".ClearDeviceFilter()","total_count":1,"children":[]},{"name":".FilterByDevice()","total_count":1,"children":[]},{"name":".MakeLevelChip()","total_count":1,"children":[]},{"name":".MakeLogStatCard()","total_count":1,"children":[]},{"name":".OnExportLogs()","total_count":1,"children":[]},{"name":".RefreshLogs()","total_count":1,"children":[]},{"name":"SystemLogsPage","total_count":1,"children":[]}]},{"name":"ThemeTokens.cs","total_count":17,"children":[{"name":".AddCopyAction()","total_count":1,"children":[]},{"name":".Body()","total_count":1,"children":[]},{"name":".Card()","total_count":1,"children":[]},{"name":".DangerButton()","total_count":1,"children":[]},{"name":".GlassCard()","total_count":1,"children":[]},{"name":".Headline()","total_count":1,"children":[]},{"name":".Input()","total_count":1,"children":[]},{"name":".Label()","total_count":1,"children":[]},{"name":".PrimaryButton()","total_count":1,"children":[]},{"name":".SecondaryButton()","total_count":1,"children":[]},{"name":".SectionLabel()","total_count":1,"children":[]},{"name":".SetToolTip()","total_count":1,"children":[]},{"name":".StatusBadge()","total_count":1,"children":[]},{"name":".StatusDot()","total_count":1,"children":[]},{"name":".TertiaryButton()","total_count":1,"children":[]},{"name":".VectorIcon()","total_count":1,"children":[]},{"name":"ThemeTokens","total_count":1,"children":[]}]},{"name":"TopNavBar.cs","total_count":2,"children":[{"name":".UpdateStatus()","total_count":1,"children":[]},{"name":"TopNavBar","total_count":1,"children":[]}]},{"name":"TraceroutePage.cs","total_count":7,"children":[{"name":".BuildHopRow()","total_count":1,"children":[]},{"name":".OnHopDiscovered()","total_count":1,"children":[]},{"name":".OnStartTrace()","total_count":1,"children":[]},{"name":".OnStopTrace()","total_count":1,"children":[]},{"name":".OnTraceCompleted()","total_count":1,"children":[]},{"name":".ResetButtons()","total_count":1,"children":[]},{"name":"TraceroutePage","total_count":1,"children":[]}]},{"name":"UptimeChartControl.cs","total_count":3,"children":[{"name":".Render()","total_count":1,"children":[]},{"name":".SetData()","total_count":1,"children":[]},{"name":"UptimeChartControl","total_count":1,"children":[]}]}]},{"name":"NodeRadarPro.slnx","total_count":1,"children":[]}]};
+
+    function transformData(jsonData) {
+        // Helper function to recursively build the children structure
+        function processNode(node, parentL1StageName) {
+            let displayName = node.name;
+            // Append total_count if it exists and is not already in the name
+            if (node.total_count !== undefined) {
+                if (!/\(Total Count: \d+\)$/.test(displayName)) {
+                    displayName += ` (Total Count: ${node.total_count})`;
+                }
+            }
+
+            const newNode = { name: displayName };
+
+            if (parentL1StageName === "Root") {
+                 newNode.originalStageName = node.name;
+            } else {
+                newNode.originalStageName = parentL1StageName;
+            }
+
+            if (node.children && node.children.length > 0) {
+                const stageNameToPass = (parentL1StageName === "Root") ? node.name : parentL1StageName;
+                newNode.children = node.children.map(child => processNode(child, stageNameToPass));
+            }
+
+            return newNode;
+        }
+
+        let rootDisplayName = jsonData.name;
+        if (jsonData.total_count !== undefined && !/\(Total Count: \d+\)$/.test(rootDisplayName)) {
+            rootDisplayName += ` (Total Count: ${jsonData.total_count})`;
+        }
+
+        return {
+            name: rootDisplayName,
+            originalStageName: "Root",
+            children: (jsonData.children || []).map(child => processNode(child, "Root"))
+        };
+    }
+
+    const treeData = transformData(initialJsonData);
+
+    // Auto-populated phaseColors: every depth-1 child of the root gets
+    // a stable colour from a bigger palette so all top-level dirs are
+    // distinguishable.
+    const PALETTE = [
+      ["#3498DB","#2980B9","#AED6F1"], ["#2ECC71","#27AE60","#A9DFBF"],
+      ["#E74C3C","#C0392B","#F5B7B1"], ["#9B59B6","#8E44AD","#D7BDE2"],
+      ["#F39C12","#D68910","#FAD7A0"], ["#1ABC9C","#117864","#A2D9CE"],
+      ["#34495E","#1B2631","#ABB2B9"], ["#E67E22","#BA4A00","#F5CBA7"],
+      ["#16A085","#0E6655","#A2D9CE"], ["#D35400","#A04000","#EDBB99"],
+      ["#7F8C8D","#566573","#D5DBDB"], ["#C0392B","#7B241C","#F5B7B1"],
+      ["#2E86C1","#1B4F72","#A9CCE3"], ["#28B463","#196F3D","#A9DFBF"],
+      ["#AF7AC5","#6C3483","#D2B4DE"],
+    ];
+    const phaseColors = { "Root": { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+                          "Default": { fill: "#BDC3C7", stroke: "#95A5A6", collapsedFill: "#ECF0F1" } };
+    (initialJsonData.children || []).forEach((c, i) => {
+      const pal = PALETTE[i % PALETTE.length];
+      phaseColors[c.name] = { fill: pal[0], stroke: pal[1], collapsedFill: pal[2] };
+    });
+
+    const levelSpecificPalettes = {
+      0: { fill: "#4A4A4A", stroke: "#333333", collapsedFill: "#6C757D" },
+      2: { fill: "#6ab04c", stroke: "#508a38", collapsedFill: "#a3d391" },
+      3: { fill: "#f0932b", stroke: "#d0730f", collapsedFill: "#f6c07e" },
+      4: { fill: "#be2edd", stroke: "#a01cb3", collapsedFill: "#e08bf2" },
+      5: { fill: "#00a8ff", stroke: "#007ac1", collapsedFill: "#74d2ff" },
+      6: { fill: "#e55039", stroke: "#c23620", collapsedFill: "#f09a8d" },
+      default: { fill: "#747d8c", stroke: "#57606f", collapsedFill: "#a4b0be" }
+    };
+
+    const svgElement = d3.select("#tree-svg");
+    const initialSvgWidth = +svgElement.attr("width");
+    const initialSvgHeight = +svgElement.attr("height");
+    const margin = { top: 40, right: 120, bottom: 80, left: 450 };
+    let width = initialSvgWidth - margin.left - margin.right;
+    let height = initialSvgHeight - margin.top - margin.bottom;
+    const duration = 500;
+    let nodeCounter = 0;
+    const g = svgElement.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
+    const treemap = d3.tree().nodeSize([40, 0]);
+    let rootNode = d3.hierarchy(treeData, d => d.children);
+    rootNode.x0 = 0;
+    rootNode.y0 = 0;
+
+    if (rootNode.children) {
+      rootNode.children.forEach(d_child => {
+        if (d_child.children) { collapseBranch(d_child); }
+      });
+    }
+    updateTree(rootNode);
+
+    function collapseBranch(d) { if (d.children) { d._children = d.children; d._children.forEach(collapseBranch); d.children = null; } }
+    function expandBranch(d) { if (d._children) { d.children = d._children; d._children = null; } if (d.children) { d.children.forEach(expandBranch); } }
+    window.expandAll = () => { expandBranch(rootNode); updateTree(rootNode); };
+    window.collapseAll = () => { if (rootNode.children) { rootNode.children.forEach(collapseBranch); } updateTree(rootNode); };
+    window.resetView = () => { if (rootNode.children) { rootNode.children.forEach(d_child => { if (d_child.children || d_child._children) { collapseBranch(d_child); } }); } if (rootNode._children && !rootNode.children) { rootNode.children = rootNode._children; rootNode._children = null; } updateTree(rootNode); };
+
+    function updateTree(source) {
+      const treeLayoutData = treemap(rootNode);
+      let nodes = treeLayoutData.descendants();
+      let links = treeLayoutData.descendants().slice(1);
+
+      let minX = 0;
+      let maxX = 0;
+      if (nodes.length > 0) {
+        minX = d3.min(nodes, d => d.x);
+        maxX = d3.max(nodes, d => d.x);
+      }
+
+      let neededHeight = Math.max(initialSvgHeight, maxX - minX + margin.top + margin.bottom + 100);
+      svgElement.transition().duration(duration / 2).attr("height", neededHeight);
+      g.transition().duration(duration / 2).attr("transform", `translate(${margin.left},${margin.top - minX + 40})`);
+
+      nodes.forEach(d => { d.y = d.depth * 400; }); // Adjust horizontal separation if needed
+
+      const node = g.selectAll('g.node').data(nodes, d => d.id || (d.id = ++nodeCounter));
+      const nodeEnter = node.enter().append('g')
+        .attr('class', d => "node" + (d.children || d._children ? " node--internal" : " node--leaf") + (d._children ? " _children" : ""))
+        .attr('transform', d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => { if (d.children) { d._children = d.children; d.children = null; } else if (d._children) { d.children = d._children; d._children = null; } updateTree(d); })
+        .style('cursor', d => (d.children || d._children) ? 'pointer' : 'default');
+
+      nodeEnter.append('circle').attr('r', 1e-6);
+
+      nodeEnter.append('text')
+        .attr('dy', '.35em')
+        .attr('x', d => d.children || d._children ? -14 : 14)
+        .attr('text-anchor', d => d.children || d._children ? 'end' : 'start')
+        .style("fill-opacity", 1e-6)
+        .call(wrapText, 380);
+
+      const nodeUpdate = nodeEnter.merge(node);
+      nodeUpdate.transition().duration(duration)
+        .attr('transform', d => `translate(${d.y},${d.x})`)
+        .attr('class', d => "node" + (d.children ? " node--internal" : " node--leaf") + (d._children ? " node--internal _children" : ""));
+
+      nodeUpdate.select('circle').attr('r', 8.5)
+        .style('fill', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            if (d._children) return palette.collapsedFill;
+            if (d.children) return palette.fill;
+            return "#fff";
+        })
+        .style('stroke', d => {
+            let palette;
+            if (d.depth === 0) {
+                palette = levelSpecificPalettes[0];
+            } else if (d.depth === 1) {
+                palette = phaseColors[d.data.originalStageName] || phaseColors.Default;
+            } else {
+                palette = levelSpecificPalettes[d.depth] || levelSpecificPalettes.default;
+            }
+            return palette.stroke;
+        });
+      nodeUpdate.select('text').style("fill-opacity", 1).call(wrapText, 380);
+
+      const nodeExit = node.exit().transition().duration(duration).attr('transform', d => `translate(${source.y},${source.x})`).remove();
+      nodeExit.select('circle').attr('r', 1e-6);
+      nodeExit.select('text').style('fill-opacity', 1e-6);
+
+      const link = g.selectAll('path.link').data(links, d => d.id);
+      const linkEnter = link.enter().insert('path', "g").attr('class', 'link').attr('d', d => { const o = { x: source.x0, y: source.y0 }; return diagonal(o, o); });
+
+      linkEnter.merge(link).transition().duration(duration).attr('d', d => diagonal(d, d.parent))
+        .style('stroke', d => {
+            const sourceNode = d.parent;
+            if (!sourceNode) return phaseColors.Default.stroke;
+            const l1AncestorName = sourceNode.data.originalStageName;
+            const colorPalette = phaseColors[l1AncestorName] || phaseColors.Default;
+            return colorPalette.stroke;
+        });
+      link.exit().transition().duration(duration).attr('d', d => { const o = { x: source.x, y: source.y }; return diagonal(o, o); }).remove();
+      nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function diagonal(s, d) { return `M ${s.y} ${s.x} C ${(s.y + d.y) / 2} ${s.x}, ${(s.y + d.y) / 2} ${d.x}, ${d.y} ${d.x}`; }
+
+    function wrapText(textElements, maxWidth) {
+        const textPartColors = {
+            name: '#343a40',
+            count: '#0056b3'
+        };
+        const countRegex = /(\s\(Total Count: \d+\))$/;
+
+        textElements.each(function () {
+            const textD3 = d3.select(this);
+            const originalNodeText = textD3.datum().data.name;
+            const x = parseFloat(textD3.attr("x") || 0);
+            const initialDy = textD3.attr("dy");
+            const textAnchor = textD3.attr("text-anchor");
+            const lineHeight = 1.1;
+
+            textD3.text(null);
+
+            let namePart = originalNodeText;
+            let countPartText = "";
+
+            const countMatch = originalNodeText.match(countRegex);
+            if (countMatch && originalNodeText.endsWith(countMatch[0])) {
+                namePart = originalNodeText.substring(0, originalNodeText.length - countMatch[0].length).trim();
+                countPartText = countMatch[0].trim();
+            }
+
+            const tokens = [];
+            namePart.split(/\s+/).filter(Boolean).forEach(word => {
+                tokens.push({ text: word, type: 'name' });
+            });
+            if (countPartText) {
+                tokens.push({ text: countPartText, type: 'count' });
+            }
+
+            if (tokens.length === 0 && originalNodeText) {
+                tokens.push({ text: originalNodeText, type: 'name' });
+            }
+
+            let currentTspan = textD3.append("tspan").attr("x", x).attr("dy", initialDy);
+            if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+
+            let lineTokens = [];
+
+            for (let i = 0; i < tokens.length; i++) {
+                const tokenObj = tokens[i];
+
+                lineTokens.push(tokenObj);
+                currentTspan.text(lineTokens.map(t => t.text).join(" "));
+
+                if (currentTspan.node().getComputedTextLength() > maxWidth && lineTokens.length > 1) {
+                    lineTokens.pop();
+
+                    currentTspan.text(null);
+                    lineTokens.forEach((prevToken, idx) => {
+                        currentTspan.append("tspan")
+                            .text((idx > 0 ? " " : "") + prevToken.text)
+                            .style("fill", textPartColors[prevToken.type] || textPartColors.name)
+                            .style("font-weight", prevToken.type === 'count' ? "bold" : "normal");
+                    });
+
+                    lineTokens = [tokenObj];
+                    currentTspan = textD3.append("tspan").attr("x", x).attr("dy", lineHeight + "em");
+                    if (textAnchor === "end") currentTspan.attr("text-anchor", "end");
+                }
+            }
+
+            currentTspan.text(null);
+            lineTokens.forEach((token, idx) => {
+                currentTspan.append("tspan")
+                    .text((idx > 0 ? " " : "") + token.text)
+                    .style("fill", textPartColors[token.type] || textPartColors.name)
+                    .style("font-weight", token.type === 'count' ? "bold" : "normal");
+            });
+
+            if (textD3.selectAll("tspan > tspan").empty() && textD3.select("tspan").text().length === 0 && originalNodeText) {
+                let t = textD3.select("tspan");
+                let displayText = originalNodeText;
+                t.text(displayText).style("fill", textPartColors.name);
+                if (t.node() && t.node().getComputedTextLength() > maxWidth && displayText.length > 20) {
+                    let estimatedChars = Math.floor(maxWidth / (t.node().getComputedTextLength()/displayText.length) );
+                    displayText = displayText.substring(0, Math.max(0, estimatedChars - 3)) + "...";
+                    t.text(displayText);
+                }
+            }
+        });
+    }
+  </script>
+</body>
+</html>
