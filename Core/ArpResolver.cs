@@ -43,6 +43,7 @@ public static class ArpResolver
 
     // ── Cache for GetFullArpTable ──
     private static List<(string Ip, string Mac)> _cachedArpTable = new();
+    private static Dictionary<string, string> _cachedArpDictionary = new(StringComparer.OrdinalIgnoreCase);
     private static DateTime _lastArpTableUpdate = DateTime.MinValue;
     private static readonly object _arpTableLock = new();
 
@@ -53,11 +54,32 @@ public static class ArpResolver
     /// </summary>
     public static List<(string Ip, string Mac)> GetFullArpTable()
     {
+        UpdateCacheIfNeeded();
+        lock (_arpTableLock)
+        {
+            return new List<(string Ip, string Mac)>(_cachedArpTable);
+        }
+    }
+
+    /// <summary>
+    /// Gets the full ARP table as a dictionary mapping IP address to MAC address for O(1) lookups.
+    /// </summary>
+    public static Dictionary<string, string> GetFullArpTableAsDictionary()
+    {
+        UpdateCacheIfNeeded();
+        lock (_arpTableLock)
+        {
+            return new Dictionary<string, string>(_cachedArpDictionary, StringComparer.OrdinalIgnoreCase);
+        }
+    }
+
+    private static void UpdateCacheIfNeeded()
+    {
         lock (_arpTableLock)
         {
             if ((DateTime.UtcNow - _lastArpTableUpdate).TotalSeconds < 5)
             {
-                return new List<(string Ip, string Mac)>(_cachedArpTable);
+                return;
             }
         }
 
@@ -72,13 +94,18 @@ public static class ArpResolver
             results = GetLinuxArpTable();
         }
 
+        var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var item in results)
+        {
+            dict[item.Ip] = item.Mac;
+        }
+
         lock (_arpTableLock)
         {
             _cachedArpTable = results;
+            _cachedArpDictionary = dict;
             _lastArpTableUpdate = DateTime.UtcNow;
         }
-
-        return results;
     }
 
     // ── Windows: Single IP resolution via SendARP API ──

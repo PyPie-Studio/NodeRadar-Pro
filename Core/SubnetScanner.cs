@@ -328,11 +328,10 @@ public class SubnetScanner
             // Fallback: If direct SendARP failed, check the full system ARP table
             if (mac == "Unknown")
             {
-                var table = ArpResolver.GetFullArpTable();
-                var match = table.FirstOrDefault(x => x.Ip == ip);
-                if (!string.IsNullOrEmpty(match.Mac))
+                var table = ArpResolver.GetFullArpTableAsDictionary();
+                if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
                 {
-                    mac = match.Mac;
+                    mac = foundMac;
                 }
             }
 
@@ -520,9 +519,8 @@ public class SubnetScanner
             // Fallback: Check full ARP table
             if (mac == "Unknown")
             {
-                var table = ArpResolver.GetFullArpTable();
-                var match = table.FirstOrDefault(x => x.Ip == ip);
-                if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                var table = ArpResolver.GetFullArpTableAsDictionary();
+                if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
             }
             
             if (mac != "Unknown") isOnline = true;
@@ -542,9 +540,8 @@ public class SubnetScanner
                     mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
                     if (mac == "Unknown")
                     {
-                        var table = ArpResolver.GetFullArpTable();
-                        var match = table.FirstOrDefault(x => x.Ip == ip);
-                        if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                        var table = ArpResolver.GetFullArpTableAsDictionary();
+                        if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
                     }
                 }
             }
@@ -572,9 +569,8 @@ public class SubnetScanner
                                 mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
                                 if (mac == "Unknown")
                                 {
-                                    var table = ArpResolver.GetFullArpTable();
-                                    var match = table.FirstOrDefault(x => x.Ip == ip);
-                                    if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                                    var table = ArpResolver.GetFullArpTableAsDictionary();
+                                    if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
                                 }
                             }
                             break;
