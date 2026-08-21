@@ -5,7 +5,6 @@ using Avalonia.Media;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -103,7 +102,7 @@ public class SystemLogsPage : Border
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        
+
         var leftControls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { _filterRow, clearBtn } };
 
         Grid.SetColumn(leftControls, 0); Grid.SetColumn(searchWrap, 1); Grid.SetColumn(_autoScrollToggle, 2); Grid.SetColumn(_entryCount, 3);
@@ -158,8 +157,9 @@ public class SystemLogsPage : Border
 
         if (_autoScrollToggle.IsChecked == true && _logBody.Children.Count > 0)
         {
-            // Delay scroll until after Avalonia has rendered the new rows
-            Dispatcher.UIThread.Post(() => {
+            // Delay scroll until after Avalonia has rendered the new rows (Issue 4 fix)
+            Dispatcher.UIThread.Post(() =>
+            {
                 _logScroll.ScrollToEnd();
             }, DispatcherPriority.Render);
         }
@@ -190,7 +190,8 @@ public class SystemLogsPage : Border
         string icon = log.Level switch { LogLevel.Info => "ℹ", LogLevel.Warning => "⚠", LogLevel.Error => "❌", _ => "•" };
         IBrush levelColor = log.Level switch { LogLevel.Info => ThemeTokens.Tertiary, LogLevel.Warning => new SolidColorBrush(Color.Parse("#FFCE50")), LogLevel.Error => ThemeTokens.Error, _ => ThemeTokens.OnSurfaceVariant };
 
-        var iconTb = new TextBlock { Text = icon, FontSize = 14, Foreground = levelColor, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Width = 20, TextAlignment = TextAlignment.Center };
+        var iconTb = new TextBlock { Text = icon, FontSize = 14, Foreground = levelColor, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Width = 20 };
+
         var timeTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("HH:mm:ss"), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Width = 80, Margin = new Thickness(0, 0, 10, 0) };
         var srcTb = new Border { Background = ThemeTokens.SurfaceContainerHigh, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = new TextBlock { Text = log.Source, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
         var msgTb = new TextBlock { Text = log.Message, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };

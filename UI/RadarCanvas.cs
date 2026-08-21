@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -77,10 +76,10 @@ public class RadarCanvas : Control
         base.OnPointerWheelChanged(e);
         double delta = e.Delta.Y;
         _zoomLevel = Math.Clamp(_zoomLevel + (delta * 0.1), 0.5, 5.0);
-        
+
         // Reset pan if zoomed out to 1.0 or less
         if (_zoomLevel <= 1.0) _panOffset = new Vector(0, 0);
-        
+
         InvalidateVisual();
     }
 
@@ -122,14 +121,14 @@ public class RadarCanvas : Control
         foreach (var node in _activeNodes)
         {
             Point nodePoint = GetNodePosition(node, center, baseRadius);
-            
+
             // Verify node is within the visual radar boundary (clipped in Render)
             double distToCenter = Math.Sqrt(Math.Pow(nodePoint.X - center.X, 2) + Math.Pow(nodePoint.Y - center.Y, 2));
             if (distToCenter > baseRadius) continue;
 
             double dx = _lastPointerPoint.X - nodePoint.X;
             double dy = _lastPointerPoint.Y - nodePoint.Y;
-            
+
             // Hit radius shrinks with node scale (Inverse Zoom)
             double nodeScale = 1.0 / Math.Sqrt(_zoomLevel);
             double hitRadius = 15 * nodeScale;
@@ -267,7 +266,7 @@ public class RadarCanvas : Control
 
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
-        
+
         // Visibility Scaling: Make elements slightly larger as we zoom in for better clarity
         // spacing out is already handled by the position calculation
         double nodeScale = Math.Max(1.0, 1.0 + (_zoomLevel - 1.0) * 0.15);

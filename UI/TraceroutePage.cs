@@ -3,9 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using NodeRadarPro.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -88,7 +85,7 @@ public class TraceroutePage : Border
         // Hops View
         _hopsContainer = new StackPanel { Spacing = 0, Margin = new Thickness(0, 20, 0, 40) };
         _scroll = new ScrollViewer { Content = _hopsContainer, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
-        
+
         var listCard = ThemeTokens.Card(_scroll, ThemeTokens.SurfaceContainerLow, 0);
         listCard.Margin = new Thickness(0, 20, 0, 0);
 
@@ -186,7 +183,7 @@ public class TraceroutePage : Border
         content.Children.Add(visualStack); content.Children.Add(grid);
 
         var row = new Border { Background = Brushes.Transparent, Padding = new Thickness(0, 0), Height = 56, Child = content };
-        
+
         row.PointerEntered += (s, e) => row.Background = ThemeTokens.SurfaceContainerLowest;
         row.PointerExited += (s, e) => row.Background = Brushes.Transparent;
 

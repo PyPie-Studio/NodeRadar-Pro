@@ -1,5 +1,3 @@
-using System;
-using Xunit;
 using Avalonia.Controls.Notifications;
 using NodeRadarPro.Core;
 using Moq;

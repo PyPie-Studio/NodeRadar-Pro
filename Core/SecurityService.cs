@@ -1,4 +1,3 @@
-using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -27,13 +26,13 @@ namespace NodeRadarPro.Core
                 using (var stream = File.OpenRead(filePath))
                 {
                     byte[] hashBytes = sha256.ComputeHash(stream);
-                    
+
                     StringBuilder sb = new StringBuilder();
                     foreach (byte b in hashBytes)
                     {
                         sb.Append(b.ToString("x2"));
                     }
-                    
+
                     return sb.ToString();
                 }
             }

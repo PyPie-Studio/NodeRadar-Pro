@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
-using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -32,7 +31,7 @@ public static class ArpResolver
         {
             return ResolveWindows(ipAddress, sourceIp, sendArp);
         }
-        
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             return ResolveLinux(ipAddress);
@@ -183,9 +182,9 @@ public static class ArpResolver
         try
         {
             string arpTable = System.IO.File.ReadAllText("/proc/net/arp");
-            
+
             string[] lines = arpTable.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            
+
             foreach (string line in lines.Skip(1)) // Skip header
             {
                 string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
@@ -220,7 +219,7 @@ public static class ArpResolver
             };
 
             using var proc = Process.Start(psi);
-            if (proc == null) 
+            if (proc == null)
             {
                 Logger.Log(LogLevel.Error, "ArpResolver", "Failed to start 'arp -a' process.");
                 return results;
@@ -246,7 +245,7 @@ public static class ArpResolver
                         // Validate IP format and skip broadcast/multicast
                         if (!IPAddress.TryParse(ip, out var addr)) continue;
                         if (addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
-                        
+
                         // Skip invalid MACs
                         if (mac.Length < 11) continue; // "aa-bb-cc-dd-ee-ff" = 17 chars
                         if (mac == "ff-ff-ff-ff-ff-ff") continue; // Broadcast

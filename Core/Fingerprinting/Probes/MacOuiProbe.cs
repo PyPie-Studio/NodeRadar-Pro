@@ -1,4 +1,3 @@
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Data;
@@ -20,7 +19,7 @@ public class MacOuiProbe : IFingerprintProbe
         }
 
         string prefix = node.MacAddress[..8].Replace("-", ":").ToUpperInvariant();
-        
+
         // 1. Check for MAC Randomization (Locally Administered Bit is set)
         if (node.MacAddress.Length >= 2)
         {

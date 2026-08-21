@@ -95,7 +95,7 @@ public class SsdpProbe : IFingerprintProbe
         try
         {
             string xml = await _httpClient.GetStringAsync(url);
-            
+
             string fn = ExtractXmlValue(xml, "friendlyName");
             if (!string.IsNullOrEmpty(fn)) data.FriendlyName = fn;
 

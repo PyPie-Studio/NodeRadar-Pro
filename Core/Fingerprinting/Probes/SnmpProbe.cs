@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -16,7 +15,7 @@ public class SnmpProbe : IFingerprintProbe
     public async Task<ProbeResult> ProbeAsync(NetworkNode node, CancellationToken ct)
     {
         var result = new ProbeResult { Source = Name };
-        
+
         string[] communities = { "public", "private" };
 
         foreach (var community in communities)
@@ -31,12 +30,12 @@ public class SnmpProbe : IFingerprintProbe
 
                 var target = new IPEndPoint(IPAddress.Parse(node.IpAddress), 161);
                 byte[] packet = BuildSnmpSysDescrRequest(community);
-                
+
                 await udp.SendAsync(packet, packet.Length, target).WaitAsync(timeoutCts.Token);
-                
+
                 var receiveResult = await udp.ReceiveAsync(timeoutCts.Token);
                 string sysDescr = ParseSnmpResponse(receiveResult.Buffer);
-                
+
                 if (!string.IsNullOrEmpty(sysDescr))
                 {
                     result.RawData["sysDescr"] = sysDescr;
@@ -53,10 +52,10 @@ public class SnmpProbe : IFingerprintProbe
     private byte[] BuildSnmpSysDescrRequest(string community)
     {
         var communityBytes = Encoding.ASCII.GetBytes(community);
-        
+
         // OID: 1.3.6.1.2.1.1.1.0 (sysDescr.0)
         byte[] oid = { 0x2b, 0x06, 0x01, 0x02, 0x01, 0x01, 0x01, 0x00 };
-        
+
         var packet = new List<byte>
         {
             0x30, 0x00, // Sequence, length (placeholder)
@@ -64,7 +63,7 @@ public class SnmpProbe : IFingerprintProbe
             0x04, (byte)communityBytes.Length // Community string
         };
         packet.AddRange(communityBytes);
-        
+
         // PDU GET Request
         var pdu = new List<byte>
         {
@@ -78,15 +77,15 @@ public class SnmpProbe : IFingerprintProbe
         };
         pdu.AddRange(oid);
         pdu.AddRange(new byte[] { 0x05, 0x00 }); // Null value
-        
+
         // Fix lengths
         pdu[17] = (byte)(pdu.Count - 19); // Varbind length
         pdu[15] = (byte)(pdu.Count - 17); // Varbind list length
         pdu[1] = (byte)(pdu.Count - 2);   // PDU length
-        
+
         packet.AddRange(pdu);
         packet[1] = (byte)(packet.Count - 2); // Sequence length
-        
+
         return packet.ToArray();
     }
 
@@ -101,7 +100,8 @@ public class SnmpProbe : IFingerprintProbe
                 if (buffer[i] == 0x04) // Octet string
                 {
                     int len = buffer[i + 1];
-                    if (len < 128 && i + 2 + len <= buffer.Length)
+
+                    if (len >= 128)
                     {
                         string str = Encoding.ASCII.GetString(buffer, i + 2, len);
                         if (str.Length > sysDescr.Length) sysDescr = str;
@@ -109,7 +109,7 @@ public class SnmpProbe : IFingerprintProbe
                     }
                 }
             }
-            
+
             // Clean non-printable characters
             sysDescr = new string(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(sysDescr, c => c >= 32 && c < 127)));
             return sysDescr.Trim();

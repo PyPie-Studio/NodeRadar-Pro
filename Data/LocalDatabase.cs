@@ -39,13 +39,32 @@ public class LocalDatabase : IDisposable
 
             _dbPassword = GetOrGenerateSecurePassword(myFolder);
 
-            // Ensure the db_key.bin is created
+            // Ensure the db_key.bin is created (fallback)
             if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
             {
-                 SaveSecurePassword(myFolder, _dbPassword);
+                SaveSecurePassword(myFolder, _dbPassword);
             }
 
-            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            try
+            {
+                _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            }
+            catch
+            {
+                try
+                {
+                    string corruptPath = Path.Combine(myFolder, $"noderadar.db.corrupt_{DateTime.Now:yyyyMMdd_HHmmss}");
+                    if (File.Exists(_dbPath))
+                    {
+                        File.Move(_dbPath, corruptPath, true);
+                    }
+                    _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+                }
+                catch
+                {
+                    _db = new LiteDatabase(new MemoryStream());
+                }
+            }
         }
     }
 
@@ -77,7 +96,21 @@ public class LocalDatabase : IDisposable
         {
             rng.GetBytes(secret);
         }
-        return Convert.ToBase64String(secret);
+        string newPassword = Convert.ToBase64String(secret);
+        try
+        {
+            SaveSecurePassword(folder, newPassword);
+
+            // Rename database since the old key is lost
+            string dbPath = Path.Combine(folder, "noderadar.db");
+            if (File.Exists(dbPath))
+            {
+                string corruptPath = Path.Combine(folder, $"noderadar.db.corrupt_{DateTime.Now:yyyyMMdd_HHmmss}");
+                File.Move(dbPath, corruptPath, true);
+            }
+        }
+        catch { }
+        return newPassword;
     }
 
     private void SaveSecurePassword(string folder, string password)
@@ -217,148 +250,7 @@ public class LocalDatabase : IDisposable
         return newNodes;
     }
 
-    public List<(NetworkNode node, bool isNew)> MergeWithHistoryBulk(IEnumerable<NetworkNode> scannedNodes)
-    {
-        var results = new List<(NetworkNode node, bool isNew)>();
 
-        var collection = _db.GetCollection<NetworkNode>("devices");
-
-        var macs = scannedNodes.Where(n => n.MacAddress != "Unknown").Select(n => n.MacAddress).Distinct().ToList();
-
-        // Find all existing nodes in one query
-        var existingNodesList = collection.Find(Query.In("MacAddress", macs.Select(x => new BsonValue(x)))).ToList();
-        // Handle potential duplicates in DB gracefully
-        var existingDict = new Dictionary<string, NetworkNode>();
-        foreach(var node in existingNodesList)
-        {
-            existingDict[node.MacAddress] = node;
-        }
-
-        // Use dictionaries for updates and inserts to avoid duplicates in this batch
-        var toUpdate = new Dictionary<ObjectId, NetworkNode>();
-        var toInsert = new Dictionary<string, NetworkNode>();
-
-        var now = DateTime.UtcNow;
-
-        foreach (var scannedNode in scannedNodes)
-        {
-            if (scannedNode.MacAddress == "Unknown")
-            {
-                results.Add((scannedNode, false));
-                continue;
-            }
-
-            bool isNew = false;
-
-            // Check if it's already in the DB, or if we just inserted it in this batch
-            if (existingDict.TryGetValue(scannedNode.MacAddress, out var existing))
-            {
-                scannedNode.CustomName = existing.CustomName;
-                scannedNode.Notes = existing.Notes;
-                scannedNode.Location = existing.Location;
-                if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
-                if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
-
-                if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
-                    scannedNode.IconPath = existing.IconPath;
-
-                if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
-                    scannedNode.DeviceType = existing.DeviceType;
-                scannedNode.IsRegistered = existing.IsRegistered;
-                scannedNode.FirstSeen = existing.FirstSeen;
-                scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
-                scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
-                scannedNode.ThreatLevel = existing.ThreatLevel;
-                scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
-                if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
-
-                if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
-                    scannedNode.Vendor = existing.Vendor;
-
-                // Merge open ports (keep existing + add new)
-                if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
-                    scannedNode.OpenPorts = existing.OpenPorts;
-
-                // Merge port banners
-                if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
-                    scannedNode.PortBanners = existing.PortBanners;
-                else if (scannedNode.PortBanners != null && existing.PortBanners != null)
-                {
-                    // Combine them, keeping existing if new doesn't have it, but new overrides if both have it
-                    foreach (var kvp in existing.PortBanners)
-                    {
-                        if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
-                            scannedNode.PortBanners[kvp.Key] = kvp.Value;
-                    }
-                }
-
-                if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
-                    scannedNode.OsGuess = existing.OsGuess;
-
-                existing.IpAddress = scannedNode.IpAddress;
-                existing.IsOnline = true;
-                existing.PingLatencyMs = scannedNode.PingLatencyMs;
-                existing.LastSeen = now;
-                existing.Hostname = scannedNode.Hostname;
-                if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
-                    existing.Vendor = scannedNode.Vendor;
-                if (scannedNode.OpenPorts?.Count > 0)
-                    existing.OpenPorts = scannedNode.OpenPorts;
-
-                if (scannedNode.PortBanners?.Count > 0)
-                    existing.PortBanners = scannedNode.PortBanners;
-
-                if (!string.IsNullOrEmpty(scannedNode.OsGuess))
-                    existing.OsGuess = scannedNode.OsGuess;
-
-                existing.ThreatLevel = scannedNode.ThreatLevel;
-                existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
-                if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
-                if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
-                if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
-
-                toUpdate[existing.Id] = existing;
-            }
-            else
-            {
-                // Is this a duplicate MAC in the SAME scan?
-                if (toInsert.TryGetValue(scannedNode.MacAddress, out var previouslyInsertedInBatch))
-                {
-                    // We already treated this as 'new' in this batch.
-                    // Just update the one we're about to insert
-                    previouslyInsertedInBatch.IpAddress = scannedNode.IpAddress;
-                    previouslyInsertedInBatch.PingLatencyMs = scannedNode.PingLatencyMs;
-                    if (scannedNode.OpenPorts?.Count > 0) previouslyInsertedInBatch.OpenPorts = scannedNode.OpenPorts;
-
-                    // We don't yield `isNew = true` for the duplicate to prevent duplicate alerts
-                    isNew = false;
-                }
-                else
-                {
-                    isNew = true;
-                    scannedNode.FirstSeen = now;
-                    scannedNode.LastSeen = now;
-                    toInsert[scannedNode.MacAddress] = scannedNode;
-
-                    // Add it to existingDict so if we encounter it again, it acts like an update
-                    existingDict[scannedNode.MacAddress] = scannedNode;
-                }
-            }
-
-            results.Add((scannedNode, isNew));
-        }
-
-        if (toUpdate.Count > 0)
-            collection.Update(toUpdate.Values);
-
-        if (toInsert.Count > 0)
-        {
-            collection.InsertBulk(toInsert.Values);
-            collection.EnsureIndex(x => x.MacAddress);
-        }
-
-        return results;
-    }
 
     public void UpdateRegistration(string macAddress, string customName, string notes,
         string location, string deviceName, string deviceModel, string icon,
@@ -663,7 +555,7 @@ public class LocalDatabase : IDisposable
     {
         try
         {
-            if (!File.Exists(_dbPath)) 
+            if (!File.Exists(_dbPath))
             {
                 Log(LogLevel.Info, "Database", "Backup skipped: Database file not found (new install?)");
                 return "";
@@ -683,15 +575,15 @@ public class LocalDatabase : IDisposable
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 destPath = Path.Combine(backupDir, $"noderadar_backup_{timestamp}.db");
             }
-            
-            if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir)) 
+
+            if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir))
                 Directory.CreateDirectory(backupDir);
 
             File.Copy(_dbPath, destPath, true);
             Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
-            
+
             if (customPath == null) CleanupOldBackups(backupDir);
-            
+
             return destPath;
         }
         catch (IOException ex)
@@ -713,16 +605,16 @@ public class LocalDatabase : IDisposable
             if (!File.Exists(backupPath)) return false;
 
             string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-            
+
             // We must close the current connection before overwriting the file
             _db.Dispose();
-            
+
             File.Copy(backupPath, dbPath, true);
-            
+
             // Re-initialize (Note: In a real app, we would probably trigger an app restart)
             var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
             _db = new LiteDatabase(connectionString);
-            
+
             Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
             return true;
         }

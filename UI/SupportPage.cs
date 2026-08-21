@@ -8,7 +8,6 @@ using NodeRadarPro.Core;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
@@ -42,7 +41,8 @@ public class SupportPage : Border
         var logoImage = new Image
         {
             Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
-            Width = 56, Height = 56,
+            Width = 56,
+            Height = 56,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -50,7 +50,9 @@ public class SupportPage : Border
 
         var logoIcon = new Border
         {
-            Width = 72, Height = 72, CornerRadius = new CornerRadius(0),
+            Width = 72,
+            Height = 72,
+            CornerRadius = new CornerRadius(0),
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
@@ -133,7 +135,7 @@ public class SupportPage : Border
         checkUpdateBtn.Click += async (s, e) =>
         {
             string currentContent = checkUpdateBtn.Content?.ToString() ?? "";
-            
+
             // If already in download state, start the download/install process
             if (currentContent.StartsWith("⬇"))
             {
@@ -145,7 +147,7 @@ public class SupportPage : Border
                 {
                     await UpdateService.DownloadAndInstallAsync(downloadUrl, progress =>
                     {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() => 
+                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
                         {
                             checkUpdateBtn.Content = $"⏳ Downloading: {progress:F1}%";
                         });
@@ -155,7 +157,7 @@ public class SupportPage : Border
                 {
                     checkUpdateBtn.Content = "⚠ Download Failed";
                     checkUpdateBtn.IsEnabled = true;
-                    
+
                     // Reset after 5 seconds
                     var resetTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
                     resetTimer.Tick += (s2, e2) => { checkUpdateBtn.Content = "🔄  Check for Updates"; resetTimer.Stop(); };
@@ -170,7 +172,7 @@ public class SupportPage : Border
             try
             {
                 var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
-                
+
                 if (hasUpdate)
                 {
                     checkUpdateBtn.Content = $"⬇  Download & Install v{version}";
@@ -188,19 +190,19 @@ public class SupportPage : Border
             finally
             {
                 checkUpdateBtn.IsEnabled = true;
-                
+
                 // If we didn't find an update, reset the button after 5 seconds
                 // If we DID find an update (content starts with ⬇), don't reset it
                 if (checkUpdateBtn.Content?.ToString()?.StartsWith("⬇") != true)
                 {
                     var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                    timer.Tick += (s2, e2) => 
-                    { 
-                        if (checkUpdateBtn.Content?.ToString()?.StartsWith("⬇") != true)
+                    timer.Tick += (s2, e2) =>
+                    {
+                        if (checkUpdateBtn.Tag is not string)
                         {
-                            checkUpdateBtn.Content = "🔄  Check for Updates"; 
+                            checkUpdateBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 16, Brushes.White), new TextBlock { Text = "Check for Updates", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } } };
                         }
-                        timer.Stop(); 
+                        timer.Stop();
                     };
                     timer.Start();
                 }
@@ -259,7 +261,7 @@ public class SupportPage : Border
             Foreground = ThemeTokens.Primary,
             Margin = new Thickness(0, 12, 0, 0)
         };
-        
+
         generateBtn.Click += async (s, e) =>
         {
             generateBtn.IsEnabled = false;
@@ -376,10 +378,10 @@ public class SupportPage : Border
         row.Children.Add(labelTb); row.Children.Add(valueTb);
 
         var border = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10), Child = row };
-        
+
         border.PointerEntered += (s, e) => border.Background = ThemeTokens.SurfaceContainerHigh;
         border.PointerExited += (s, e) => border.Background = ThemeTokens.SurfaceContainerLowest;
-        
+
         return border;
     }
 
@@ -388,11 +390,14 @@ public class SupportPage : Border
         var border = new Border
         {
             Background = ThemeTokens.SurfaceContainerLowest,
-            CornerRadius = new CornerRadius(10), Padding = new Thickness(14, 12),
-            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(14, 12),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
             Child = new StackPanel
             {
-                Orientation = Orientation.Horizontal, Spacing = 12,
+                Orientation = Orientation.Horizontal,
+                Spacing = 12,
                 Children =
                 {
                     new Border
@@ -426,12 +431,16 @@ public class SupportPage : Border
 
         var row = new Border
         {
-            Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10),
-            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
             Cursor = url != null ? new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) : null,
             Child = new StackPanel
             {
-                Orientation = Orientation.Horizontal, Spacing = 12,
+                Orientation = Orientation.Horizontal,
+                Spacing = 12,
                 Children =
                 {
                     icon,
@@ -467,8 +476,11 @@ public class SupportPage : Border
     {
         var border = new Border
         {
-            Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(10), Padding = new Thickness(16, 14),
-            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1),
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16, 14),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
             Child = new StackPanel
             {
                 Spacing = 6,
@@ -488,7 +500,9 @@ public class SupportPage : Border
 
     private static Border MakeChangelogItem(string version, string description) => new()
     {
-        Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(14, 10),
+        Background = ThemeTokens.SurfaceContainerLowest,
+        CornerRadius = new CornerRadius(8),
+        Padding = new Thickness(14, 10),
         Child = new StackPanel
         {
             Spacing = 4,

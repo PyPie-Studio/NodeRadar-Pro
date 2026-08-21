@@ -45,6 +45,7 @@ public class ConnectivityMonitor
     public bool EnableToastAlerts { get; set; } = true;
     public bool EnableSoundAlerts { get; set; } = true;
     public bool EnableEmailAlerts { get; set; } = false;
+    public string PreferredInterfaceName { get; set; } = "";
     public bool IsRunning => _isRunning;
 
     public void SetDatabase(LocalDatabase db) => _db = db;
@@ -324,5 +325,25 @@ public class ConnectivityMonitor
         }
 
         return false;
+    }
+
+    private string GetLocalBindingIp()
+    {
+        if (string.IsNullOrEmpty(PreferredInterfaceName)) return "";
+
+        try
+        {
+            var ni = NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
+
+            if (ni != null)
+            {
+                var addr = ni.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+                if (addr != null) return addr.Address.ToString();
+            }
+        }
+        catch { }
+        return "";
     }
 }

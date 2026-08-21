@@ -1,5 +1,4 @@
 using NodeRadarPro.Core.Fingerprinting;
-using Xunit;
 
 namespace Core.Tests.Fingerprinting;
 

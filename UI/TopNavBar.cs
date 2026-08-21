@@ -19,7 +19,8 @@ public class TopNavBar : Border
         Background = new SolidColorBrush(Color.Parse("#0C1322"), 0.9);
         BoxShadow = new BoxShadows(new BoxShadow
         {
-            OffsetY = 1, Blur = 4,
+            OffsetY = 1,
+            Blur = 4,
             Color = Color.FromArgb(25, 128, 0, 128)
         });
 
@@ -52,7 +53,8 @@ public class TopNavBar : Border
 
         var separator = new Border
         {
-            Width = 4, Height = 4,
+            Width = 4,
+            Height = 4,
             CornerRadius = new CornerRadius(2),
             Background = ThemeTokens.SlateText,
             Margin = new Thickness(14, 0),

@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
-using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Core.Tests;
 
@@ -25,7 +19,7 @@ public class MockPingClient : IPingClient
         return SendPingAsyncMock(address, timeout, buffer, options);
     }
 
-    public void Dispose() {}
+    public void Dispose() { }
 }
 
 public class TracerouteEngineTests

@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using Xunit;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests
@@ -40,6 +37,7 @@ namespace NodeRadarPro.Tests
             Assert.False(result);
         }
 
+#pragma warning disable S4144
         [Theory]
         [InlineData("ZZ:ZZ:ZZ:ZZ:ZZ:ZZ")]
         [InlineData("GG-GG-GG-GG-GG-GG")]
@@ -52,6 +50,7 @@ namespace NodeRadarPro.Tests
             // Assert
             Assert.False(result);
         }
+#pragma warning restore S4144
 
         [Theory]
         [InlineData("AA:BB:CC:DD:EE:FF")]

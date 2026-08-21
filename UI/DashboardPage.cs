@@ -47,11 +47,12 @@ public class DashboardPage : Border
         // ── Health Gauge (Circular progress) ──
         _healthPercent = new TextBlock { Text = "100%", FontSize = 24, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, HorizontalAlignment = HorizontalAlignment.Center };
         _healthStatusText = new TextBlock { Text = "STABLE", FontSize = 10, FontWeight = FontWeight.Black, LetterSpacing = 1.2, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center };
-        
+
         var gaugeContent = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { _healthPercent, _healthStatusText } };
         _healthGauge = new Border
         {
-            Width = 100, Height = 100,
+            Width = 100,
+            Height = 100,
             CornerRadius = new CornerRadius(50),
             BorderThickness = new Thickness(6),
             BorderBrush = ThemeTokens.Tertiary,
@@ -90,9 +91,9 @@ public class DashboardPage : Border
         _latencyValue = new TextBlock { Text = "—", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary };
         _alertCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error };
 
-        var devicesCard = MakeBentoStat("DEVICES ONLINE", _onlineCount, "🖥", "Count of active hosts reachable on the subnet.");
-        var latencyCard = MakeBentoStat("AVG. LATENCY", _latencyValue, "⚡", "Geometric mean of network response times.");
-        
+        var devicesCard = MakeBentoStat("DEVICES ONLINE", _onlineCount, ThemeTokens.SvgDesktop, "Count of active hosts reachable on the subnet.");
+        var latencyCard = MakeBentoStat("AVG. LATENCY", _latencyValue, ThemeTokens.SvgBolt, "Geometric mean of network response times.");
+
         var alertHeader = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
         var alertTitle = ThemeTokens.Label("ACTIVE ALERTS", 10, ThemeTokens.Error);
         var logBtn = ThemeTokens.TertiaryButton("LOGS →");
@@ -116,7 +117,7 @@ public class DashboardPage : Border
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 0
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.2, GridUnitType.Star))); // Col 1
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 2
-        
+
         bentoGrid.RowDefinitions.Add(new RowDefinition(GridLength.Auto)); // Row 0
         bentoGrid.RowDefinitions.Add(new RowDefinition(new GridLength(1, GridUnitType.Star))); // Row 1
 
@@ -124,7 +125,7 @@ public class DashboardPage : Border
         Grid.SetColumn(healthCard, 0); bentoGrid.Children.Add(healthCard);
         Grid.SetColumn(devicesCard, 1); bentoGrid.Children.Add(devicesCard);
         Grid.SetColumn(latencyCard, 2); bentoGrid.Children.Add(latencyCard);
-        
+
         healthCard.Margin = new Thickness(0, 0, 10, 10);
         devicesCard.Margin = new Thickness(10, 0, 10, 10);
         latencyCard.Margin = new Thickness(10, 0, 0, 10);

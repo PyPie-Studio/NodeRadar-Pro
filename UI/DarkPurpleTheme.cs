@@ -3,7 +3,6 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Layout;
 using System;
-using System.Collections.Generic;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading;
@@ -47,7 +46,7 @@ public class DarkPurpleTheme
             var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
             if (hasUpdate)
             {
-                await Dispatcher.UIThread.InvokeAsync(() => 
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
                     ShowUpdatePrompt(mainWindow, version, downloadUrl);
                 });
@@ -59,7 +58,7 @@ public class DarkPurpleTheme
     private static void ShowUpdatePrompt(Window mainWindow, string version, string downloadUrl)
     {
         if (mainWindow.Content is not Grid rootGrid) return;
-        
+
         var overlay = new Grid
         {
             Background = new SolidColorBrush(Colors.Black, 0.5),
@@ -75,22 +74,30 @@ public class DarkPurpleTheme
         progressText.Margin = new Thickness(0, 5);
 
         var btnUpdate = ThemeTokens.PrimaryButton("Download & Install");
-        btnUpdate.Click += async (s, e) => {
+        btnUpdate.Click += async (s, e) =>
+        {
             btnUpdate.IsEnabled = false;
             btnLater.IsEnabled = false;
             progressText.IsVisible = true;
             progressText.Text = "Starting download...";
 
-            try {
-                await Task.Run(async () => {
-                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress => {
-                        Dispatcher.UIThread.Post(() => {
+            try
+            {
+                await Task.Run(async () =>
+                {
+                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress =>
+                    {
+                        Dispatcher.UIThread.Post(() =>
+                        {
                             progressText.Text = $"Downloading: {progress:F0}%";
                         });
                     });
                 });
-            } catch (Exception ex) {
-                Dispatcher.UIThread.Post(() => {
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.UIThread.Post(() =>
+                {
                     progressText.Text = $"Error: {ex.Message}";
                     btnUpdate.IsEnabled = true;
                     btnLater.IsEnabled = true;
@@ -102,7 +109,7 @@ public class DarkPurpleTheme
         {
             Spacing = 15,
             Width = 400,
-            Children = 
+            Children =
             {
                 ThemeTokens.Headline("Update Available", 20),
                 ThemeTokens.Body($"A new version ({version}) of NodeRadar Pro is available. Would you like to download and install it now?"),
@@ -120,12 +127,12 @@ public class DarkPurpleTheme
         prompt.HorizontalAlignment = HorizontalAlignment.Center;
         prompt.VerticalAlignment = VerticalAlignment.Center;
         overlay.Children.Add(prompt);
-        
+
         if (rootGrid.ColumnDefinitions.Count > 0)
             Grid.SetColumnSpan(overlay, rootGrid.ColumnDefinitions.Count);
         if (rootGrid.RowDefinitions.Count > 0)
             Grid.SetRowSpan(overlay, rootGrid.RowDefinitions.Count);
-            
+
         rootGrid.Children.Add(overlay);
     }
 
@@ -139,7 +146,7 @@ public class DarkPurpleTheme
             {
                 Interval = TimeSpan.FromHours(settings.AutoBackupIntervalHours)
             };
-            _autoBackupTimer.Tick += (s, e) => 
+            _autoBackupTimer.Tick += (s, e) =>
             {
                 Task.Run(() => LocalDatabase.Instance.BackupDatabase());
             };
@@ -157,11 +164,11 @@ public class DarkPurpleTheme
             MinWidth = 900,
             MinHeight = 600,
             Background = Brushes.Transparent,
-            TransparencyLevelHint = new[] 
-            { 
-                WindowTransparencyLevel.Mica, 
-                WindowTransparencyLevel.AcrylicBlur, 
-                WindowTransparencyLevel.Blur 
+            TransparencyLevelHint = new[]
+            {
+                WindowTransparencyLevel.Mica,
+                WindowTransparencyLevel.AcrylicBlur,
+                WindowTransparencyLevel.Blur
             },
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
             Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.ico"))),
@@ -257,11 +264,11 @@ public class DarkPurpleTheme
             if (name == "inventory") inventoryPage.RefreshData();
             if (name == "settings") settingsPage.Refresh();
             if (name == "alerts") alertsPage.RefreshAlerts();
-            if (name == "logs") 
+            if (name == "logs")
             {
-                 // Issue 9: Clear filters when navigating directly to logs page
-                 logsPage.ClearAllFilters(); 
-                 logsPage.RefreshLogs();
+                // Issue 9: Clear filters when navigating directly to logs page
+                logsPage.ClearAllFilters();
+                logsPage.RefreshLogs();
             }
         }
 
@@ -330,7 +337,7 @@ public class DarkPurpleTheme
             {
                 // Update Top Nav
                 topNav.UpdateStatus(online, avgLat, alertCount);
-                
+
                 // Broadcast updates
                 EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
                 EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
@@ -412,25 +419,25 @@ public class DarkPurpleTheme
 
         inventoryPage.DeviceSelected += (node) =>
         {
-             // Fetch history when device is selected in inventory
-             var history = db.GetUptimeHistory(node.MacAddress, 24);
-             inventoryPage.UpdateUptimeChart(history);
+            // Fix Issue 4: Fetch history when device is selected in inventory
+            var history = db.GetUptimeHistory(node.MacAddress, 24);
+            inventoryPage.UpdateUptimeChart(history);
         };
 
         // ── Scanner device save → register device (I9) ──
         scannerPage.DeviceSaved += (node) =>
         {
             db.UpdateRegistration(
-                node.MacAddress, 
-                node.CustomName, 
-                node.Notes, 
-                node.Location, 
-                node.DeviceName, 
-                node.DeviceModel, 
-                node.IconPath, 
-                node.IpAddress, 
-                node.VulnerabilityScore, 
-                node.ThreatLevel, 
+                node.MacAddress,
+                node.CustomName,
+                node.Notes,
+                node.Location,
+                node.DeviceName,
+                node.DeviceModel,
+                node.IconPath,
+                node.IpAddress,
+                node.VulnerabilityScore,
+                node.ThreatLevel,
                 node.ExactModel
             );
 
@@ -505,15 +512,17 @@ public class DarkPurpleTheme
             // Background data load
             settings = await Task.Run(() => db.LoadSettings());
 
-            // Verify System Integrity
-            _ = Task.Run(() => {
-                try {
-                    string appPath = AppDomain.CurrentDomain.BaseDirectory;
-                    string dllPath = System.IO.Path.Combine(appPath, "NodeRadar Pro.dll");
-                    
-                    string currentHash = SecurityService.ComputeFileHash(dllPath);
-                    if (currentHash != null)
+            // Task 2: System Integrity Shield (Verify Binaries)
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    // We verify the core logic DLL/executable instead of the dynamic database
+                    string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadar Pro.dll");
+
+                    if (System.IO.File.Exists(mainFile))
                     {
+                        string currentHash = SecurityService.ComputeFileHash(mainFile);
                         if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
                         {
                             settings.LastKnownGoodHash = currentHash;
@@ -529,7 +538,9 @@ public class DarkPurpleTheme
                             db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
                         }
                     }
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
                 }
             });

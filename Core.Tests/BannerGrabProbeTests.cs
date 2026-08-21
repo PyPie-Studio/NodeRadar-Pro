@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Xunit;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 
@@ -56,25 +51,23 @@ namespace Core.Tests
         {
             // Arrange
             int port = 8080;
-            TcpListener listener = null;
-            try
-            {
-                listener = new TcpListener(IPAddress.Loopback, port);
-                listener.Start();
-            }
-            catch (SocketException)
+            TcpListener? listener = null;
+            int[] tryPorts = { 8080, 8008, 9000, 5000 };
+            foreach (var p in tryPorts)
             {
                 try
                 {
-                    port = 8443;
-                    listener = new TcpListener(IPAddress.Loopback, port);
+                    listener = new TcpListener(IPAddress.Loopback, p);
                     listener.Start();
+                    port = p;
+                    break;
                 }
                 catch (SocketException)
                 {
-                    return; // Port in use, skip test
                 }
             }
+
+            if (listener == null) return;
 
             _ = Task.Run(async () =>
             {
@@ -84,13 +77,16 @@ namespace Core.Tests
                     using var stream = client.GetStream();
 
                     byte[] buffer = new byte[1024];
-                    await stream.ReadAsync(buffer, 0, buffer.Length);
+                    await stream.ReadAtLeastAsync(buffer, 1, false);
 
                     byte[] data = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nServer: MyTestHttpServer\r\n\r\n");
                     await stream.WriteAsync(data, 0, data.Length);
+                    await Task.Delay(200);
                 }
                 catch { }
             });
+
+            await Task.Delay(50);
 
             var probe = new BannerGrabProbe();
             var node = new NetworkNode

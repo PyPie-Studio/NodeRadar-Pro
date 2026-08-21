@@ -35,8 +35,10 @@ public class MdnsProbe : IFingerprintProbe
             udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
             var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
 
-            string[] services = { 
-                "_airplay._tcp.local", "_googlecast._tcp.local", "_raop._tcp.local", 
+            // Extended service list including device-info and sleep-proxy for better Apple identification
+            string[] services = {
+                "_services._dns-sd._udp.local",
+                "_airplay._tcp.local", "_googlecast._tcp.local", "_raop._tcp.local",
                 "_spotify-connect._tcp.local", "_workstation._tcp.local", "_printer._tcp.local",
                 "_ipp._tcp.local", "_smb._tcp.local", "_apple-mobdev2._tcp.local",
                 "_companion-link._tcp.local", "_androidtv._tcp.local", "_amzn-alexa._tcp.local",
@@ -53,9 +55,15 @@ public class MdnsProbe : IFingerprintProbe
             {
                 var result = await udp.ReceiveAsync(token);
                 string senderIp = result.RemoteEndPoint.Address.ToString();
+
+                // Filter out link-local addresses
+                if (senderIp.StartsWith("169.254.")) continue;
+
                 var data = _cache.GetOrAdd(senderIp, _ => new MdnsData());
 
                 string raw = Encoding.UTF8.GetString(result.Buffer);
+
+                // Extract instance name from DNS answer section
                 string instanceName = ExtractMdnsInstanceName(result.Buffer);
 
                 if (!string.IsNullOrEmpty(instanceName) && (string.IsNullOrEmpty(data.InstanceName) || data.InstanceName.Length < instanceName.Length))
@@ -102,8 +110,8 @@ public class MdnsProbe : IFingerprintProbe
 
     private static byte[] CreateMdnsQuery(string serviceName)
     {
-        var packet = new List<byte> { 
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
+        var packet = new List<byte> {
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
         };
         foreach (var part in serviceName.Split('.'))
         {
@@ -121,8 +129,12 @@ public class MdnsProbe : IFingerprintProbe
         try
         {
             string raw = Encoding.UTF8.GetString(buffer);
-            string[] modelKeys = { "model=", "am=", "md=" };
-            string[] vendorKeys = { "man=", "mf=" };
+
+            // Model keys used by various devices
+            string[] modelKeys = { "model=", "am=", "md=", "rpMd=" };
+            string[] vendorKeys = { "man=", "mf=", "manufacturer=" };
+            string[] osKeys = { "osxvers=", "osvers=" };
+            string[] deviceIdKeys = { "deviceid=", "id=" };
 
             foreach (var key in modelKeys)
             {
@@ -149,6 +161,103 @@ public class MdnsProbe : IFingerprintProbe
             }
         }
         catch { }
+    }
+
+    /// <summary>
+    /// Extracts hostname from SRV record answers in the mDNS response.
+    /// SRV records contain the target hostname of the service.
+    /// </summary>
+    private static string ExtractSrvHostname(byte[] buffer)
+    {
+        try
+        {
+            if (buffer.Length < 12) return string.Empty;
+
+            // Parse DNS header
+            int qdcount = (buffer[4] << 8) | buffer[5];
+            int ancount = (buffer[6] << 8) | buffer[7];
+
+            int offset = 12;
+
+            // Skip question section
+            for (int q = 0; q < qdcount && offset < buffer.Length; q++)
+            {
+                offset = SkipDnsName(buffer, offset);
+                if (offset < 0 || offset + 4 > buffer.Length) return string.Empty;
+                offset += 4; // Skip QTYPE and QCLASS
+            }
+
+            // Parse answer section looking for SRV records (type 33) or PTR records (type 12)
+            for (int a = 0; a < ancount && offset < buffer.Length; a++)
+            {
+                offset = SkipDnsName(buffer, offset);
+                if (offset < 0 || offset + 10 > buffer.Length) return string.Empty;
+
+                int rtype = (buffer[offset] << 8) | buffer[offset + 1];
+                offset += 8; // Skip type, class, TTL
+                int rdlen = (buffer[offset] << 8) | buffer[offset + 1];
+                offset += 2;
+
+                if (rtype == 33 && offset + 6 < buffer.Length) // SRV record
+                {
+                    // SRV: 2 bytes priority, 2 bytes weight, 2 bytes port, then target hostname
+                    int targetOffset = offset + 6;
+                    string hostname = ReadDnsName(buffer, targetOffset);
+                    if (!string.IsNullOrEmpty(hostname) && !hostname.StartsWith("_"))
+                    {
+                        // Remove trailing .local
+                        if (hostname.EndsWith(".local", StringComparison.OrdinalIgnoreCase))
+                            hostname = hostname.Substring(0, hostname.Length - 6);
+                        if (hostname.EndsWith(".", StringComparison.Ordinal))
+                            hostname = hostname.Substring(0, hostname.Length - 1);
+                        return hostname;
+                    }
+                }
+
+                offset += rdlen;
+            }
+        }
+        catch { }
+        return string.Empty;
+    }
+
+    private static int SkipDnsName(byte[] buffer, int offset)
+    {
+        if (offset >= buffer.Length) return -1;
+        while (offset < buffer.Length)
+        {
+            byte len = buffer[offset];
+            if (len == 0) return offset + 1;
+            if ((len & 0xC0) == 0xC0) return offset + 2; // Pointer
+            offset += len + 1;
+        }
+        return -1;
+    }
+
+    private static string ReadDnsName(byte[] buffer, int offset)
+    {
+        var parts = new List<string>();
+        int maxJumps = 10;
+        int jumps = 0;
+
+        while (offset < buffer.Length && jumps < maxJumps)
+        {
+            byte len = buffer[offset];
+            if (len == 0) break;
+            if ((len & 0xC0) == 0xC0) // Pointer
+            {
+                int pointer = ((len & 0x3F) << 8) | buffer[offset + 1];
+                offset = pointer;
+                jumps++;
+                continue;
+            }
+            offset++;
+            if (offset + len > buffer.Length) break;
+            parts.Add(Encoding.UTF8.GetString(buffer, offset, len));
+            offset += len;
+        }
+
+        return parts.Count > 0 ? string.Join(".", parts) : string.Empty;
     }
 
     private static string ExtractMdnsInstanceName(byte[] buffer)

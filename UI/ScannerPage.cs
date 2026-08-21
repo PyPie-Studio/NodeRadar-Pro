@@ -7,7 +7,6 @@ using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -71,8 +70,7 @@ public class ScannerPage : Border
         // ═══════════════════════
         var title = ThemeTokens.Headline("Active Sonar", 36);
         title.Margin = new Thickness(0, 0, 0, 4);
-        var subtitle = ThemeTokens.Body("Deep subnet reconnaissance and port enumeration.", 14);
-
+        var subtitle = ThemeTokens.Body("Discover and map active hosts on your network.", 14);
         _startBtn = new Button
         {
             Content = new StackPanel
@@ -323,7 +321,9 @@ public class ScannerPage : Border
 
         _progressBar = new ProgressBar
         {
-            Minimum = 0, Maximum = 100, Value = 0,
+            Minimum = 0,
+            Maximum = 100,
+            Value = 0,
             Height = 8,
             Foreground = ThemeTokens.Tertiary,
             Background = ThemeTokens.SurfaceContainerLowest,
@@ -391,8 +391,8 @@ public class ScannerPage : Border
             Content = "⬇",
             Background = Brushes.Transparent,
             Foreground = ThemeTokens.OnSurfaceVariant,
-            Width = 36, Height = 36,
-            FontSize = 16,
+            Width = 36,
+            Height = 36,
             CornerRadius = new CornerRadius(6),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -501,7 +501,7 @@ public class ScannerPage : Border
                     _discoveredCount.Text = $"DISCOVERED: {count}";
                     // Keep status text synced with real discovery list
                     if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
-                    
+
                     _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
                     DataChanged?.Invoke();
                 }
@@ -538,7 +538,7 @@ public class ScannerPage : Border
             _scanner.FastScanMode = _fastScanCheck.IsChecked == true;
             _scanner.EnableOsDetection = _osDetectCheck.IsChecked == true;
             // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
-            _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true; 
+            _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true;
 
             string[] startParts = startIp.Split('.');
             string[] endParts = endIp.Split('.');
@@ -561,7 +561,8 @@ public class ScannerPage : Border
             }
 
             // Final UI sync to catch the last posted discovery events
-            await Dispatcher.UIThread.InvokeAsync(() => {
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
                 if (!_scanCts.IsCancellationRequested)
                     _statusText.Text = $"Scan complete — {_scanResults.Count} devices found.";
             });
@@ -676,9 +677,87 @@ public class ScannerPage : Border
         var macText = new TextBlock { Text = node.MacAddress, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         ThemeTokens.AddCopyAction(macText);
 
-        var devPanel = CreateDevicePanel(node);
-        var portsPanel = CreatePortsPanel(node);
-        var saveBtn = CreateSaveButton(node);
+        // Device identity with icon and OS/Vendor details
+        string iconPath = ThemeTokens.GetDeviceSvg(node.IconPath);
+        var iconControl = ThemeTokens.VectorIcon(iconPath, 16, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+        iconControl.VerticalAlignment = VerticalAlignment.Center;
+
+        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
+        string identitySubtitle = node.SubtitleText;
+        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess))
+            identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
+
+        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor"))
+            identitySubtitle = "Unknown Device";
+
+        var devPanel = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0),
+            Children =
+            {
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        iconControl,
+                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
+                    }
+                },
+                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Opacity = 0.7 }
+            }
+        };
+
+        // Open Ports — show actual discovered open ports as badges
+        var portsPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0)
+        };
+        if (node.OpenPorts != null && node.OpenPorts.Count > 0)
+        {
+            int shown = 0;
+            foreach (var port in node.OpenPorts)
+            {
+                if (shown >= 4) { portsPanel.Children.Add(new TextBlock { Text = $"+{node.OpenPorts.Count - shown}", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center }); break; }
+                portsPanel.Children.Add(MakePortBadge(port, port == 80 || port == 443 || port == 3389));
+                shown++;
+            }
+        }
+        else
+        {
+            portsPanel.Children.Add(new TextBlock { Text = "—", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center });
+        }
+
+        // I9: Action column — Save button to register device
+        var saveBtn = new Button
+        {
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgSave, 13, ThemeTokens.Tertiary),
+            Background = Brushes.Transparent,
+            Foreground = ThemeTokens.Tertiary,
+            Width = 32,
+            Height = 28,
+            CornerRadius = new CornerRadius(4),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Padding = new Thickness(0),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0)
+        };
+        ThemeTokens.SetToolTip(saveBtn, "Register to Inventory: Permanently save this device's identity and intelligence to your local database.");
+
+        saveBtn.Click += (s, e) =>
+        {
+            node.IsRegistered = true;
+            DeviceSaved?.Invoke(node);
+            saveBtn.Content = ThemeTokens.VectorIcon(ThemeTokens.SvgCheck, 13, ThemeTokens.OnSurfaceVariant);
+            saveBtn.IsEnabled = false;
+        };
 
         Grid.SetColumn(statusBadge, 0);
         Grid.SetColumn(ipText, 1);
@@ -714,12 +793,12 @@ public class ScannerPage : Border
             "Laptop" or "Mac" => "💻",
             _ => "⊟"
         };
-        
+
         string identitySubtitle = node.SubtitleText;
         if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess))
             identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
 
-        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor")) 
+        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor"))
             identitySubtitle = "Unknown Device";
 
         return new StackPanel
@@ -777,7 +856,8 @@ public class ScannerPage : Border
             FontSize = 13,
             Background = Brushes.Transparent,
             Foreground = ThemeTokens.Tertiary,
-            Width = 32, Height = 28,
+            Width = 32,
+            Height = 28,
             CornerRadius = new CornerRadius(4),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -787,7 +867,7 @@ public class ScannerPage : Border
             Margin = new Thickness(16, 0)
         };
         ThemeTokens.SetToolTip(saveBtn, "Register to Inventory: Permanently save this device's identity and intelligence to your local database.");
-        
+
         saveBtn.Click += (s, e) =>
         {
             node.IsRegistered = true;

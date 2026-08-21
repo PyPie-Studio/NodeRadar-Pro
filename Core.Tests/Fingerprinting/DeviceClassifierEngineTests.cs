@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting;
-using Xunit;
 
 namespace Core.Tests.Fingerprinting
 {

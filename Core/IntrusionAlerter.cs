@@ -44,8 +44,8 @@ public static class IntrusionAlerter
 
         if (Settings != null)
         {
-            _ = EmailService.SendAlertAsync(Settings, 
-                $"[NodeRadar Alert] Device Offline: {node.DisplayName}", 
+            _ = EmailService.SendAlertAsync(Settings,
+                $"[NodeRadar Alert] Device Offline: {node.DisplayName}",
                 $"Device {node.DisplayName} ({node.IpAddress}, MAC: {node.MacAddress}) is no longer responding.");
         }
     }
@@ -62,8 +62,8 @@ public static class IntrusionAlerter
 
         if (Settings != null)
         {
-            _ = EmailService.SendAlertAsync(Settings, 
-                $"[NodeRadar Alert] Device Online: {node.DisplayName}", 
+            _ = EmailService.SendAlertAsync(Settings,
+                $"[NodeRadar Alert] Device Online: {node.DisplayName}",
                 $"Device {node.DisplayName} ({node.IpAddress}, MAC: {node.MacAddress}) has reconnected.");
         }
     }
@@ -80,8 +80,8 @@ public static class IntrusionAlerter
 
         if (Settings != null)
         {
-            _ = EmailService.SendAlertAsync(Settings, 
-                $"[NodeRadar Alert] New Device Discovered: {node.DisplayName}", 
+            _ = EmailService.SendAlertAsync(Settings,
+                $"[NodeRadar Alert] New Device Discovered: {node.DisplayName}",
                 $"A new device {node.DisplayName} ({node.IpAddress}, MAC: {node.MacAddress}) has appeared on the network.");
         }
     }

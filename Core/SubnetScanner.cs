@@ -38,10 +38,25 @@ public class SubnetScanner
         {
             var ni = NetworkInterface.GetAllNetworkInterfaces()
                 .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
-            
+
             if (ni != null)
             {
                 var addr = ni.GetIPProperties().UnicastAddresses
+                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
+                if (addr != null)
+                {
+                    _localBindingIp = addr.Address.ToString();
+                    return;
+                }
+            }
+
+            // Fallback: Bind to first active IPv4 address from any operational non-loopback interface
+            var activeInterface = NetworkInterface.GetAllNetworkInterfaces()
+                .FirstOrDefault(n => n.OperationalStatus == OperationalStatus.Up &&
+                                     n.NetworkInterfaceType != NetworkInterfaceType.Loopback);
+            if (activeInterface != null)
+            {
+                var addr = activeInterface.GetIPProperties().UnicastAddresses
                     .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
                 if (addr != null) _localBindingIp = addr.Address.ToString();
             }
@@ -49,9 +64,24 @@ public class SubnetScanner
         catch { }
     }
 
+    private bool IsIpOnLocalSubnet(string ip)
+    {
+        if (string.IsNullOrEmpty(_localBindingIp)) return false;
+
+        string[] ipParts = ip.Split('.');
+        string[] localParts = _localBindingIp.Split('.');
+        if (ipParts.Length == 4 && localParts.Length == 4)
+        {
+            return ipParts[0] == localParts[0] &&
+                   ipParts[1] == localParts[1] &&
+                   ipParts[2] == localParts[2];
+        }
+        return false;
+    }
+
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
-        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
+        _ = Task.Run(() => DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(), token);
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
@@ -165,7 +195,7 @@ public class SubnetScanner
             {
                 if (token.IsCancellationRequested) break;
                 if (ip == "127.0.0.1" || mac == "00:00:00:00:00:00") continue;
-                
+
                 string[] parts = ip.Split('.');
                 if (parts.Length == 4 && $"{parts[0]}.{parts[1]}.{parts[2]}" == baseIp)
                 {
@@ -324,7 +354,7 @@ public class SubnetScanner
         try
         {
             mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
-            
+
             // Fallback: If direct SendARP failed, check the full system ARP table
             if (mac == "Unknown")
             {
@@ -376,7 +406,7 @@ public class SubnetScanner
         if (!isReachable) return null;
 
         // Final fallback: Use IP-based ID but flag it properly (Issue: prevents database link loss)
-        if (mac == "Unknown") 
+        if (mac == "Unknown")
         {
             // We check the database to see if we have a device that HAD this IP recently
             // This allows us to maintain identity even if ARP is transiently failing.
@@ -435,7 +465,7 @@ public class SubnetScanner
                 {
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
                     cts.CancelAfter(3000);
-                    
+
                     string netbios = await Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
                     if (!string.IsNullOrEmpty(netbios))
                         node.Hostname = netbios;
@@ -468,7 +498,7 @@ public class SubnetScanner
             node.DeviceType = fingerprint.TypeString;
             node.OsGuess = fingerprint.Os;
             node.IconPath = fingerprint.IconSvgKey;
-            
+
             if (!string.IsNullOrEmpty(fingerprint.Model))
             {
                 node.ExactModel = fingerprint.Model;
@@ -493,7 +523,7 @@ public class SubnetScanner
         // 4. UI Synchronization
         if (string.IsNullOrEmpty(node.DeviceName) && node.Hostname != "Unknown Device")
             node.DeviceName = node.Hostname;
-        
+
         if (string.IsNullOrEmpty(node.DeviceModel) && !string.IsNullOrEmpty(node.ExactModel))
             node.DeviceModel = node.ExactModel;
     }
@@ -514,15 +544,15 @@ public class SubnetScanner
 
         try
         {
-            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
-            
+            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, ""));
+
             // Fallback: Check full ARP table
             if (mac == "Unknown")
             {
                 var table = ArpResolver.GetFullArpTableAsDictionary();
                 if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
             }
-            
+
             if (mac != "Unknown") isOnline = true;
         }
         catch { }
@@ -649,7 +679,8 @@ public class SubnetScanner
             if (hostEntry.HostName != ip)
                 return hostEntry.HostName;
         }
-        catch (OperationCanceledException) {
+        catch (OperationCanceledException)
+        {
             Logger.Log(LogLevel.Warning, "SubnetScanner", $"Hostname resolution cancelled for {ip}");
         }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound)

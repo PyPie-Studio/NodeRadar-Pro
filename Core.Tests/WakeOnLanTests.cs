@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-using Xunit;
 using NodeRadarPro.Core;
 
 namespace Core.Tests
@@ -69,7 +66,7 @@ namespace Core.Tests
         [Fact]
         public async Task WakeAsync_WithNullMacAddress_ReturnsFalse()
         {
-            bool result = await WakeOnLan.WakeAsync(null);
+            bool result = await WakeOnLan.WakeAsync(null!);
             Assert.False(result);
         }
 

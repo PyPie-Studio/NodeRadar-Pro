@@ -1,5 +1,3 @@
-using System;
-using Xunit;
 using NodeRadarPro.Data;
 
 namespace NodeRadarPro.Tests;
@@ -56,10 +54,12 @@ public class VendorLookupTests
         Assert.Equal("Randomized MAC (Mobile/Privacy)", VendorLookup.GetVendor(mac));
     }
 
+#pragma warning disable CS0618
     [Fact]
     public void GuessDeviceType_ReturnsGenericNetworkDevice()
     {
         Assert.Equal("Generic Network Device", VendorLookup.GuessDeviceType("Apple", "iPhone"));
         Assert.Equal("Generic Network Device", VendorLookup.GuessDeviceType(null!, null!));
     }
+#pragma warning restore CS0618
 }

@@ -1,7 +1,4 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using Xunit;
 using NodeRadarPro.Core;
 
 namespace Core.Tests
@@ -53,10 +50,10 @@ namespace Core.Tests
         {
             // Arrange
             string validIp = "192.168.1.1";
-            ArpResolver.SendArpDelegate failingSendArp = (int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen) =>
+            static int failingSendArp(int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen)
             {
                 throw new Exception("Simulated SendARP failure");
-            };
+            }
 
             // Act
             string result = ArpResolver.ResolveMacAddress(validIp, "", failingSendArp);

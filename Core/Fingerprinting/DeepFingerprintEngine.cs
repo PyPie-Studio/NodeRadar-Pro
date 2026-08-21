@@ -54,7 +54,7 @@ public class DeepFingerprintEngine
                 // Each probe gets a 3-second absolute timeout to prevent hanging the whole process
                 using var probeCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 probeCts.CancelAfter(3000);
-                
+
                 var result = await probe.ProbeAsync(node, probeCts.Token);
                 lock (probeResults)
                 {

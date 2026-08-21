@@ -6,8 +6,6 @@ using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using Avalonia.Threading;
 
 namespace NodeRadarPro.UI;
 
@@ -176,8 +174,11 @@ public class AlertsPage : Border
         return new Border
         {
             Background = alert.IsResolved ? Brushes.Transparent : ThemeTokens.SurfaceContainerLowest,
-            CornerRadius = new CornerRadius(10), Padding = new Thickness(16, 14),
-            BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(1), Child = row
+            CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(16, 14),
+            BorderBrush = ThemeTokens.GhostBorder,
+            BorderThickness = new Thickness(1),
+            Child = row
         };
     }
 

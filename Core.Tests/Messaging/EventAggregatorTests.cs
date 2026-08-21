@@ -1,5 +1,3 @@
-using System;
-using Xunit;
 using NodeRadarPro.Core.Messaging;
 
 namespace NodeRadarPro.Core.Tests.Messaging;
@@ -13,6 +11,7 @@ public class EventAggregatorTests
 
     private class TestMessageB
     {
+        public string Dummy { get; set; } = string.Empty;
     }
 
     [Fact]

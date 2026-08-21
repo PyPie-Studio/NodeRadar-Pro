@@ -27,14 +27,17 @@ public class SideNavBar : Border
         Background = ThemeTokens.NavBg;
         BoxShadow = new BoxShadows(new BoxShadow
         {
-            OffsetX = 10, OffsetY = 0, Blur = 30,
+            OffsetX = 10,
+            OffsetY = 0,
+            Blur = 30,
             Color = Color.FromArgb(77, 0, 0, 0)
         });
 
         var logoImage = new Image
         {
             Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
-            Width = 32, Height = 32,
+            Width = 32,
+            Height = 32,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
@@ -43,7 +46,8 @@ public class SideNavBar : Border
         // ── Header: Icon + Title ──
         var iconBg = new Border
         {
-            Width = 40, Height = 40,
+            Width = 40,
+            Height = 40,
             CornerRadius = new CornerRadius(10),
             Background = ThemeTokens.SurfaceContainerHigh,
             Child = logoImage
@@ -188,7 +192,7 @@ public class SideNavBar : Border
                 TextAlignment = TextAlignment.Center
             };
         }
-        
+
         iconControl.Tag = "icon";
 
         var labelText = new TextBlock

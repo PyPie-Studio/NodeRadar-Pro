@@ -8,7 +8,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
-using System.Threading.Tasks;
 
 namespace NodeRadarPro.UI;
 
@@ -264,7 +263,7 @@ public class SettingsPage : Border
         _enableAutoBackupToggle.IsCheckedChanged += (s, e) => intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
 
         _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
-        
+
         _backupBtn = ThemeTokens.SecondaryButton("Backup");
         ThemeTokens.SetToolTip(_backupBtn, "Export a manual copy of the database to your documents folder.");
         _backupBtn.Click += OnBackupClicked;
@@ -595,7 +594,8 @@ public class SettingsPage : Border
         {
             left.Children.Add(new Border
             {
-                Width = 28, Height = 28,
+                Width = 28,
+                Height = 28,
                 CornerRadius = new CornerRadius(6),
                 Background = ThemeTokens.SurfaceContainerLowest,
                 Child = new TextBlock { Text = icon, FontSize = 12, Foreground = ThemeTokens.Primary, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }

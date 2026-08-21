@@ -361,3 +361,50 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# ===================================================================
+# NodeRadar Pro Custom Rules
+# ===================================================================
+
+# Embedded LiteDB & DPAPI Keys
+*.db
+*.db-shm
+*.db-wal
+*.db-log
+noderadar*.db
+db_key.bin
+
+# Codebase Knowledge Graphs & Agent Caches
+graphify-out/
+.graphify*/
+.gemini/
+.claude/
+.windsurf/
+
+# Inno Setup & Packaging Outputs
+Inno/Output/
+ReleasePackage/
+Obfuscator_Output/
+
+# Test Outputs & Code Coverage
+[Tt]est[Rr]esults/
+coverage/
+
+# Scratch & Backup Files
+scratch/
+*.bak
+*.orig
+mcp_request.json
+
+# Local AI Agent Workspace & Privacy Scaffolding
+.agents/
+.jules/
+.githooks/
+opencode.json
+mcp.json
+AGENTS.md
+SKILLS.md
+SUPERPOWERS.md
+
+# Ephemeral Reports
+docs/analyzer-report.txt

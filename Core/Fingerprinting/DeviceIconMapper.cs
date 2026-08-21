@@ -4,6 +4,9 @@ namespace NodeRadarPro.Core.Fingerprinting;
 
 public static class DeviceIconMapper
 {
+    public static string GetIconKey(DeviceTypeCategory type, string vendor, string hostname, string combinedData)
+        => GetIconKey(type, vendor, hostname, term => combinedData.Contains(term, StringComparison.OrdinalIgnoreCase));
+
     public static string GetIconKey(DeviceTypeCategory type, string vendor, string hostname, Func<string, bool> containsData)
     {
         string v = vendor.ToLowerInvariant();

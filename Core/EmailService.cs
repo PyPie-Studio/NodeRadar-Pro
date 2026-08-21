@@ -32,7 +32,7 @@ public static class EmailService
             };
 
             using var client = new SmtpClient();
-            
+
             // Accept all SSL certificates (optional, but often needed for local/self-signed certs)
             // client.ServerCertificateValidationCallback = (s, c, h, e) => true;
 

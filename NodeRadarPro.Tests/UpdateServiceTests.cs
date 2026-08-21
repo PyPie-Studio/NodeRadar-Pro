@@ -1,10 +1,5 @@
-using System;
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Security;
-using Xunit;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
@@ -38,7 +33,7 @@ public class UpdateServiceTests
     [Fact]
     public async Task CheckForUpdatesAsync_ValidNewVersion_ReturnsTrueAndDetails()
     {
-        var jsonResponse = """
+        var jsonResponse = /*lang=json,strict*/ """
         {
             "tag_name": "v1.2.0",
             "assets": [
@@ -62,7 +57,7 @@ public class UpdateServiceTests
     [Fact]
     public async Task CheckForUpdatesAsync_SameVersion_ReturnsFalse()
     {
-        var jsonResponse = """
+        var jsonResponse = /*lang=json,strict*/ """
         {
             "tag_name": "v1.0.0",
             "assets": [
@@ -86,7 +81,7 @@ public class UpdateServiceTests
     [Fact]
     public async Task CheckForUpdatesAsync_MissingTagName_ReturnsFalse()
     {
-        var jsonResponse = """
+        var jsonResponse = /*lang=json,strict*/ """
         {
             "assets": [
                 {
@@ -107,7 +102,7 @@ public class UpdateServiceTests
     [Fact]
     public async Task CheckForUpdatesAsync_MissingExeAsset_ReturnsFalse()
     {
-        var jsonResponse = """
+        var jsonResponse = /*lang=json,strict*/ """
         {
             "tag_name": "v1.2.0",
             "assets": [

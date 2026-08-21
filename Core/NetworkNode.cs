@@ -83,7 +83,7 @@ public class NetworkNode
     }
 
     [BsonIgnore]
-    public string DisplayName 
+    public string DisplayName
     {
         get
         {
@@ -107,12 +107,12 @@ public class NetworkNode
         get
         {
             string parts = "";
-            
+
             // Prioritize Detected OS for accuracy
             if (!string.IsNullOrEmpty(OsGuess)) parts = OsGuess;
             else if (!string.IsNullOrEmpty(DeviceType)) parts = DeviceType;
             else if (!string.IsNullOrEmpty(Vendor) && Vendor != "Unknown Vendor") parts = Vendor;
-            
+
             if (!string.IsNullOrEmpty(ExactModel) && ExactModel != DisplayName)
                 parts = string.IsNullOrEmpty(parts) ? ExactModel : $"{parts} • {ExactModel}";
             else if (!string.IsNullOrEmpty(DeviceModel))

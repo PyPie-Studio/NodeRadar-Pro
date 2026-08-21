@@ -1,5 +1,4 @@
 using NodeRadarPro.Core;
-using Xunit;
 
 namespace Core.Tests;
 

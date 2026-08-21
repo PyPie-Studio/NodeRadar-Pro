@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
@@ -21,13 +24,14 @@ public static class WakeOnLan
         if (string.IsNullOrWhiteSpace(macAddress)) return false;
 
         // Normalize MAC address: AA:BB:CC... -> AABBCC...
-        string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "");
+        string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "").Replace(" ", "");
         if (cleanMac.Length != 12) return false;
 
         byte[] macBytes = new byte[6];
         for (int i = 0; i < 6; i++)
         {
-            if (!byte.TryParse(cleanMac.Substring(i * 2, 2), System.Globalization.NumberStyles.HexNumber, null, out byte parsedByte))
+            ReadOnlySpan<char> byteSpan = cleanMac.AsSpan(i * 2, 2);
+            if (!byte.TryParse(byteSpan, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out byte parsedByte))
             {
                 return false;
             }
@@ -45,26 +49,88 @@ public static class WakeOnLan
 
         try
         {
-            // Broadcast packet via UDP on port 9 (standard WoL port)
             using var client = new UdpClient();
             client.EnableBroadcast = true;
-            
-            // We broadcast to the global broadcast address. 
-            // In a more advanced version, we could target specific subnets.
-            var endpoint = new IPEndPoint(IPAddress.Broadcast, 9);
-            
-            await client.SendAsync(packet, packet.Length, endpoint);
-            
-            // Send multiple times for reliability
-            await Task.Delay(50);
-            await client.SendAsync(packet, packet.Length, endpoint);
 
-            return true;
+            var broadcastEndpoints = new List<IPEndPoint>
+            {
+                new IPEndPoint(IPAddress.Broadcast, 7),
+                new IPEndPoint(IPAddress.Broadcast, 9)
+            };
+
+            // Calculate and add subnet-specific broadcast endpoints for multi-homed systems
+            try
+            {
+                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+
+                    var ipProps = ni.GetIPProperties();
+                    foreach (var unicast in ipProps.UnicastAddresses)
+                    {
+                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            var ip = unicast.Address;
+                            var mask = unicast.IPv4Mask;
+                            if (mask != null && !mask.Equals(IPAddress.Any))
+                            {
+                                byte[] ipBytes = ip.GetAddressBytes();
+                                byte[] maskBytes = mask.GetAddressBytes();
+                                byte[] broadcastBytes = new byte[4];
+                                for (int k = 0; k < 4; k++)
+                                {
+                                    broadcastBytes[k] = (byte)(ipBytes[k] | ~maskBytes[k]);
+                                }
+                                var subnetBroadcast = new IPAddress(broadcastBytes);
+
+                                broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 7));
+                                broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 9));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Data.LocalDatabase.Instance.Log(LogLevel.Warning, "WoL", $"Subnet broadcast resolution warning: {ex.Message}");
+            }
+
+            // Deduplicate endpoints
+            var uniqueEndpoints = broadcastEndpoints
+                .GroupBy(ep => new { ep.Address, ep.Port })
+                .Select(g => g.First())
+                .ToList();
+
+            bool sentAny = false;
+            foreach (var endpoint in uniqueEndpoints)
+            {
+                try
+                {
+                    await client.SendAsync(packet, packet.Length, endpoint);
+                    sentAny = true;
+                }
+                catch { }
+            }
+
+            // Send multiple times (delay 50ms) for reliability
+            if (sentAny)
+            {
+                await Task.Delay(50);
+                foreach (var endpoint in uniqueEndpoints)
+                {
+                    try
+                    {
+                        await client.SendAsync(packet, packet.Length, endpoint);
+                    }
+                    catch { }
+                }
+            }
+
+            return sentAny;
         }
         catch (SocketException ex)
         {
-            // Specifically catching SocketException since sending UDP packets usually raises this.
-            // General exception catching might hide logical bugs.
             Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {ex.Message}");
             return false;
         }

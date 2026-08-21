@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -35,8 +34,7 @@ public class TracerouteEngine
         pingClientFactory ??= () => new PingClientWrapper();
         try
         {
-            IPAddress? destAddr;
-            if (!IPAddress.TryParse(destination, out destAddr))
+            if (!IPAddress.TryParse(destination, out IPAddress? destAddr))
             {
                 var hostEntry = await Dns.GetHostEntryAsync(destination);
                 destAddr = hostEntry.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
@@ -126,10 +124,10 @@ public interface IPingReply
     long RoundtripTime { get; }
 }
 
-public class PingReplyWrapper : IPingReply
+public class TraceroutePingReply : IPingReply
 {
     private readonly PingReply _reply;
-    public PingReplyWrapper(PingReply reply) => _reply = reply;
+    public TraceroutePingReply(PingReply reply) => _reply = reply;
 
     public IPStatus Status => _reply.Status;
     public IPAddress? Address => _reply.Address;
@@ -143,7 +141,7 @@ public class PingClientWrapper : IPingClient
     public async Task<IPingReply> SendPingAsync(IPAddress address, int timeout, byte[] buffer, PingOptions options)
     {
         var reply = await _ping.SendPingAsync(address, timeout, buffer, options);
-        return new PingReplyWrapper(reply);
+        return new TraceroutePingReply(reply);
     }
 
     public void Dispose()

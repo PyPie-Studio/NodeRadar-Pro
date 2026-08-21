@@ -1,10 +1,9 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using System;
 using System.Threading.Tasks;
-using Avalonia.Input;
 using Avalonia.Input.Platform;
 
 namespace NodeRadarPro.UI;
@@ -115,6 +114,36 @@ public static class ThemeTokens
     public const string SvgAccessPoint = "M12,3C14.8,3 17.3,4.1 19.1,6L20.5,4.6C18.3,2.4 15.3,1 12,1C8.7,1 5.7,2.4 3.5,4.6L4.9,6C6.7,4.1 9.2,3 12,3M12,7C13.7,7 15.3,7.7 16.4,8.8L17.8,7.4C16.3,5.9 14.3,5 12,5C9.7,5 7.7,5.9 6.2,7.4L7.6,8.8C8.7,7.7 10.3,7 12,7M12,11C12.8,11 13.5,11.3 14,11.8L15.4,10.4C14.5,9.5 13.3,9 12,9C10.7,9 9.5,9.5 8.6,10.4L10,11.8C10.5,11.3 11.2,11 12,11M12,13C10.9,13 10,13.9 10,15C10,16.1 10.9,17 12,17C13.1,17 14,16.1 14,15C14,13.9 13.1,13 12,13M11,18V22H13V18H11Z";
     public const string SvgTablet = "M19,18H5V6H19M21,4H3C1.89,4 1,4.89 1,6V18A2,2 0 0,0 3,20H21A2,2 0 0,0 23,18V6C23,4.89 22.1,4 21,4Z";
     public const string SvgDvr = "M21,3H3C1.89,3 1,3.89 1,5V19A2,2 0 0,0 3,21H21A2,2 0 0,0 23,19V5C23,3.89 22.1,3 21,3M21,19H3V5H21V19M8,8H16V16H8V8Z";
+    public const string SvgSearch = "M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z";
+    public const string SvgTrash = "M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z";
+    public const string SvgSave = "M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z";
+    public const string SvgCheck = "M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z";
+    public const string SvgBolt = "M11,15H6L13,1V9H18L11,23V15Z";
+    public const string SvgStop = "M18,18H6V6H18V18Z";
+    public const string SvgPlay = "M8,5.14V19.14L19,12.14L8,5.14Z";
+
+    public static string GetDeviceSvg(string? iconKey)
+    {
+        return iconKey?.ToLowerInvariant() switch
+        {
+            "router" or "gateway" => SvgRouter,
+            "server" => SvgServer,
+            "desktop" or "pc" => SvgDesktop,
+            "phone" or "mobile" => SvgPhone,
+            "printer" => SvgPrinter,
+            "tv" => SvgTv,
+            "camera" => SvgCamera,
+            "speaker" => SvgSpeaker,
+            "gamepad" or "console" => SvgGamepad,
+            "nas" => SvgNas,
+            "switch" => SvgSwitch,
+            "accesspoint" or "ap" => SvgAccessPoint,
+            "tablet" => SvgTablet,
+            "dvr" or "nvr" => SvgDvr,
+            "firewall" => SvgFirewall,
+            _ => SvgIot
+        };
+    }
 
     public static Avalonia.Controls.Shapes.Path VectorIcon(string pathData, double size = 20, IBrush? color = null) => new()
     {
@@ -130,30 +159,13 @@ public static class ThemeTokens
         ToolTip.SetTip(control, tip);
     }
 
-    public static void AddCopyAction(Control control, string? initialValue = null)
+    public static void AddCopyAction(Control control, string? initialValue = null, Func<string?>? valueProvider = null)
     {
         control.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
 
-        string? GetLiveValue()
-        {
-            string? val = initialValue;
-            if (control is TextBlock tb) val = tb.Text;
-            else if (control is TextBox tbox) val = tbox.Text;
-            return val;
-        }
-
-        control.PointerEntered += (s, e) =>
-        {
-            string? liveValue = GetLiveValue();
-            if (!string.IsNullOrEmpty(liveValue) && liveValue != "Unknown" && liveValue != "—")
-            {
-                SetToolTip(control, $"Click to copy: {liveValue}");
-            }
-        };
-        
         control.PointerPressed += async (s, e) =>
         {
-            string? liveValue = GetLiveValue();
+            string? liveValue = valueProvider?.Invoke() ?? (control as TextBlock)?.Text ?? initialValue;
 
             if (string.IsNullOrEmpty(liveValue) || liveValue == "Unknown" || liveValue == "—") return;
 

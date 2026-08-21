@@ -99,10 +99,10 @@ public class InventoryPage : Border
             {
                 var oldMacs = _activeNodes.Select(n => n.MacAddress).ToHashSet();
                 var newMacs = msg.Nodes.Select(n => n.MacAddress).ToHashSet();
-                
+
                 bool membershipChanged = !oldMacs.SetEquals(newMacs);
                 _activeNodes = msg.Nodes.ToList();
-                
+
                 if (membershipChanged)
                 {
                     RefreshData();
@@ -179,9 +179,8 @@ public class InventoryPage : Border
         {
             Content = "+",
             Background = Brushes.Transparent,
-            Foreground = ThemeTokens.OnSurfaceVariant,
-            Width = 28, Height = 28,
-            FontSize = 18,
+            Width = 28,
+            Height = 28,
             CornerRadius = new CornerRadius(6),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -241,7 +240,7 @@ public class InventoryPage : Border
         };
         Grid.SetColumn(_bulkTitle, 0);
         Grid.SetColumn(selectionContent.Children[1], 2); // The stackpanel
-        
+
         _bulkArea = new Border
         {
             Background = ThemeTokens.SurfaceContainerHigh,
@@ -289,7 +288,8 @@ public class InventoryPage : Border
         // Glass header
         _deviceIconBox = new Border
         {
-            Width = 60, Height = 60,
+            Width = 60,
+            Height = 60,
             CornerRadius = new CornerRadius(12),
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
@@ -353,7 +353,8 @@ public class InventoryPage : Border
                 }
             },
             Background = Brushes.Transparent,
-            Width = 80, Height = 60,
+            Width = 80,
+            Height = 60,
             CornerRadius = new CornerRadius(8),
             BorderBrush = new SolidColorBrush(Color.Parse("#4CD7F6"), 0.3),
             BorderThickness = new Thickness(1),
@@ -420,7 +421,7 @@ public class InventoryPage : Border
         _timeAxis = new Grid { Margin = new Thickness(0, 0, 0, 0) };
         for (int i = 0; i < 5; i++)
             _timeAxis.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        
+
         RefreshTimeAxis();
 
         var uptimeContent = new StackPanel { Children = { uptimeHeader, _uptimeChart, _timeAxis } };
@@ -533,7 +534,7 @@ public class InventoryPage : Border
         // ═══════════════════════
         _nameInput = ThemeTokens.Input("Custom Name...");
         ThemeTokens.SetToolTip(_nameInput, "Assign a unique nickname to this device for easier identification.");
-        
+
         _deviceNameInput = ThemeTokens.Input("Device Name...");
         _deviceNameInput.IsReadOnly = true;
         _deviceNameInput.IsHitTestVisible = false; // Prevent keyboard focus/cursor
@@ -577,15 +578,11 @@ public class InventoryPage : Border
 
         var webBtn = ThemeTokens.TertiaryButton("🌐  Open Web UI");
         ThemeTokens.SetToolTip(webBtn, "Open this device's IP in your default web browser.");
-        webBtn.Click += (s, e) => {
-            if (_currentNode != null) {
-                try {
-                    if (Uri.TryCreate($"http://{_currentNode.IpAddress}", UriKind.Absolute, out Uri? uri) &&
-                        (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps) &&
-                        (uri.HostNameType == UriHostNameType.IPv4 || uri.HostNameType == UriHostNameType.IPv6)) {
-                        AppUtils.OpenSafeUrl(uri.AbsoluteUri);
-                    }
-                }
+        webBtn.Click += (s, e) =>
+        {
+            if (_currentNode != null)
+            {
+                try { Process.Start(new ProcessStartInfo { FileName = $"http://{_currentNode.IpAddress}", UseShellExecute = true }); }
                 catch { }
             }
         };
@@ -691,9 +688,9 @@ public class InventoryPage : Border
         _selectAllCheckbox.IsVisible = _isSelectionMode;
         _selectAllCheckbox.IsChecked = false;
         _deviceCountText.IsVisible = !_isSelectionMode;
-        
+
         _bulkArea.IsVisible = _isSelectionMode && _selectedMacs.Count > 0;
-        
+
         if (!_isSelectionMode)
         {
             if (_currentNode != null) _detailArea.IsVisible = true;
@@ -703,7 +700,7 @@ public class InventoryPage : Border
         {
             UpdateBulkView();
         }
-        
+
         RefreshDeviceList();
     }
 
@@ -726,7 +723,7 @@ public class InventoryPage : Border
         _bulkTitle.Text = $"{_selectedMacs.Count} selected";
         _bulkDeleteBtn.Content = "Delete";
         _bulkDeleteBtn.IsEnabled = _selectedMacs.Count > 0;
-        
+
         // Contextually show/hide the bar if we are in selection mode
         _bulkArea.IsVisible = _isSelectionMode && _selectedMacs.Count > 0;
     }
@@ -738,14 +735,15 @@ public class InventoryPage : Border
         _bulkDeleteBtn.Background = Brushes.DarkRed;
         _bulkDeleteBtn.Click -= OnBulkDeleteClicked;
         _bulkDeleteBtn.Click += DoActualBulkDelete;
-        
+
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, ev) => { 
-            _bulkDeleteBtn.Content = $"🗑 Delete {_selectedMacs.Count} Devices";
+        timer.Tick += (s, ev) =>
+        {
+            _bulkDeleteBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgTrash, 14, ThemeTokens.Error), new TextBlock { Text = $"Delete {_selectedMacs.Count} Devices", Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center } } };
             _bulkDeleteBtn.Background = ThemeTokens.ErrorContainer;
             _bulkDeleteBtn.Click -= DoActualBulkDelete;
             _bulkDeleteBtn.Click += OnBulkDeleteClicked;
-            timer.Stop(); 
+            timer.Stop();
         };
         timer.Start();
     }
@@ -754,13 +752,13 @@ public class InventoryPage : Border
     {
         var macsToDelete = _selectedMacs.ToList();
         var nodesToDelete = _activeNodes.Where(n => macsToDelete.Contains(n.MacAddress)).ToList();
-        
+
         _db.DeleteDevices(macsToDelete);
         foreach (var mac in macsToDelete) _monitor.RemoveDevice(mac);
         _activeNodes.RemoveAll(n => macsToDelete.Contains(n.MacAddress));
-        
+
         DevicesDeleted?.Invoke(nodesToDelete);
-        
+
         ToggleSelectionMode();
         RefreshDeviceList();
     }
@@ -849,7 +847,7 @@ public class InventoryPage : Border
         _timeAxis.Children.Clear();
         var now = DateTime.Now;
         string[] labels = new string[5];
-        
+
         for (int i = 0; i < 4; i++)
         {
             var time = now.AddHours(-(_uptimeHours / 4.0 * (4 - i)));
@@ -859,12 +857,12 @@ public class InventoryPage : Border
 
         for (int i = 0; i < 5; i++)
         {
-            var t = new TextBlock 
-            { 
-                Text = labels[i], 
-                FontSize = 10, 
-                Foreground = ThemeTokens.OnSurfaceVariant, 
-                HorizontalAlignment = i == 4 ? HorizontalAlignment.Right : (i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center) 
+            var t = new TextBlock
+            {
+                Text = labels[i],
+                FontSize = 10,
+                Foreground = ThemeTokens.OnSurfaceVariant,
+                HorizontalAlignment = i == 4 ? HorizontalAlignment.Right : (i == 0 ? HorizontalAlignment.Left : HorizontalAlignment.Center)
             };
             Grid.SetColumn(t, i);
             _timeAxis.Children.Add(t);
@@ -972,7 +970,7 @@ public class InventoryPage : Border
                 }
             }
         }
-        
+
         // Also update detail view if current node changed status
         if (_currentNode != null) RefreshDetailView();
     }
@@ -1028,7 +1026,8 @@ public class InventoryPage : Border
 
         var iconBox = new Border
         {
-            Width = 38, Height = 38,
+            Width = 38,
+            Height = 38,
             CornerRadius = new CornerRadius(8),
             Background = ThemeTokens.SurfaceContainerLowest,
             BorderBrush = ThemeTokens.GhostBorder,
@@ -1053,7 +1052,8 @@ public class InventoryPage : Border
         {
             var riskDot = new Border
             {
-                Width = 6, Height = 6,
+                Width = 6,
+                Height = 6,
                 CornerRadius = new CornerRadius(3),
                 Background = node.ThreatLevel == ThreatLevel.Critical ? ThemeTokens.Error : new SolidColorBrush(Color.Parse("#FFCE50")),
                 VerticalAlignment = VerticalAlignment.Top,
@@ -1090,7 +1090,8 @@ public class InventoryPage : Border
 
         card.PointerEntered += (s, e) => { if (node.MacAddress != _selectedMac) card.Background = ThemeTokens.SurfaceContainerHigh; };
         card.PointerExited += (s, e) => { if (node.MacAddress != _selectedMac) card.Background = Brushes.Transparent; };
-        card.PointerPressed += (s, e) => {
+        card.PointerPressed += (s, e) =>
+        {
             if (_isSelectionMode)
             {
                 if (_selectedMacs.Contains(node.MacAddress)) _selectedMacs.Remove(node.MacAddress);
@@ -1115,8 +1116,10 @@ public class InventoryPage : Border
             IpAddress = "0.0.0.0",
             MacAddress = $"MANUAL-{Guid.NewGuid().ToString()[..8].ToUpper()}",
             Hostname = "Manual Entry",
-            IsOnline = false, IsRegistered = true,
-            FirstSeen = DateTime.UtcNow, LastSeen = DateTime.UtcNow
+            IsOnline = false,
+            IsRegistered = true,
+            FirstSeen = DateTime.UtcNow,
+            LastSeen = DateTime.UtcNow
         };
         _activeNodes.Add(manualNode);
         ShowDevice(manualNode);
@@ -1223,10 +1226,10 @@ public class InventoryPage : Border
     {
         if (_currentNode == null) return;
         _wakeBtn.IsEnabled = false;
-        _wakeBtn.Content = "⚡  Sending...";
-        
+        _wakeBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgBolt, 16, ThemeTokens.OnSurfaceVariant), new TextBlock { Text = "Sending...", VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") } } };
+
         bool success = await WakeOnLan.WakeAsync(_currentNode.MacAddress);
-        
+
         if (success)
         {
             _wakeBtn.Content = "✅  Magic Packet Sent";
@@ -1292,7 +1295,8 @@ public class InventoryPage : Border
             BorderThickness = new Thickness(1),
             Child = new StackPanel
             {
-                Orientation = Orientation.Horizontal, Spacing = 6,
+                Orientation = Orientation.Horizontal,
+                Spacing = 6,
                 Children =
                 {
                     new TextBlock { Text = label, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") },
@@ -1393,18 +1397,18 @@ public class InventoryPage : Border
     private string GetRichSubtitle(NetworkNode node)
     {
         var parts = new List<string>();
-        
+
         // Prioritize OS Guess as the leading signal for Deep Intelligence
         if (!string.IsNullOrEmpty(node.OsGuess)) parts.Add(node.OsGuess);
-        
-        if (!string.IsNullOrEmpty(node.Vendor) && node.Vendor != "Unknown Vendor" && node.Vendor != "Unknown") 
+
+        if (!string.IsNullOrEmpty(node.Vendor) && node.Vendor != "Unknown Vendor" && node.Vendor != "Unknown")
             parts.Add(node.Vendor);
-            
-        if (!string.IsNullOrEmpty(node.DeviceType) && node.DeviceType != "Generic Device") 
+
+        if (!string.IsNullOrEmpty(node.DeviceType) && node.DeviceType != "Generic Device")
             parts.Add(node.DeviceType);
 
         var uniqueParts = parts.Distinct().ToList();
-        
+
         // Add ExactModel if it contains information not already present
         if (!string.IsNullOrEmpty(node.ExactModel))
         {

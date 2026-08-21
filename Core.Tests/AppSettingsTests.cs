@@ -1,6 +1,5 @@
 using System.Text.Json;
 using NodeRadarPro.Core;
-using Xunit;
 
 namespace Core.Tests
 {

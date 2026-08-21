@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Linq;
@@ -23,9 +22,9 @@ public static class Logger
     {
         LogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "Logs");
         if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
-        
+
         CurrentLogFile = Path.Combine(LogDir, "noderadar_system.log");
-        
+
         // Initial cleanup of old logs (keep last 5 days)
         CleanupOldLogs();
     }
@@ -35,10 +34,10 @@ public static class Logger
         string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         string threadId = System.Threading.Thread.CurrentThread.ManagedThreadId.ToString().PadLeft(3, '0');
         string macInfo = !string.IsNullOrEmpty(deviceMac) ? $" [{deviceMac}]" : "";
-        
+
         // Structure: [Timestamp] [Level] [Thread] [Source] Message [Device]
-        string line = $"[{timestamp}] [{level.ToString().ToUpper().PadRight(7)}] [{threadId}] [{source}] {message}{macInfo}";
-        
+        string line = $"[{timestamp}] [{level.ToString().ToUpper(),-7}] [{threadId}] [{source}] {message}{macInfo}";
+
         _logQueue.Enqueue(line);
         ProcessQueue();
     }

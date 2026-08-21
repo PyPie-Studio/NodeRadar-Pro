@@ -78,30 +78,30 @@ public static class VendorLookup
         Add("E8:DE:27", "TP-Link"); Add("EC:08:6B", "TP-Link"); Add("F4:F2:6D", "TP-Link");
 
         // ── Intel ──
-        Add("00:11:11", "Intel");  Add("00:23:14", "Intel");  Add("3C:97:0E", "Intel");
-        Add("44:03:2C", "Intel");  Add("5C:87:9C", "Intel");  Add("68:05:CA", "Intel");
-        Add("80:86:F2", "Intel");  Add("8C:8D:28", "Intel");  Add("A4:BF:01", "Intel");
-        Add("B4:B6:76", "Intel");  Add("B4:96:91", "Intel");  Add("C8:D3:FF", "Intel");
-        Add("D0:94:66", "Intel");  Add("F8:63:3F", "Intel");  Add("48:A4:72", "Intel");
+        Add("00:11:11", "Intel"); Add("00:23:14", "Intel"); Add("3C:97:0E", "Intel");
+        Add("44:03:2C", "Intel"); Add("5C:87:9C", "Intel"); Add("68:05:CA", "Intel");
+        Add("80:86:F2", "Intel"); Add("8C:8D:28", "Intel"); Add("A4:BF:01", "Intel");
+        Add("B4:B6:76", "Intel"); Add("B4:96:91", "Intel"); Add("C8:D3:FF", "Intel");
+        Add("D0:94:66", "Intel"); Add("F8:63:3F", "Intel"); Add("48:A4:72", "Intel");
 
         // ── Cisco ──
-        Add("00:00:0C", "Cisco");  Add("00:25:9C", "Cisco");  Add("00:1E:7A", "Cisco");
-        Add("00:22:BD", "Cisco");  Add("1C:E6:C7", "Cisco");  Add("34:62:88", "Cisco");
-        Add("58:97:1E", "Cisco");  Add("6C:41:6A", "Cisco");  Add("A4:56:30", "Cisco");
-        Add("BC:67:1C", "Cisco");  Add("CC:46:D6", "Cisco");  Add("F0:29:29", "Cisco");
+        Add("00:00:0C", "Cisco"); Add("00:25:9C", "Cisco"); Add("00:1E:7A", "Cisco");
+        Add("00:22:BD", "Cisco"); Add("1C:E6:C7", "Cisco"); Add("34:62:88", "Cisco");
+        Add("58:97:1E", "Cisco"); Add("6C:41:6A", "Cisco"); Add("A4:56:30", "Cisco");
+        Add("BC:67:1C", "Cisco"); Add("CC:46:D6", "Cisco"); Add("F0:29:29", "Cisco");
 
         // ── Dell ──
-        Add("00:14:22", "Dell");   Add("14:FE:B5", "Dell");   Add("18:A9:05", "Dell");
-        Add("24:B6:FD", "Dell");   Add("34:17:EB", "Dell");   Add("54:9F:35", "Dell");
-        Add("74:86:7A", "Dell");   Add("90:B1:1C", "Dell");   Add("B0:83:FE", "Dell");
-        Add("D4:81:D7", "Dell");   Add("F0:1F:AF", "Dell");   Add("F8:BC:12", "Dell");
+        Add("00:14:22", "Dell"); Add("14:FE:B5", "Dell"); Add("18:A9:05", "Dell");
+        Add("24:B6:FD", "Dell"); Add("34:17:EB", "Dell"); Add("54:9F:35", "Dell");
+        Add("74:86:7A", "Dell"); Add("90:B1:1C", "Dell"); Add("B0:83:FE", "Dell");
+        Add("D4:81:D7", "Dell"); Add("F0:1F:AF", "Dell"); Add("F8:BC:12", "Dell");
 
         // ── HP ──
-        Add("00:1A:4B", "HP");     Add("00:23:7D", "HP");     Add("10:1F:74", "HP");
-        Add("14:58:D0", "HP");     Add("28:92:4A", "HP");     Add("30:8D:99", "HP");
-        Add("3C:D9:2B", "HP");     Add("48:0F:CF", "HP");     Add("5C:B9:01", "HP");
-        Add("6C:C2:17", "HP");     Add("8C:DC:D4", "HP");     Add("94:57:A5", "HP");
-        Add("A0:D3:C1", "HP");     Add("B0:5A:DA", "HP");     Add("E4:11:5B", "HP");
+        Add("00:1A:4B", "HP"); Add("00:23:7D", "HP"); Add("10:1F:74", "HP");
+        Add("14:58:D0", "HP"); Add("28:92:4A", "HP"); Add("30:8D:99", "HP");
+        Add("3C:D9:2B", "HP"); Add("48:0F:CF", "HP"); Add("5C:B9:01", "HP");
+        Add("6C:C2:17", "HP"); Add("8C:DC:D4", "HP"); Add("94:57:A5", "HP");
+        Add("A0:D3:C1", "HP"); Add("B0:5A:DA", "HP"); Add("E4:11:5B", "HP");
 
         // ── Lenovo ──
         Add("00:1E:4F", "Lenovo"); Add("28:D2:44", "Lenovo");
@@ -109,10 +109,10 @@ public static class VendorLookup
         Add("8C:16:45", "Lenovo"); Add("98:E7:F4", "Lenovo"); Add("C8:5B:76", "Lenovo");
 
         // ── ASUS ──
-        Add("00:1E:8C", "ASUS");   Add("04:D4:C4", "ASUS");   Add("10:C3:7B", "ASUS");
-        Add("2C:56:DC", "ASUS");   Add("30:5A:3A", "ASUS");   Add("40:B0:76", "ASUS");
-        Add("50:46:5D", "ASUS");   Add("70:8B:CD", "ASUS");   Add("88:D7:F6", "ASUS");
-        Add("D8:50:E6", "ASUS");   Add("F0:79:59", "ASUS");   Add("AC:9E:17", "ASUS");
+        Add("00:1E:8C", "ASUS"); Add("04:D4:C4", "ASUS"); Add("10:C3:7B", "ASUS");
+        Add("2C:56:DC", "ASUS"); Add("30:5A:3A", "ASUS"); Add("40:B0:76", "ASUS");
+        Add("50:46:5D", "ASUS"); Add("70:8B:CD", "ASUS"); Add("88:D7:F6", "ASUS");
+        Add("D8:50:E6", "ASUS"); Add("F0:79:59", "ASUS"); Add("AC:9E:17", "ASUS");
 
         // ── Netgear ──
         Add("00:14:6C", "Netgear"); Add("00:24:B2", "Netgear"); Add("20:0C:C8", "Netgear");
@@ -133,23 +133,23 @@ public static class VendorLookup
         Add("DC:9F:DB", "Ubiquiti"); Add("F0:9F:C2", "Ubiquiti"); Add("FC:EC:DA", "Ubiquiti");
 
         // ── Google / Nest ──
-        Add("00:1A:11", "Google");  Add("08:9E:08", "Google");  Add("3C:F7:A4", "Google");
-        Add("3C:5A:B4", "Google");  Add("54:60:09", "Google");  Add("94:EB:2C", "Google");
-        Add("A4:77:33", "Google");  Add("F4:F5:D8", "Google");  Add("F4:F5:E8", "Google");
+        Add("00:1A:11", "Google"); Add("08:9E:08", "Google"); Add("3C:F7:A4", "Google");
+        Add("3C:5A:B4", "Google"); Add("54:60:09", "Google"); Add("94:EB:2C", "Google");
+        Add("A4:77:33", "Google"); Add("F4:F5:D8", "Google"); Add("F4:F5:E8", "Google");
 
         // ── Amazon / Ring / Echo ──
-        Add("10:CE:A9", "Amazon");  Add("18:74:2E", "Amazon");  Add("34:D2:70", "Amazon");
-        Add("40:B4:CD", "Amazon");  Add("44:65:0D", "Amazon");  Add("50:DC:E7", "Amazon");
-        Add("68:54:FD", "Amazon");  Add("74:C2:46", "Amazon");  Add("84:D6:D0", "Amazon");
-        Add("A0:02:DC", "Amazon");  Add("AC:63:BE", "Amazon");  Add("FC:65:DE", "Amazon");
+        Add("10:CE:A9", "Amazon"); Add("18:74:2E", "Amazon"); Add("34:D2:70", "Amazon");
+        Add("40:B4:CD", "Amazon"); Add("44:65:0D", "Amazon"); Add("50:DC:E7", "Amazon");
+        Add("68:54:FD", "Amazon"); Add("74:C2:46", "Amazon"); Add("84:D6:D0", "Amazon");
+        Add("A0:02:DC", "Amazon"); Add("AC:63:BE", "Amazon"); Add("FC:65:DE", "Amazon");
 
         // ── Microsoft / Xbox ──
         Add("AC:87:A3", "Microsoft"); Add("CC:52:AF", "Microsoft"); Add("28:18:78", "Microsoft");
         Add("60:45:BD", "Microsoft"); Add("7C:1E:52", "Microsoft"); Add("DC:B4:C4", "Microsoft");
 
         // ── Sony PlayStation ──
-        Add("00:D9:D1", "Sony");    Add("28:3F:69", "Sony");    Add("5C:A3:9D", "Sony");
-        Add("70:9E:29", "Sony");    Add("A8:E3:EE", "Sony");    Add("E0:D4:64", "Sony");
+        Add("00:D9:D1", "Sony"); Add("28:3F:69", "Sony"); Add("5C:A3:9D", "Sony");
+        Add("70:9E:29", "Sony"); Add("A8:E3:EE", "Sony"); Add("E0:D4:64", "Sony");
 
         // ── Nintendo ──
         Add("00:17:AB", "Nintendo"); Add("00:22:D7", "Nintendo"); Add("00:24:F3", "Nintendo");
@@ -157,35 +157,35 @@ public static class VendorLookup
         Add("7C:BB:8A", "Nintendo"); Add("98:B6:E9", "Nintendo");
 
         // ── VMware ──
-        Add("00:05:69", "VMware");  Add("00:0C:29", "VMware");  Add("00:50:56", "VMware");
+        Add("00:05:69", "VMware"); Add("00:0C:29", "VMware"); Add("00:50:56", "VMware");
 
         // ── Realtek / Broadcom ──
         Add("00:10:18", "Broadcom"); Add("00:E0:4C", "Realtek"); Add("48:5B:39", "Realtek");
-        Add("52:54:00", "Realtek");  Add("80:1F:12", "Realtek"); Add("E8:4E:06", "Realtek");
+        Add("52:54:00", "Realtek"); Add("80:1F:12", "Realtek"); Add("E8:4E:06", "Realtek");
 
         // ── GIGABYTE / ASRock / MSI ──
-        Add("74:D4:35", "GIGABYTE"); Add("BC:5F:F4", "ASRock");  Add("00:D8:61", "MSI");
-        Add("4C:E1:73", "MSI");     Add("04:7C:16", "MSI");
+        Add("74:D4:35", "GIGABYTE"); Add("BC:5F:F4", "ASRock"); Add("00:D8:61", "MSI");
+        Add("4C:E1:73", "MSI"); Add("04:7C:16", "MSI");
 
         // ── Synology / QNAP ──
         Add("00:11:32", "Synology"); Add("00:08:9B", "QNAP");
 
         // ── Aruba / Juniper / Fortinet ──
-        Add("00:0B:86", "Aruba");   Add("00:1B:C5", "Aruba");   Add("24:DE:C6", "Aruba");
-        Add("38:94:ED", "Aruba");   Add("6C:F3:7F", "Aruba");
+        Add("00:0B:86", "Aruba"); Add("00:1B:C5", "Aruba"); Add("24:DE:C6", "Aruba");
+        Add("38:94:ED", "Aruba"); Add("6C:F3:7F", "Aruba");
         Add("00:23:9C", "Juniper"); Add("3C:61:04", "Juniper"); Add("4C:96:14", "Juniper");
         Add("00:09:0F", "Fortinet"); Add("70:4C:A5", "Fortinet");
 
         // ── Xiaomi / Huawei / Samsung (Modern Additions) ──
-        Add("00:9A:CD", "Huawei");  Add("04:33:89", "Huawei");  Add("0C:96:E6", "Huawei");
-        Add("10:1B:54", "Huawei");  Add("20:08:ED", "Huawei");  Add("24:DF:6A", "Huawei");
-        Add("48:43:5A", "Huawei");  Add("60:DE:F3", "Huawei");  Add("80:B6:86", "Huawei");
+        Add("00:9A:CD", "Huawei"); Add("04:33:89", "Huawei"); Add("0C:96:E6", "Huawei");
+        Add("10:1B:54", "Huawei"); Add("20:08:ED", "Huawei"); Add("24:DF:6A", "Huawei");
+        Add("48:43:5A", "Huawei"); Add("60:DE:F3", "Huawei"); Add("80:B6:86", "Huawei");
 
-        Add("00:EC:0A", "Xiaomi");  Add("0C:1D:AF", "Xiaomi");  Add("14:F6:5A", "Xiaomi");
-        Add("28:E3:1F", "Xiaomi");  Add("3C:BD:3E", "Xiaomi");  Add("50:8A:06", "Xiaomi");
-        Add("64:09:80", "Xiaomi");  Add("74:51:BA", "Xiaomi");  Add("8C:45:00", "Xiaomi");
-        Add("98:FA:E3", "Xiaomi");  Add("AC:C1:EE", "Xiaomi");  Add("C4:0B:CB", "Xiaomi");
-        Add("D4:A1:48", "Xiaomi");  Add("F4:J6:B3", "Xiaomi");  Add("FC:64:BA", "Xiaomi");
+        Add("00:EC:0A", "Xiaomi"); Add("0C:1D:AF", "Xiaomi"); Add("14:F6:5A", "Xiaomi");
+        Add("28:E3:1F", "Xiaomi"); Add("3C:BD:3E", "Xiaomi"); Add("50:8A:06", "Xiaomi");
+        Add("64:09:80", "Xiaomi"); Add("74:51:BA", "Xiaomi"); Add("8C:45:00", "Xiaomi");
+        Add("98:FA:E3", "Xiaomi"); Add("AC:C1:EE", "Xiaomi"); Add("C4:0B:CB", "Xiaomi");
+        Add("D4:A1:48", "Xiaomi"); Add("F4:J6:B3", "Xiaomi"); Add("FC:64:BA", "Xiaomi");
 
         Add("00:12:36", "Samsung"); Add("00:15:99", "Samsung"); Add("00:1E:E3", "Samsung");
         Add("00:26:37", "Samsung"); Add("08:D4:6A", "Samsung"); Add("10:19:94", "Samsung");
@@ -196,16 +196,16 @@ public static class VendorLookup
 
         // ── OnePlus / Oppo / Vivo / Realme / Tecno ──
         Add("94:65:2D", "OnePlus"); Add("C0:EE:FB", "OnePlus"); Add("50:01:D9", "OnePlus");
-        Add("00:1E:AC", "Oppo");    Add("A4:3B:FA", "Oppo");    Add("84:B8:B8", "Oppo");
-        Add("24:11:05", "Vivo");    Add("60:0F:77", "Vivo");    Add("9C:52:F8", "Vivo");
-        Add("3C:05:18", "Realme");  Add("D8:45:1E", "Realme");
-        Add("48:A1:95", "Tecno");   Add("70:86:CE", "Tecno");
+        Add("00:1E:AC", "Oppo"); Add("A4:3B:FA", "Oppo"); Add("84:B8:B8", "Oppo");
+        Add("24:11:05", "Vivo"); Add("60:0F:77", "Vivo"); Add("9C:52:F8", "Vivo");
+        Add("3C:05:18", "Realme"); Add("D8:45:1E", "Realme");
+        Add("48:A1:95", "Tecno"); Add("70:86:CE", "Tecno");
         Add("D0:53:49", "Liteon/Laptop WiFi");
 
         // ── LG ──
-        Add("00:1E:75", "LG");     Add("00:22:A9", "LG");     Add("10:68:3F", "LG");
-        Add("34:4D:F7", "LG");     Add("58:A2:B5", "LG");     Add("88:07:4B", "LG");
-        Add("A8:23:FE", "LG");     Add("CC:FA:00", "LG");     Add("F8:0C:F3", "LG");
+        Add("00:1E:75", "LG"); Add("00:22:A9", "LG"); Add("10:68:3F", "LG");
+        Add("34:4D:F7", "LG"); Add("58:A2:B5", "LG"); Add("88:07:4B", "LG");
+        Add("A8:23:FE", "LG"); Add("CC:FA:00", "LG"); Add("F8:0C:F3", "LG");
 
         // ── Motorola / Google Pixel ──
         Add("00:04:56", "Motorola"); Add("00:0C:E5", "Motorola"); Add("14:A5:1A", "Motorola");
@@ -214,15 +214,15 @@ public static class VendorLookup
         // ── Hikvision / Dahua (Cameras) ──
         Add("28:57:BE", "Hikvision"); Add("44:19:B6", "Hikvision"); Add("54:C4:15", "Hikvision");
         Add("C0:56:27", "Hikvision"); Add("F4:15:63", "Hikvision");
-        Add("3C:EF:8C", "Dahua");   Add("A0:BD:1D", "Dahua");
+        Add("3C:EF:8C", "Dahua"); Add("A0:BD:1D", "Dahua");
 
         // ── Sonos ──
-        Add("00:0E:58", "Sonos");   Add("34:7E:5C", "Sonos");   Add("5C:AA:FD", "Sonos");
-        Add("78:28:CA", "Sonos");   Add("94:9F:3E", "Sonos");   Add("B8:E9:37", "Sonos");
+        Add("00:0E:58", "Sonos"); Add("34:7E:5C", "Sonos"); Add("5C:AA:FD", "Sonos");
+        Add("78:28:CA", "Sonos"); Add("94:9F:3E", "Sonos"); Add("B8:E9:37", "Sonos");
 
         // ── Roku / Smart TV ──
-        Add("00:0D:4B", "Roku");    Add("20:EF:BD", "Roku");    Add("B0:A7:37", "Roku");
-        Add("CC:6D:A0", "Roku");    Add("D0:4D:C6", "Roku");    Add("D8:31:34", "Roku");
+        Add("00:0D:4B", "Roku"); Add("20:EF:BD", "Roku"); Add("B0:A7:37", "Roku");
+        Add("CC:6D:A0", "Roku"); Add("D0:4D:C6", "Roku"); Add("D8:31:34", "Roku");
 
         // ── Obscure & Industrial (The "Break the Internet" Tier) ──
         Add("00:01:02", "3COM"); Add("00:01:42", "Cisco-Linksys"); Add("00:02:72", "CC&C Technologies");
@@ -271,10 +271,10 @@ public static class VendorLookup
             return "Unknown Vendor";
 
         string prefix = macAddress[..8].Replace("-", ":").ToUpper();
-        
+
         if (_vendors.TryGetValue(prefix, out string? vendor))
             return vendor;
-            
+
         // Check for MAC Randomization (Locally Administered Bit is set)
         if (macAddress.Length >= 2)
         {
@@ -282,7 +282,7 @@ public static class VendorLookup
             if (c == '2' || c == '6' || c == 'A' || c == 'E' || c == 'a' || c == 'e')
                 return "Randomized MAC (Mobile/Privacy)";
         }
-        
+
         return "Unknown Vendor";
     }
 
@@ -290,6 +290,7 @@ public static class VendorLookup
     /// Guessing is now completely offloaded to the far superior DeviceClassifier.cs engine.
     /// This method is deprecated but kept temporarily so the UI doesn't break if it depends on it.
     /// </summary>
+#pragma warning disable S1133
     [Obsolete("Guessing is now completely offloaded to the far superior DeviceClassifier.cs engine. This method is deprecated but kept temporarily so the UI doesn't break if it depends on it.")]
     public static string GuessDeviceType(string vendor, string hostname)
     {
@@ -297,4 +298,5 @@ public static class VendorLookup
         // The real logic runs in Core.DeviceClassifier.ResolveDetails.
         return "Generic Network Device";
     }
+#pragma warning restore S1133
 }
