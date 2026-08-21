@@ -189,5 +189,33 @@ namespace NodeRadarPro.Tests
                 listener.Stop();
             }
         }
+
+
+        [Theory]
+        [InlineData(80, "HTTP")]
+        [InlineData(443, "HTTPS")]
+        [InlineData(22, "SSH")]
+        [InlineData(3389, "RDP")]
+        public void GetServiceName_ShouldReturnKnownServiceName(int port, string expectedName)
+        {
+            // Act
+            string result = PortScanner.GetServiceName(port);
+
+            // Assert
+            Assert.Equal(expectedName, result);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(9999)]
+        [InlineData(65535)]
+        public void GetServiceName_ShouldReturnPortNumber_ForUnknownPort(int port)
+        {
+            // Act
+            string result = PortScanner.GetServiceName(port);
+
+            // Assert
+            Assert.Equal($"Port {port}", result);
+        }
     }
 }
