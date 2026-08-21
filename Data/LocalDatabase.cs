@@ -289,6 +289,12 @@ public class LocalDatabase : IDisposable
 
 
 
+
+    public NetworkNode? GetRegisteredDeviceByIp(string ip)
+    {
+        return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
+    }
+
     public List<NetworkNode> GetRegisteredDevices()
     {
         return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();

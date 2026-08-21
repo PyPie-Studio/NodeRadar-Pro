@@ -54,6 +54,7 @@ public class SubnetScanner
         await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
+        var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
         int totalIps = endIp - startIp + 1;
@@ -68,7 +69,7 @@ public class SubnetScanner
             try
             {
                 string ip = $"{baseIp}.{i}";
-                var node = await ProbeAndResolveAsync(ip, token);
+                var node = await ProbeAndResolveAsync(ip, token, registeredDevicesCache);
 
                 if (node != null && !token.IsCancellationRequested)
                 {
@@ -150,6 +151,7 @@ public class SubnetScanner
         await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
+        var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
         var discoveredMacs = new ConcurrentDictionary<string, bool>();
 
         // Pre-Sweep: Rapid ARP check for silent devices (Issue 8)
@@ -216,7 +218,7 @@ public class SubnetScanner
                 try
                 {
                     string ip = $"{subnet}.{i}";
-                    var node = await ProbeAndResolveAsync(ip, token);
+                    var node = await ProbeAndResolveAsync(ip, token, registeredDevicesCache);
 
                     if (node != null && !token.IsCancellationRequested)
                     {
@@ -296,7 +298,7 @@ public class SubnetScanner
         return activeNodes.ToList();
     }
 
-    private async Task<NetworkNode?> ProbeAndResolveAsync(string ip, CancellationToken token)
+    private async Task<NetworkNode?> ProbeAndResolveAsync(string ip, CancellationToken token, List<NetworkNode>? registeredDevicesCache = null)
     {
         if (token.IsCancellationRequested) return null;
 
@@ -377,8 +379,9 @@ public class SubnetScanner
         {
             // We check the database to see if we have a device that HAD this IP recently
             // This allows us to maintain identity even if ARP is transiently failing.
-            var registered = Data.LocalDatabase.Instance.GetRegisteredDevices();
-            var existing = registered.FirstOrDefault(d => d.IpAddress == ip);
+            var existing = registeredDevicesCache != null
+                ? registeredDevicesCache.FirstOrDefault(d => d.IpAddress == ip)
+                : Data.LocalDatabase.Instance.GetRegisteredDeviceByIp(ip);
             if (existing != null)
             {
                 mac = existing.MacAddress;
@@ -585,8 +588,7 @@ public class SubnetScanner
         // Database correlation fallback for background monitor
         if (isOnline && mac == "Unknown")
         {
-            var registered = Data.LocalDatabase.Instance.GetRegisteredDevices();
-            var existing = registered.FirstOrDefault(d => d.IpAddress == ip);
+            var existing = Data.LocalDatabase.Instance.GetRegisteredDeviceByIp(ip);
             if (existing != null) mac = existing.MacAddress;
         }
 
