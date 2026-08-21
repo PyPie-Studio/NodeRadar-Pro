@@ -412,7 +412,7 @@ public class DarkPurpleTheme
 
         inventoryPage.DeviceSelected += (node) =>
         {
-             // Fix Issue 4: Fetch history when device is selected in inventory
+             // Fetch history when device is selected in inventory
              var history = db.GetUptimeHistory(node.MacAddress, 24);
              inventoryPage.UpdateUptimeChart(history);
         };
