@@ -29,3 +29,17 @@ public enum AlertType
     DeviceReconnected,
     NewDeviceDiscovered
 }
+
+
+public static class AlertTypeExtensions
+{
+    public static string GetIcon(this AlertType alertType)
+    {
+        return alertType switch { AlertType.ConnectionLost => "🔴", AlertType.HighLatency => "🟡", AlertType.PacketLoss => "🟠", AlertType.DeviceReconnected => "🟢", AlertType.NewDeviceDiscovered => "🔵", _ => "⚪" };
+    }
+
+    public static string GetDisplayName(this AlertType alertType)
+    {
+        return alertType switch { AlertType.ConnectionLost => "Connection Lost", AlertType.HighLatency => "High Latency", AlertType.PacketLoss => "Packet Loss", AlertType.DeviceReconnected => "Reconnected", AlertType.NewDeviceDiscovered => "New Device", _ => "Alert" };
+    }
+}

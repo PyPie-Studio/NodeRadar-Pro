@@ -138,8 +138,8 @@ public class AlertsPage : Border
 
     private Border BuildAlertCard(AlertEvent alert)
     {
-        string icon = alert.AlertType switch { AlertType.ConnectionLost => "🔴", AlertType.HighLatency => "🟡", AlertType.PacketLoss => "🟠", AlertType.DeviceReconnected => "🟢", AlertType.NewDeviceDiscovered => "🔵", _ => "⚪" };
-        string typeText = alert.AlertType switch { AlertType.ConnectionLost => "Connection Lost", AlertType.HighLatency => "High Latency", AlertType.PacketLoss => "Packet Loss", AlertType.DeviceReconnected => "Reconnected", AlertType.NewDeviceDiscovered => "New Device", _ => "Alert" };
+        string icon = alert.AlertType.GetIcon();
+        string typeText = alert.AlertType.GetDisplayName();
 
         var iconTb = new TextBlock { Text = icon, FontSize = 20, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
         var titleTb = new TextBlock { Text = $"{typeText}: {alert.DeviceName}", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis };
