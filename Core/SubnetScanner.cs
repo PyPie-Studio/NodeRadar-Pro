@@ -397,7 +397,7 @@ public class SubnetScanner
             PingLatencyMs = latency
         };
 
-        // Fix: Use a per-node resolution timeout (5s) to prevent hangs at 82%
+        // Use a per-node resolution timeout (5s) to prevent hangs at 82%
         using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         resolveCts.CancelAfter(5000);
 
