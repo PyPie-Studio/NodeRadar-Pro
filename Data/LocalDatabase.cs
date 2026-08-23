@@ -27,7 +27,9 @@ public class LocalDatabase : IDisposable
         if (customDbPath != null)
         {
             _dbPath = customDbPath;
-            _dbPassword = customPassword ?? "test_password";
+            string dir = Path.GetDirectoryName(_dbPath) ?? Environment.CurrentDirectory;
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+            _dbPassword = customPassword ?? GetOrGenerateSecurePassword(dir);
             _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
         }
         else
