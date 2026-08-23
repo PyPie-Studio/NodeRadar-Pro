@@ -1,7 +1,3 @@
-using System;
-using NodeRadarPro.Core;
-using Xunit;
-
 namespace NodeRadarPro.Core.Tests
 {
     public class AppUtilsTests
