@@ -22,29 +22,37 @@ namespace NodeRadarPro.Core
 
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    Process.Start(new ProcessStartInfo
+                    var psi = new ProcessStartInfo
                     {
-                        FileName = safeUrl,
-                        UseShellExecute = true
-                    });
+                        FileName = "cmd",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    };
+                    psi.ArgumentList.Add("/c");
+                    psi.ArgumentList.Add("start");
+                    psi.ArgumentList.Add("");
+                    psi.ArgumentList.Add(safeUrl);
+                    Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
                 {
-                    Process.Start(new ProcessStartInfo
+                    var psi = new ProcessStartInfo
                     {
                         FileName = "xdg-open",
-                        Arguments = safeUrl,
                         UseShellExecute = false
-                    });
+                    };
+                    psi.ArgumentList.Add(safeUrl);
+                    Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                 {
-                    Process.Start(new ProcessStartInfo
+                    var psi = new ProcessStartInfo
                     {
                         FileName = "open",
-                        Arguments = safeUrl,
                         UseShellExecute = false
-                    });
+                    };
+                    psi.ArgumentList.Add(safeUrl);
+                    Process.Start(psi);
                 }
             }
             catch (Exception ex)
