@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
-using System.Diagnostics;
 
 namespace NodeRadarPro.UI;
 
@@ -582,8 +581,7 @@ public class InventoryPage : Border
         {
             if (_currentNode != null)
             {
-                try { Process.Start(new ProcessStartInfo { FileName = $"http://{_currentNode.IpAddress}", UseShellExecute = true }); }
-                catch { }
+                AppUtils.OpenSafeUrl($"http://{_currentNode.IpAddress}");
             }
         };
 
