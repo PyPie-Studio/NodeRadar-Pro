@@ -327,23 +327,4 @@ public class ConnectivityMonitor
         return false;
     }
 
-    private string GetLocalBindingIp()
-    {
-        if (string.IsNullOrEmpty(PreferredInterfaceName)) return "";
-
-        try
-        {
-            var ni = NetworkInterface.GetAllNetworkInterfaces()
-                .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
-
-            if (ni != null)
-            {
-                var addr = ni.GetIPProperties().UnicastAddresses
-                    .FirstOrDefault(a => a.Address.AddressFamily == AddressFamily.InterNetwork);
-                if (addr != null) return addr.Address.ToString();
-            }
-        }
-        catch { }
-        return "";
-    }
 }
