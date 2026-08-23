@@ -510,7 +510,7 @@ public class DarkPurpleTheme
         window.Opened += async (s, e) =>
         {
             // Background data load
-            settings = await Task.Run(() => db.LoadSettings());
+            settings = db.LoadSettings();
 
             // Task 2: System Integrity Shield (Verify Binaries)
             _ = Task.Run(() =>
