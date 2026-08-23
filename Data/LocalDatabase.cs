@@ -683,8 +683,7 @@ public class LocalDatabase : IDisposable
     private static byte[] DeriveKeyPbkdf2(byte[] salt)
     {
         string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
-        using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(password, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
-        return pbkdf2.GetBytes(32);
+        return System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
     }
 
     private static string EncryptSecret(string plainText)

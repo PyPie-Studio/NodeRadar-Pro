@@ -273,20 +273,14 @@ public class LocalDatabaseTests : IDisposable
             tempDb.GetCollection<NetworkNode>("dummy").Insert(new NetworkNode { MacAddress = "AA:BB" });
         }
 
-        var readOnlyDir = Path.Combine(Path.GetTempPath(), "readonly_dir_" + Guid.NewGuid());
-        Directory.CreateDirectory(readOnlyDir);
+        var customBackupPath = Path.Combine(Path.GetTempPath(), "readonly_backup_" + Guid.NewGuid() + ".db");
+        File.WriteAllText(customBackupPath, "dummy");
+        File.SetAttributes(customBackupPath, FileAttributes.ReadOnly);
 
         try
         {
-            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
-            {
-                new System.IO.DirectoryInfo(readOnlyDir).UnixFileMode = System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserExecute;
-            }
-
             var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
             pathField!.SetValue(_db, tempDbPath);
-
-            var customBackupPath = Path.Combine(readOnlyDir, "backup.db");
 
             var result = _db.BackupDatabase(customBackupPath);
 
@@ -296,11 +290,8 @@ public class LocalDatabaseTests : IDisposable
         }
         finally
         {
-            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
-            {
-                try { new System.IO.DirectoryInfo(readOnlyDir).UnixFileMode = System.IO.UnixFileMode.UserRead | System.IO.UnixFileMode.UserWrite | System.IO.UnixFileMode.UserExecute; } catch { }
-            }
-            if (Directory.Exists(readOnlyDir)) Directory.Delete(readOnlyDir, true);
+            try { File.SetAttributes(customBackupPath, FileAttributes.Normal); } catch { }
+            if (File.Exists(customBackupPath)) File.Delete(customBackupPath);
             if (File.Exists(tempDbPath)) File.Delete(tempDbPath);
         }
     }
