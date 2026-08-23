@@ -11,7 +11,7 @@ namespace NodeRadarPro.Core;
 
 public static class ScannerDiagnostics
 {
-    public static async Task<int> RunDiagnosticsAsync()
+    public static async Task<int> RunDiagnosticsAsync(Func<NetworkInterface[]>? getNetworkInterfaces = null)
     {
         Console.WriteLine("==================================================");
         Console.WriteLine("      NODERADAR PRO - SCANNER DIAGNOSTICS SUITE   ");
@@ -22,7 +22,7 @@ public static class ScannerDiagnostics
         bool allPassed = true;
 
         // Test 1: Network Interface Detection
-        allPassed &= TestInterfaceDetection();
+        allPassed &= TestInterfaceDetection(getNetworkInterfaces);
 
         // Test 2: Local Subnet Retrieval
         allPassed &= TestSubnetRetrieval();
@@ -55,12 +55,12 @@ public static class ScannerDiagnostics
         }
     }
 
-    private static bool TestInterfaceDetection()
+    private static bool TestInterfaceDetection(Func<NetworkInterface[]>? getNetworkInterfaces = null)
     {
         Console.Write("Test 1: Network Interfaces Detection... ");
         try
         {
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            var interfaces = getNetworkInterfaces != null ? getNetworkInterfaces() : NetworkInterface.GetAllNetworkInterfaces();
             if (interfaces == null || interfaces.Length == 0)
             {
                 Console.WriteLine("FAIL (No interfaces found)");
