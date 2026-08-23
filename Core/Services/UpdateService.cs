@@ -130,7 +130,7 @@ echo Restarting NodeRadar Pro...
 start """" ""%CURRENT_EXE%""
 del ""%~f0""
 ";
-            File.WriteAllText(batFile, batContent);
+            await File.WriteAllTextAsync(batFile, batContent);
 
             var startInfo = new ProcessStartInfo
             {
