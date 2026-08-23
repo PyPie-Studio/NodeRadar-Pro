@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using NodeRadarPro.Core;
-using Xunit;
 
 namespace Core.Tests;
 

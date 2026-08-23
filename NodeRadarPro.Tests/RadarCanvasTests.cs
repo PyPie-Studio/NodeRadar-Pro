@@ -1,9 +1,5 @@
-using System;
-using System.Collections.Generic;
-using Avalonia;
 using NodeRadarPro.Core;
 using NodeRadarPro.UI;
-using Xunit;
 
 namespace NodeRadarPro.Tests;
 

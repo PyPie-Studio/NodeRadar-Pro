@@ -21,6 +21,14 @@ public class MockHttpMessageHandler : HttpMessageHandler
         };
     }
 
+    public MockHttpMessageHandler(byte[] response, HttpStatusCode statusCode = HttpStatusCode.OK)
+    {
+        _responseFactory = (request) => new HttpResponseMessage(statusCode)
+        {
+            Content = new ByteArrayContent(response)
+        };
+    }
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         return Task.FromResult(_responseFactory(request));
