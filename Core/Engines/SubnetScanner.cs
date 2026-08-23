@@ -64,21 +64,6 @@ public class SubnetScanner
         catch { }
     }
 
-    private bool IsIpOnLocalSubnet(string ip)
-    {
-        if (string.IsNullOrEmpty(_localBindingIp)) return false;
-
-        string[] ipParts = ip.Split('.');
-        string[] localParts = _localBindingIp.Split('.');
-        if (ipParts.Length == 4 && localParts.Length == 4)
-        {
-            return ipParts[0] == localParts[0] &&
-                   ipParts[1] == localParts[1] &&
-                   ipParts[2] == localParts[2];
-        }
-        return false;
-    }
-
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
         _ = Task.Run(() => DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(), token);
