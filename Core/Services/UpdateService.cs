@@ -121,6 +121,25 @@ public static class UpdateService
 
             string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
 
+            try
+            {
+                using var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateCertificateFromFile(tempFile);
+                if (string.IsNullOrEmpty(cert.Subject))
+                {
+                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                    throw new SecurityException("Downloaded update file does not have a valid Authenticode signature.");
+                }
+            }
+            catch (SecurityException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                throw new SecurityException("Downloaded update file is not signed or has an invalid Authenticode signature.", ex);
+            }
+
             string batContent = $@"@echo off
 echo Waiting for NodeRadar Pro to close...
 timeout /t 2 /nobreak >nul

@@ -144,4 +144,17 @@ public class UpdateServiceTests
         Assert.Equal("Invalid or untrusted download URL.", ex.Message);
     }
 
+
+    [Fact]
+    public async Task DownloadAndInstallAsync_UnsignedFile_ThrowsSecurityException()
+    {
+        var validUrl = "https://github.com/pypiestudio/noderadar-pro/releases/download/v1.2.0/NodeRadarPro_1.2.0.exe";
+        var handler = new MockHttpMessageHandler("dummy exe content");
+        using var client = new HttpClient(handler);
+
+        var ex = await Assert.ThrowsAsync<SecurityException>(() =>
+            UpdateService.DownloadAndInstallAsync(validUrl, null, client));
+
+        Assert.Contains("Authenticode signature", ex.Message);
+    }
 }
