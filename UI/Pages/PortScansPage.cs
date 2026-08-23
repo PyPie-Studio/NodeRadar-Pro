@@ -210,26 +210,20 @@ public class PortScansPage : Border
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
                     cts.CancelAfter(500);
 
-                    var ct = tcp.ConnectAsync(ip, port, cts.Token);
-                    try
+                    await tcp.ConnectAsync(ip, port, cts.Token);
+                    if (tcp.Connected)
                     {
-                        await ct;
-                        if (tcp.Connected)
+                        openPorts.Add(port);
+                        int currentFound = Interlocked.Increment(ref found);
+                        Dispatcher.UIThread.Post(() =>
                         {
-                            openPorts.Add(port);
-                            int currentFound = Interlocked.Increment(ref found);
-                            Dispatcher.UIThread.Post(() =>
-                            {
-                                _openCount.Text = $"OPEN PORTS: {currentFound}";
-                                _resultsBody.Children.Add(MakeResultRow(port, ip, currentFound % 2 == 0));
-                            });
-                        }
+                            _openCount.Text = $"OPEN PORTS: {currentFound}";
+                            _resultsBody.Children.Add(MakeResultRow(port, ip, currentFound % 2 == 0));
+                        });
                     }
-                    catch (OperationCanceledException) { }
-                    catch { }
                 }
                 catch (OperationCanceledException) { }
-                catch { }
+                catch (Exception) { }
                 finally
                 {
                     try { throttle.Release(); } catch (ObjectDisposedException) { }
