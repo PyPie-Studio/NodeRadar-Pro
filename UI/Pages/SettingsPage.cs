@@ -688,30 +688,5 @@ public class SettingsPage : Border
         };
     }
 
-    private static Border MakeThresholdBar(string text, string value, double pct, IBrush color)
-    {
-        var header = new Grid();
-        header.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
-        var labelTb = new TextBlock { Text = text, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
-        var valueTb = new TextBlock { Text = value, FontSize = 13, Foreground = color, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium };
-        Grid.SetColumn(labelTb, 0);
-        Grid.SetColumn(valueTb, 1);
-        header.Children.Add(labelTb);
-        header.Children.Add(valueTb);
-
-        var barBg = new Border { Height = 6, CornerRadius = new CornerRadius(3), Background = ThemeTokens.SurfaceContainerLowest };
-        var barFill = new Border { Height = 6, CornerRadius = new CornerRadius(3), Background = color, HorizontalAlignment = HorizontalAlignment.Left };
-
-        var barContainer = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        barContainer.Children.Add(barBg);
-        barContainer.Children.Add(barFill);
-        barContainer.LayoutUpdated += (s, e) =>
-        {
-            if (barContainer.Bounds.Width > 0) barFill.Width = barContainer.Bounds.Width * pct;
-        };
-
-        return new Border { Margin = new Thickness(0, 6, 0, 6), Child = new StackPanel { Children = { header, barContainer } } };
-    }
 }
