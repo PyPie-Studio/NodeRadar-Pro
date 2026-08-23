@@ -147,7 +147,7 @@ public class SystemLogsPage : Border
         _entryCount.Text = $"({logs.Count} entries)";
 
         // Update stat cards (B5 fix)
-        var allLogs = _db.GetLogs(500);
+        var allLogs = _db.GetLogs(500, deviceMacFilter: _deviceFilter);
         _infoStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Info).ToString();
         _warnStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Warning).ToString();
         _errorStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Error).ToString();
