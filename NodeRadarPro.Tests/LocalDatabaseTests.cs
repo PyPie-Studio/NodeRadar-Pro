@@ -304,5 +304,29 @@ public class LocalDatabaseTests : IDisposable
             if (File.Exists(tempDbPath)) File.Delete(tempDbPath);
         }
     }
+
+    [Fact]
+    public void Settings_SmtpPasswordEncryption_CrossPlatformSecure()
+    {
+        var settings = new AppSettings
+        {
+            MonitorIntervalSeconds = 120,
+            SelectedInterfaceName = "eth0",
+            SmtpPassword = "MySecretSmtpPassword123!"
+        };
+        _db.SaveSettings(settings);
+
+        var loaded = _db.LoadSettings();
+        Assert.Equal("MySecretSmtpPassword123!", loaded.SmtpPassword);
+
+        var rawDoc = _liteDb.GetCollection("settings").FindById(1);
+        Assert.NotNull(rawDoc);
+        Assert.True(rawDoc.ContainsKey("SmtpPasswordEncrypted"));
+        string encryptedBase64 = rawDoc["SmtpPasswordEncrypted"].AsString;
+
+        byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes("MySecretSmtpPassword123!");
+        string plainBase64 = Convert.ToBase64String(plainBytes);
+        Assert.NotEqual(plainBase64, encryptedBase64);
+    }
 }
 #pragma warning restore SYSLIB0050

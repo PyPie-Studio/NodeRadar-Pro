@@ -491,14 +491,7 @@ public class LocalDatabase : IDisposable
             var plainPass = doc["SmtpPassword"].AsString;
             try
             {
-                var secret = System.Text.Encoding.UTF8.GetBytes(plainPass);
-                var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                doc["SmtpPasswordEncrypted"] = Convert.ToBase64String(encrypted);
-            }
-            catch (PlatformNotSupportedException)
-            {
-                var secret = System.Text.Encoding.UTF8.GetBytes(plainPass);
-                doc["SmtpPasswordEncrypted"] = Convert.ToBase64String(secret);
+                doc["SmtpPasswordEncrypted"] = EncryptSecret(plainPass);
             }
             catch (Exception ex)
             {
@@ -516,14 +509,7 @@ public class LocalDatabase : IDisposable
         {
             try
             {
-                var encrypted = Convert.FromBase64String(settings.SmtpPasswordEncrypted);
-                var decrypted = System.Security.Cryptography.ProtectedData.Unprotect(encrypted, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                settings.SmtpPassword = System.Text.Encoding.UTF8.GetString(decrypted);
-            }
-            catch (PlatformNotSupportedException)
-            {
-                var decoded = Convert.FromBase64String(settings.SmtpPasswordEncrypted);
-                settings.SmtpPassword = System.Text.Encoding.UTF8.GetString(decoded);
+                settings.SmtpPassword = DecryptSecret(settings.SmtpPasswordEncrypted);
             }
             catch (Exception ex)
             {
@@ -541,14 +527,7 @@ public class LocalDatabase : IDisposable
         {
             try
             {
-                var secret = System.Text.Encoding.UTF8.GetBytes(settings.SmtpPassword);
-                var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-                settings.SmtpPasswordEncrypted = Convert.ToBase64String(encrypted);
-            }
-            catch (PlatformNotSupportedException)
-            {
-                var secret = System.Text.Encoding.UTF8.GetBytes(settings.SmtpPassword);
-                settings.SmtpPasswordEncrypted = Convert.ToBase64String(secret);
+                settings.SmtpPasswordEncrypted = EncryptSecret(settings.SmtpPassword);
             }
             catch (Exception ex)
             {
@@ -693,4 +672,89 @@ public class LocalDatabase : IDisposable
         }
         catch { }
     }
+
+    private static byte[] GetFallbackEncryptionKey()
+    {
+        string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        return sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(identifier));
+    }
+
+    private static string EncryptSecret(string plainText)
+    {
+        if (string.IsNullOrEmpty(plainText)) return "";
+        try
+        {
+            var secret = System.Text.Encoding.UTF8.GetBytes(plainText);
+            var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            return Convert.ToBase64String(encrypted);
+        }
+        catch (PlatformNotSupportedException)
+        {
+            byte[] key = GetFallbackEncryptionKey();
+            byte[] nonce = new byte[12];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(nonce);
+            }
+            byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
+            byte[] cipherText = new byte[plainBytes.Length];
+            byte[] tag = new byte[16];
+
+            using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
+            {
+                aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
+            }
+
+            byte[] result = new byte[1 + 12 + 16 + cipherText.Length];
+            result[0] = 0x01; // Version prefix indicating AES-GCM fallback
+            Buffer.BlockCopy(nonce, 0, result, 1, 12);
+            Buffer.BlockCopy(tag, 0, result, 13, 16);
+            Buffer.BlockCopy(cipherText, 0, result, 29, cipherText.Length);
+            return Convert.ToBase64String(result);
+        }
+    }
+
+    private static string DecryptSecret(string encryptedBase64)
+    {
+        if (string.IsNullOrEmpty(encryptedBase64)) return "";
+        byte[] data;
+        try
+        {
+            data = Convert.FromBase64String(encryptedBase64);
+        }
+        catch
+        {
+            return "";
+        }
+
+        try
+        {
+            var decrypted = System.Security.Cryptography.ProtectedData.Unprotect(data, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
+            return System.Text.Encoding.UTF8.GetString(decrypted);
+        }
+        catch (PlatformNotSupportedException)
+        {
+            if (data.Length >= 29 && data[0] == 0x01)
+            {
+                byte[] key = GetFallbackEncryptionKey();
+                byte[] nonce = new byte[12];
+                byte[] tag = new byte[16];
+                byte[] cipherText = new byte[data.Length - 29];
+
+                Buffer.BlockCopy(data, 1, nonce, 0, 12);
+                Buffer.BlockCopy(data, 13, tag, 0, 16);
+                Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
+
+                byte[] plainBytes = new byte[cipherText.Length];
+                using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
+                {
+                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                }
+                return System.Text.Encoding.UTF8.GetString(plainBytes);
+            }
+            return System.Text.Encoding.UTF8.GetString(data);
+        }
+    }
+
 }
