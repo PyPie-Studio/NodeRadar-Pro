@@ -13,13 +13,18 @@ public class DiscoveryEngine
     private readonly List<IDiscoveryMethod> _methods;
 
     public DiscoveryEngine()
-    {
-        _methods = new List<IDiscoveryMethod>
+        : this(new IDiscoveryMethod[]
         {
             new ArpDiscoveryMethod(),
             new MdnsDiscoveryMethod(),
             new SsdpDiscoveryMethod()
-        };
+        })
+    {
+    }
+
+    public DiscoveryEngine(IEnumerable<IDiscoveryMethod> methods)
+    {
+        _methods = methods?.ToList() ?? new List<IDiscoveryMethod>();
     }
 
     /// <summary>
