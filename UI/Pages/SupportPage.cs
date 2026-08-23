@@ -227,7 +227,10 @@ public class SupportPage : Border
                     });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "SupportPage", $"Failed to open log folder: {ex.Message}");
+            }
         };
 
         var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogItems, checkUpdateBtn, openLogsBtn } };
