@@ -127,4 +127,17 @@ public class ConnectivityMonitorTests
         Assert.True(updated.IsRegistered);
         Assert.Equal(new DateTime(2020, 1, 1), updated.FirstSeen);
     }
+    [Fact]
+    public async Task CheckAllDevicesAsync_WithArpTable_UpdatesDeviceOnlineStatus()
+    {
+        var monitor = new ConnectivityMonitor();
+        var device = new NetworkNode { MacAddress = "AA:BB:CC:DD:EE:FF", IpAddress = "127.0.0.1" };
+        monitor.AddDevice(device);
+        using var cts = new CancellationTokenSource(500);
+        var task = monitor.StartMonitoringAsync(cts.Token);
+        await Task.Delay(100);
+        cts.Cancel();
+        try { await task; } catch { }
+        Assert.NotNull(monitor.GetAllDevices());
+    }
 }

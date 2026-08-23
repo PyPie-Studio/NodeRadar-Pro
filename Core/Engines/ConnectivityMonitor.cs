@@ -107,6 +107,8 @@ public class ConnectivityMonitor
 
         var uptimeSnapshots = new List<UptimeSnapshot>();
 
+        var arpTableDict = await Task.Run(() => ArpResolver.GetFullArpTableAsDictionary());
+
         var tasks = devices.Select(async device =>
         {
             if (token.IsCancellationRequested) return;
@@ -118,21 +120,28 @@ public class ConnectivityMonitor
             long latency = -1;
             int pingTimeout = Math.Min(TimeoutMs, 2000);
 
-            // ARP check
-            try
+            // Fast ARP check using cached ARP table
+            if (arpTableDict.TryGetValue(device.IpAddress, out var arpMac) && !string.IsNullOrEmpty(arpMac) && arpMac != "Unknown")
             {
-                await _arpSemaphore.WaitAsync(token);
+                arpOnline = true;
+            }
+            else
+            {
                 try
                 {
-                    string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
-                    if (mac != "Unknown") arpOnline = true;
+                    await _arpSemaphore.WaitAsync(token);
+                    try
+                    {
+                        string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
+                        if (mac != "Unknown") arpOnline = true;
+                    }
+                    finally
+                    {
+                        _arpSemaphore.Release();
+                    }
                 }
-                finally
-                {
-                    _arpSemaphore.Release();
-                }
+                catch { }
             }
-            catch { }
 
             // ICMP ping
             try
