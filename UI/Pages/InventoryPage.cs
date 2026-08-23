@@ -916,6 +916,8 @@ public class InventoryPage : Border
         _chipPanel.Children.Add(MakeFilterChip("Online", "online", _activeFilter == "online"));
         _chipPanel.Children.Add(MakeFilterChip("Offline", "offline", _activeFilter == "offline"));
         _chipPanel.Children.Add(MakeFilterChip("Critical", "critical", _activeFilter == "critical"));
+        _chipPanel.Children.Add(MakeFilterChip("Servers", "servers", _activeFilter == "servers"));
+        _chipPanel.Children.Add(MakeFilterChip("IoT", "iot", _activeFilter == "iot"));
 
         string search = _searchBox.Text?.Trim().ToLower() ?? "";
 
