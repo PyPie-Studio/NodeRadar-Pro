@@ -121,6 +121,36 @@ public static class UpdateService
 
             string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
 
+            try
+            {
+                using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(tempFile);
+                if (string.IsNullOrEmpty(cert.Subject))
+                {
+                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                    throw new SecurityException("Downloaded update file does not have a valid Authenticode signature.");
+                }
+
+                using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
+                chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
+
+                bool isChainValid = chain.Build(cert);
+                if (!isChainValid)
+                {
+                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                    throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
+                }
+            }
+            catch (SecurityException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                throw new SecurityException("Downloaded update file is not signed or has an invalid Authenticode signature.", ex);
+            }
+
             string batContent = $@"@echo off
 echo Waiting for NodeRadar Pro to close...
 timeout /t 2 /nobreak >nul
