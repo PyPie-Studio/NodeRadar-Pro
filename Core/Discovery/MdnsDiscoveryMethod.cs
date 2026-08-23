@@ -12,9 +12,14 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
 {
     public string Name => "mDNS / Bonjour";
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
+    public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        using var udp = new UdpClient();
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+    }
+
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
+    {
+        using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
         udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
         // Try to bind to port 5353 (standard mDNS port)
