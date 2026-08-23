@@ -123,11 +123,22 @@ public static class UpdateService
 
             try
             {
-                using var cert = System.Security.Cryptography.X509Certificates.X509Certificate.CreateCertificateFromFile(tempFile);
+                using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(tempFile);
                 if (string.IsNullOrEmpty(cert.Subject))
                 {
                     if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
                     throw new SecurityException("Downloaded update file does not have a valid Authenticode signature.");
+                }
+
+                using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
+                chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
+
+                bool isChainValid = chain.Build(cert);
+                if (!isChainValid)
+                {
+                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                    throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
                 }
             }
             catch (SecurityException)

@@ -157,4 +157,22 @@ public class UpdateServiceTests
 
         Assert.Contains("Authenticode signature", ex.Message);
     }
+
+    [Fact]
+    public async Task DownloadAndInstallAsync_UntrustedSelfSignedFile_ThrowsSecurityException()
+    {
+        var validUrl = "https://github.com/pypiestudio/noderadar-pro/releases/download/v1.2.0/NodeRadarPro_1.2.0.exe";
+        using var rsa = System.Security.Cryptography.RSA.Create(2048);
+        var req = new System.Security.Cryptography.X509Certificates.CertificateRequest("CN=UntrustedTestCert", rsa, System.Security.Cryptography.HashAlgorithmName.SHA256, System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+        using var selfSignedCert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+        var certBytes = selfSignedCert.Export(System.Security.Cryptography.X509Certificates.X509ContentType.Cert);
+
+        var handler = new MockHttpMessageHandler(certBytes);
+        using var client = new HttpClient(handler);
+
+        var ex = await Assert.ThrowsAsync<SecurityException>(() =>
+            UpdateService.DownloadAndInstallAsync(validUrl, null, client));
+
+        Assert.True(ex.Message.Contains("Authenticode signature") || ex.Message.Contains("certificate chain"));
+    }
 }
