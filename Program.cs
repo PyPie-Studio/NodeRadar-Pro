@@ -66,7 +66,10 @@ namespace NodeRadar_Pro
                     Directory.CreateDirectory(logDir);
                     File.WriteAllText(Path.Combine(logDir, "crash_log.txt"), ex.ToString());
                 }
-                catch { }
+                catch (Exception writeEx)
+                {
+                    NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "CRASH", $"Failed to write crash log: {writeEx.Message}");
+                }
                 throw;
             }
             finally
