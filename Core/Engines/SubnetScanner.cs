@@ -640,24 +640,24 @@ public class SubnetScanner
         {
             if (ni.OperationalStatus != OperationalStatus.Up) continue;
             if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+
             foreach (var ip in ni.GetIPProperties().UnicastAddresses)
             {
-                if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                if (ip.Address.AddressFamily != AddressFamily.InterNetwork) continue;
+
+                string[] parts = ip.Address.ToString().Split('.');
+                if (parts.Length != 4) continue;
+
+                string subnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
+                if (subnet.StartsWith("169.254")) continue;
+                if (subnets.Contains(subnet)) continue;
+
+                subnets.Add(subnet);
+                // S3: Track preferred interface subnet
+                if (!string.IsNullOrEmpty(preferredInterface) &&
+                    ni.Name.Contains(preferredInterface, StringComparison.OrdinalIgnoreCase))
                 {
-                    string[] parts = ip.Address.ToString().Split('.');
-                    if (parts.Length == 4)
-                    {
-                        string subnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
-                        if (subnet.StartsWith("169.254")) continue;
-                        if (!subnets.Contains(subnet))
-                        {
-                            subnets.Add(subnet);
-                            // S3: Track preferred interface subnet
-                            if (!string.IsNullOrEmpty(preferredInterface) &&
-                                ni.Name.Contains(preferredInterface, StringComparison.OrdinalIgnoreCase))
-                                preferredSubnet = subnet;
-                        }
-                    }
+                    preferredSubnet = subnet;
                 }
             }
         }

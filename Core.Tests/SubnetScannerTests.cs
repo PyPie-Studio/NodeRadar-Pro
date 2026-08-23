@@ -66,4 +66,20 @@ public class SubnetScannerTests
         Assert.NotNull(nodes);
         Assert.Empty(nodes);
     }
+
+    [Fact]
+    public void GetAllLocalBaseIps_ReturnsNonEmptyList()
+    {
+        var subnets = SubnetScanner.GetAllLocalBaseIps();
+        Assert.NotNull(subnets);
+    }
+
+    [Fact]
+    public void GetLocalBaseIp_ReturnsValidIpPrefix()
+    {
+        var baseIp = SubnetScanner.GetLocalBaseIp();
+        Assert.NotNull(baseIp);
+        Assert.NotEmpty(baseIp);
+        Assert.Equal(3, baseIp.Split('.').Length);
+    }
 }
