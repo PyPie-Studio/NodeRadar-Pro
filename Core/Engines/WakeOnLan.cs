@@ -69,24 +69,11 @@ public static class WakeOnLan
                     var ipProps = ni.GetIPProperties();
                     foreach (var unicast in ipProps.UnicastAddresses)
                     {
-                        if (unicast.Address.AddressFamily == AddressFamily.InterNetwork)
+                        var subnetBroadcast = GetSubnetBroadcast(unicast);
+                        if (subnetBroadcast != null)
                         {
-                            var ip = unicast.Address;
-                            var mask = unicast.IPv4Mask;
-                            if (mask != null && !mask.Equals(IPAddress.Any))
-                            {
-                                byte[] ipBytes = ip.GetAddressBytes();
-                                byte[] maskBytes = mask.GetAddressBytes();
-                                byte[] broadcastBytes = new byte[4];
-                                for (int k = 0; k < 4; k++)
-                                {
-                                    broadcastBytes[k] = (byte)(ipBytes[k] | ~maskBytes[k]);
-                                }
-                                var subnetBroadcast = new IPAddress(broadcastBytes);
-
-                                broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 7));
-                                broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 9));
-                            }
+                            broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 7));
+                            broadcastEndpoints.Add(new IPEndPoint(subnetBroadcast, 9));
                         }
                     }
                 }
@@ -134,5 +121,26 @@ public static class WakeOnLan
             Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {ex.Message}");
             return false;
         }
+    }
+
+    private static IPAddress? GetSubnetBroadcast(UnicastIPAddressInformation unicast)
+    {
+        if (unicast.Address.AddressFamily != AddressFamily.InterNetwork)
+            return null;
+
+        var ip = unicast.Address;
+        var mask = unicast.IPv4Mask;
+        if (mask == null || mask.Equals(IPAddress.Any))
+            return null;
+
+        byte[] ipBytes = ip.GetAddressBytes();
+        byte[] maskBytes = mask.GetAddressBytes();
+        byte[] broadcastBytes = new byte[4];
+        for (int k = 0; k < 4; k++)
+        {
+            broadcastBytes[k] = (byte)(ipBytes[k] | ~maskBytes[k]);
+        }
+
+        return new IPAddress(broadcastBytes);
     }
 }
