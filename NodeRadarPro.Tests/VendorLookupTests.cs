@@ -55,11 +55,20 @@ public class VendorLookupTests
     }
 
 #pragma warning disable CS0618
-    [Fact]
-    public void GuessDeviceType_ReturnsGenericNetworkDevice()
+    [Theory]
+    [InlineData("Apple", "iPhone")]
+    [InlineData(null, null)]
+    [InlineData("", "")]
+    [InlineData("   ", "   ")]
+    [InlineData("Cisco", null)]
+    [InlineData(null, "Switch")]
+    [InlineData("", "Router")]
+    [InlineData("Netgear", "")]
+    [InlineData("Custom@Vendor!#$", "Host_123--Name")]
+    [InlineData("VeryLongVendorNameThatExceedsNormalLengthLimitsToTestBoundaryHandling", "VeryLongHostNameThatExceedsNormalLengthLimitsToTestBoundaryHandling")]
+    public void GuessDeviceType_WithVariousEdgeCaseInputs_ReturnsGenericNetworkDevice(string? vendor, string? hostname)
     {
-        Assert.Equal("Generic Network Device", VendorLookup.GuessDeviceType("Apple", "iPhone"));
-        Assert.Equal("Generic Network Device", VendorLookup.GuessDeviceType(null!, null!));
+        Assert.Equal("Generic Network Device", VendorLookup.GuessDeviceType(vendor!, hostname!));
     }
 #pragma warning restore CS0618
 }
