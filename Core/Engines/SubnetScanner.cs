@@ -391,9 +391,8 @@ public class SubnetScanner
                             mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
                             if (mac == "Unknown")
                             {
-                                var table = ArpResolver.GetFullArpTable();
-                                var match = table.FirstOrDefault(x => x.Ip == ip);
-                                if (!string.IsNullOrEmpty(match.Mac)) mac = match.Mac;
+                                var table = ArpResolver.GetFullArpTableAsDictionary();
+                                if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
                             }
                         }
                         break;
