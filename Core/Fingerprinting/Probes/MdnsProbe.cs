@@ -24,6 +24,9 @@ public class MdnsProbe : IFingerprintProbe
     }
 
     private static readonly ConcurrentDictionary<string, MdnsData> _cache = new();
+    private static readonly string[] ModelKeys = { "model=", "am=", "md=", "rpMd=" };
+    private static readonly string[] VendorKeys = { "man=", "mf=", "manufacturer=" };
+
 
     public static async Task StartSweepAsync(CancellationToken token)
     {
@@ -110,18 +113,34 @@ public class MdnsProbe : IFingerprintProbe
 
     private static byte[] CreateMdnsQuery(string serviceName)
     {
-        var packet = new List<byte> {
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-        };
-        foreach (var part in serviceName.Split('.'))
+        int totalLen = 12 + serviceName.Length + 2 + 5;
+        byte[] buffer = new byte[totalLen];
+        buffer[5] = 0x01; // QDCOUNT = 1
+
+        int idx = 12;
+        int start = 0;
+        while (start < serviceName.Length)
         {
-            packet.Add((byte)part.Length);
-            packet.AddRange(Encoding.ASCII.GetBytes(part));
+            int dotIdx = serviceName.IndexOf('.', start);
+            if (dotIdx == -1) dotIdx = serviceName.Length;
+            int len = dotIdx - start;
+            buffer[idx++] = (byte)len;
+            for (int i = 0; i < len; i++)
+            {
+                buffer[idx++] = (byte)serviceName[start + i];
+            }
+            start = dotIdx + 1;
         }
-        packet.Add(0x00);
-        packet.Add(0x00); packet.Add(0x0c);
-        packet.Add(0x00); packet.Add(0x01);
-        return packet.ToArray();
+
+        buffer[idx++] = 0x00; // Null terminator for domain name
+        buffer[idx++] = 0x00; buffer[idx++] = 0x0c; // QTYPE = PTR (12)
+        buffer[idx++] = 0x00; buffer[idx++] = 0x01; // QCLASS = IN (1)
+
+        if (idx != buffer.Length)
+        {
+            Array.Resize(ref buffer, idx);
+        }
+        return buffer;
     }
 
     private static void ParseTxtRecords(byte[] buffer, MdnsData data)
@@ -131,10 +150,8 @@ public class MdnsProbe : IFingerprintProbe
             string raw = Encoding.UTF8.GetString(buffer);
 
             // Model keys used by various devices
-            string[] modelKeys = { "model=", "am=", "md=", "rpMd=" };
-            string[] vendorKeys = { "man=", "mf=", "manufacturer=" };
-            string[] osKeys = { "osxvers=", "osvers=" };
-            string[] deviceIdKeys = { "deviceid=", "id=" };
+            var modelKeys = ModelKeys;
+            var vendorKeys = VendorKeys;
 
             foreach (var key in modelKeys)
             {
