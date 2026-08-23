@@ -90,6 +90,7 @@ public static class WakeOnLan
                 .ToList();
 
             bool sentAny = false;
+            string? lastError = null;
             foreach (var endpoint in uniqueEndpoints)
             {
                 try
@@ -97,7 +98,10 @@ public static class WakeOnLan
                     await client.SendAsync(packet, packet.Length, endpoint);
                     sentAny = true;
                 }
-                catch { }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                }
             }
 
             // Send multiple times (delay 50ms) for reliability
@@ -113,10 +117,14 @@ public static class WakeOnLan
                     catch { }
                 }
             }
+            else
+            {
+                Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {lastError ?? "No valid broadcast endpoints available."}");
+            }
 
             return sentAny;
         }
-        catch (SocketException ex)
+        catch (Exception ex)
         {
             Data.LocalDatabase.Instance.Log(LogLevel.Error, "WoL", $"Failed to send magic packet: {ex.Message}");
             return false;
