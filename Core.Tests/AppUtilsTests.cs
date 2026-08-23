@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.NetworkInformation;
 using NodeRadarPro.Core;
-using Xunit;
 
 namespace Core.Tests
 {
