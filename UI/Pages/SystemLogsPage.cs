@@ -224,18 +224,23 @@ public class SystemLogsPage : Border
         return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconTb, valueText, lblTb } }, 20);
     }
 
-    private void OnExportLogs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnExportLogs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         try
         {
-            var logs = _db.GetLogs(2000);
-            var sb = new StringBuilder();
-            sb.AppendLine("Timestamp,Level,Source,Message,Device");
-            foreach (var log in logs)
-                sb.AppendLine($"\"{log.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"{log.Level}\",\"{log.Source}\",\"{log.Message.Replace("\"", "\"\"")}\",\"{log.DeviceMac ?? ""}\"");
+            var (path, csvContent) = await System.Threading.Tasks.Task.Run(() =>
+            {
+                var logs = _db.GetLogs(2000);
+                var sb = new StringBuilder();
+                sb.AppendLine("Timestamp,Level,Source,Message,Device");
+                foreach (var log in logs)
+                    sb.AppendLine($"\"{log.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"{log.Level}\",\"{log.Source}\",\"{log.Message.Replace("\"", "\"\"")}\",\"{log.DeviceMac ?? ""}\"");
 
-            string path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", $"logs_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-            File.WriteAllText(path, sb.ToString());
+                string exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", $"logs_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
+                return (exportPath, sb.ToString());
+            });
+
+            await File.WriteAllTextAsync(path, csvContent);
             _db.Log(LogLevel.Info, "Export", $"Logs exported to {path}");
             RefreshLogs();
         }
