@@ -673,11 +673,18 @@ public class LocalDatabase : IDisposable
         catch { }
     }
 
-    private static byte[] GetFallbackEncryptionKey()
+    private static byte[] GetFallbackEncryptionKeyLegacy()
     {
         string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
         using var sha256 = System.Security.Cryptography.SHA256.Create();
         return sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(identifier));
+    }
+
+    private static byte[] DeriveKeyPbkdf2(byte[] salt)
+    {
+        string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
+        using var pbkdf2 = new System.Security.Cryptography.Rfc2898DeriveBytes(password, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256);
+        return pbkdf2.GetBytes(32);
     }
 
     private static string EncryptSecret(string plainText)
@@ -691,12 +698,15 @@ public class LocalDatabase : IDisposable
         }
         catch (PlatformNotSupportedException)
         {
-            byte[] key = GetFallbackEncryptionKey();
+            byte[] salt = new byte[16];
             byte[] nonce = new byte[12];
             using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
             {
+                rng.GetBytes(salt);
                 rng.GetBytes(nonce);
             }
+
+            byte[] key = DeriveKeyPbkdf2(salt);
             byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
             byte[] cipherText = new byte[plainBytes.Length];
             byte[] tag = new byte[16];
@@ -706,11 +716,13 @@ public class LocalDatabase : IDisposable
                 aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
             }
 
-            byte[] result = new byte[1 + 12 + 16 + cipherText.Length];
-            result[0] = 0x01; // Version prefix indicating AES-GCM fallback
-            Buffer.BlockCopy(nonce, 0, result, 1, 12);
-            Buffer.BlockCopy(tag, 0, result, 13, 16);
-            Buffer.BlockCopy(cipherText, 0, result, 29, cipherText.Length);
+            // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
+            byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
+            result[0] = 0x02;
+            Buffer.BlockCopy(salt, 0, result, 1, 16);
+            Buffer.BlockCopy(nonce, 0, result, 17, 12);
+            Buffer.BlockCopy(tag, 0, result, 29, 16);
+            Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
             return Convert.ToBase64String(result);
         }
     }
@@ -735,9 +747,29 @@ public class LocalDatabase : IDisposable
         }
         catch (PlatformNotSupportedException)
         {
+            if (data.Length >= 45 && data[0] == 0x02)
+            {
+                byte[] salt = new byte[16];
+                byte[] nonce = new byte[12];
+                byte[] tag = new byte[16];
+                byte[] cipherText = new byte[data.Length - 45];
+
+                Buffer.BlockCopy(data, 1, salt, 0, 16);
+                Buffer.BlockCopy(data, 17, nonce, 0, 12);
+                Buffer.BlockCopy(data, 29, tag, 0, 16);
+                Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
+
+                byte[] key = DeriveKeyPbkdf2(salt);
+                byte[] plainBytes = new byte[cipherText.Length];
+                using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
+                {
+                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                }
+                return System.Text.Encoding.UTF8.GetString(plainBytes);
+            }
             if (data.Length >= 29 && data[0] == 0x01)
             {
-                byte[] key = GetFallbackEncryptionKey();
+                byte[] key = GetFallbackEncryptionKeyLegacy();
                 byte[] nonce = new byte[12];
                 byte[] tag = new byte[16];
                 byte[] cipherText = new byte[data.Length - 29];
