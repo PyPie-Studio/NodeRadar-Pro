@@ -11,6 +11,27 @@
 - chore(deploy): add automated deploy.bat and optimize packaging scripts
 - chore(deploy): replace legacy publish_pro.bat with unified deploy.bat pipeline
 - test(ui): remediate UptimeChartControl tests and upgrade to xunit.v3
+
+### Verification and Installation Checksums
+
+| File | Size | SHA-256 Checksum |
+| :--- | :--- | :--- |
+
+| `NodeRadar Pro_v1.0.0_Setup.exe` | 43.05 MB | `A7DF33BFF4D54720F1F1526E24E94CE0F9A9E3873EC3957962F6C075CB3BE3BC` |
+
+## NodeRadar Pro v1.0.0 (2026-08-28)
+
+### New Features
+- add -Push switch and automated changelog commit to Deploy-NodeRadar.ps1
+- enhance PortScanner throttling, UpdateService SemVer parsing, and constant-time integrity verification
+- add GitHub Actions CI workflow, test.runsettings, and Test-MasterGate -WithTests
+- onboard Central Package Management and phase-gated deploy pipeline
+
+### Maintenance and Refactoring
+- ci: remove GitHub Actions workflows in favor of 100% local-first CI/CD pipeline
+- chore(deploy): add automated deploy.bat and optimize packaging scripts
+- chore(deploy): replace legacy publish_pro.bat with unified deploy.bat pipeline
+- test(ui): remediate UptimeChartControl tests and upgrade to xunit.v3
 - test: add unit tests for UptimeChartControl
 - test: add unit tests for UptimeChartControl
 - 🧹 format: remove unused usings in InventoryPage
