@@ -36,7 +36,7 @@ DisableProgramGroupPage=yes
 
 ; License and branding
 OutputBaseFilename=NodeRadar Pro_v{#MyAppVersion}_Setup
-; SetupIconFile=..\Resources\NodeRadar Pro Icon.ico
+SetupIconFile=..\src\NodeRadarPro\Resources\NodeRadar Pro Icon.ico
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
