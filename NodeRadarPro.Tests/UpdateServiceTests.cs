@@ -87,6 +87,30 @@ public class UpdateServiceTests
     }
 
     [Fact]
+    public async Task CheckForUpdatesAsync_OlderVersion_ReturnsFalse()
+    {
+        var jsonResponse = /*lang=json,strict*/ """
+        {
+            "tag_name": "v0.9.0",
+            "assets": [
+                {
+                    "name": "NodeRadarPro_0.9.0.exe",
+                    "browser_download_url": "https://github.com/pypiestudio/noderadar-pro/releases/download/v0.9.0/NodeRadarPro_0.9.0.exe"
+                }
+            ]
+        }
+        """;
+        var handler = new MockHttpMessageHandler(jsonResponse);
+        using var client = new HttpClient(handler);
+
+        var result = await UpdateService.CheckForUpdatesAsync("1.0.0", client);
+
+        Assert.False(result.hasUpdate);
+        Assert.Equal("", result.version);
+        Assert.Equal("", result.downloadUrl);
+    }
+
+    [Fact]
     public async Task CheckForUpdatesAsync_MissingTagName_ReturnsFalse()
     {
         var jsonResponse = /*lang=json,strict*/ """

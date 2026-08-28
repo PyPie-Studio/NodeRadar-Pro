@@ -43,12 +43,25 @@ public static class PortScanner
     public static async Task<List<string>> ScanCommonPortsAsync(string ipAddress, CancellationToken token = default)
     {
         var openPorts = new ConcurrentBag<string>();
-        var tasks = _commonPorts.Keys.Select(port => Task.Run(async () =>
+        using var semaphore = new SemaphoreSlim(64);
+
+        var tasks = _commonPorts.Keys.Select(async port =>
         {
             if (token.IsCancellationRequested) return;
-            if (await IsPortOpenAsync(ipAddress, port))
-                openPorts.Add($"{port} ({_commonPorts[port]})");
-        }));
+
+            await semaphore.WaitAsync(token);
+            try
+            {
+                if (token.IsCancellationRequested) return;
+                if (await IsPortOpenAsync(ipAddress, port, 500, token))
+                    openPorts.Add($"{port} ({_commonPorts[port]})");
+            }
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
         await Task.WhenAll(tasks);
         return new List<string>(openPorts);
     }
@@ -58,17 +71,29 @@ public static class PortScanner
     {
         var results = new ConcurrentDictionary<int, string>();
         var ports = fastScan ? _top100Ports : _commonPorts.Keys.ToArray();
+        using var semaphore = new SemaphoreSlim(64);
 
-        var tasks = ports.Select(port => Task.Run(async () =>
+        var tasks = ports.Select(async port =>
         {
             if (token.IsCancellationRequested) return;
-            if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
+
+            await semaphore.WaitAsync(token);
+            try
             {
-                // Grab banner
-                string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
-                results.TryAdd(port, banner);
+                if (token.IsCancellationRequested) return;
+                if (await IsPortOpenAsync(ipAddress, port, timeoutMs, token))
+                {
+                    // Grab banner
+                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
+                    results.TryAdd(port, banner);
+                }
             }
-        }));
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
         await Task.WhenAll(tasks);
         return results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
@@ -77,15 +102,28 @@ public static class PortScanner
     public static async Task<Dictionary<int, string>> ScanRangeAsync(string ipAddress, int startPort, int endPort, int timeoutMs = 500, CancellationToken token = default)
     {
         var results = new ConcurrentDictionary<int, string>();
-        var tasks = Enumerable.Range(startPort, endPort - startPort + 1).Select(port => Task.Run(async () =>
+        using var semaphore = new SemaphoreSlim(64);
+
+        var tasks = Enumerable.Range(startPort, endPort - startPort + 1).Select(async port =>
         {
             if (token.IsCancellationRequested) return;
-            if (await IsPortOpenAsync(ipAddress, port, timeoutMs))
+
+            await semaphore.WaitAsync(token);
+            try
             {
-                string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
-                results.TryAdd(port, banner);
+                if (token.IsCancellationRequested) return;
+                if (await IsPortOpenAsync(ipAddress, port, timeoutMs, token))
+                {
+                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
+                    results.TryAdd(port, banner);
+                }
             }
-        }));
+            finally
+            {
+                semaphore.Release();
+            }
+        });
+
         await Task.WhenAll(tasks);
         return results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
     }
@@ -123,16 +161,16 @@ public static class PortScanner
         return "";
     }
 
-    private static async Task<bool> IsPortOpenAsync(string ipAddress, int port, int timeoutMs = 500)
+    private static async Task<bool> IsPortOpenAsync(string ipAddress, int port, int timeoutMs = 500, CancellationToken token = default)
     {
         try
         {
             using var tcpClient = new TcpClient();
-            using var cts = new CancellationTokenSource(timeoutMs);
-            var connectTask = tcpClient.ConnectAsync(ipAddress, port, cts.Token);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            cts.CancelAfter(timeoutMs);
             try
             {
-                await connectTask;
+                await tcpClient.ConnectAsync(ipAddress, port, cts.Token);
                 return tcpClient.Connected;
             }
             catch (OperationCanceledException) { return false; }

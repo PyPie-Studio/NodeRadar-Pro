@@ -18,7 +18,7 @@ namespace NodeRadarPro.Core;
 public class ConnectivityMonitor
 {
     private readonly ConcurrentDictionary<string, NetworkNode> _trackedDevices = new();
-    private bool _isRunning = false;
+    private int _isRunningState = 0;
     private LocalDatabase? _db;
 
     // ── Alert cooldown trackers (prevent flooding) ──
@@ -46,7 +46,12 @@ public class ConnectivityMonitor
     public bool EnableSoundAlerts { get; set; } = true;
     public bool EnableEmailAlerts { get; set; } = false;
     public string PreferredInterfaceName { get; set; } = "";
-    public bool IsRunning => _isRunning;
+    public bool IsRunning => _isRunningState == 1;
+
+    public ConnectivityMonitor(LocalDatabase? db = null)
+    {
+        _db = db;
+    }
 
     public void SetDatabase(LocalDatabase db) => _db = db;
 
@@ -82,8 +87,7 @@ public class ConnectivityMonitor
 
     public async Task StartMonitoringAsync(CancellationToken token)
     {
-        if (_isRunning) return;
-        _isRunning = true;
+        if (Interlocked.CompareExchange(ref _isRunningState, 1, 0) != 0) return;
 
         try
         {
@@ -97,7 +101,7 @@ public class ConnectivityMonitor
                 await CheckAllDevicesAsync(token);
             }
         }
-        finally { _isRunning = false; }
+        finally { Interlocked.Exchange(ref _isRunningState, 0); }
     }
 
     private async Task CheckAllDevicesAsync(CancellationToken token)

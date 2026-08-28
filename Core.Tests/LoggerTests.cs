@@ -36,7 +36,7 @@ namespace Core.Tests
                 await Task.Delay(100);
                 if (File.Exists(_logFilePath))
                 {
-                    string content = File.ReadAllText(_logFilePath);
+                    string content = ReadFileContentSafe(_logFilePath);
                     if (content.Contains(message) && content.Contains(source) && content.Contains(mac) && content.Contains("INFO"))
                     {
                         logFound = true;
@@ -62,7 +62,7 @@ namespace Core.Tests
                 await Task.Delay(100);
                 if (File.Exists(_logFilePath))
                 {
-                    string content = File.ReadAllText(_logFilePath);
+                    string content = ReadFileContentSafe(_logFilePath);
                     if (content.Contains(message) && content.Contains(source) && content.Contains("ERROR"))
                     {
                         logFound = true;
@@ -72,6 +72,20 @@ namespace Core.Tests
             }
 
             Assert.True(logFound, "Logged message without MAC was not found in log file.");
+        }
+
+        private static string ReadFileContentSafe(string path)
+        {
+            try
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var reader = new StreamReader(fs);
+                return reader.ReadToEnd();
+            }
+            catch (IOException)
+            {
+                return "";
+            }
         }
     }
 }

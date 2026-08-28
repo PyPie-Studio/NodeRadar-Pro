@@ -522,20 +522,23 @@ public class DarkPurpleTheme
 
                     if (System.IO.File.Exists(mainFile))
                     {
-                        string currentHash = SecurityService.ComputeFileHash(mainFile);
-                        if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
+                        string? currentHash = SecurityService.ComputeFileHash(mainFile);
+                        if (!string.IsNullOrEmpty(currentHash))
                         {
-                            settings.LastKnownGoodHash = currentHash;
-                            db.SaveSettings(settings);
-                            db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
-                        }
-                        else if (settings.LastKnownGoodHash != currentHash)
-                        {
-                            db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
-                        }
-                        else
-                        {
-                            db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
+                            if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
+                            {
+                                settings.LastKnownGoodHash = currentHash;
+                                db.SaveSettings(settings);
+                                db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
+                            }
+                            else if (!SecurityService.VerifyHash(settings.LastKnownGoodHash, currentHash))
+                            {
+                                db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
+                            }
+                            else
+                            {
+                                db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
+                            }
                         }
                     }
                 }

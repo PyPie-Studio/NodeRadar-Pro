@@ -2,13 +2,67 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
-using System.Threading.Tasks;
 using System.Security;
+using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace NodeRadarPro.Core;
 
 public static class UpdateService
 {
+    public static (bool hasUpdate, string version, string downloadUrl) ParseReleaseJson(string json, string currentVersion)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (!root.TryGetProperty("tag_name", out var tagElem))
+                return (false, "", "");
+
+            string rawTag = tagElem.GetString() ?? "";
+            string latestVersionStr = rawTag.TrimStart('v');
+
+            if (string.IsNullOrEmpty(latestVersionStr))
+                return (false, "", "");
+
+            // Semantic version check: only update if latest > current
+            bool isNewer = false;
+            string cleanCurrent = currentVersion.TrimStart('v');
+
+            if (Version.TryParse(latestVersionStr, out var latestVer) &&
+                Version.TryParse(cleanCurrent, out var currentVer))
+            {
+                isNewer = latestVer > currentVer;
+            }
+            else
+            {
+                isNewer = !string.Equals(latestVersionStr, cleanCurrent, StringComparison.OrdinalIgnoreCase);
+            }
+
+            if (!isNewer)
+                return (false, "", "");
+
+            if (root.TryGetProperty("assets", out var assetsElem) && assetsElem.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assetsElem.EnumerateArray())
+                {
+                    if (asset.TryGetProperty("browser_download_url", out var urlElem))
+                    {
+                        string downloadUrl = urlElem.GetString() ?? "";
+                        if (downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return (true, latestVersionStr, downloadUrl);
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        return (false, "", "");
+    }
+
     public static async Task<(bool hasUpdate, string version, string downloadUrl)> CheckForUpdatesAsync(string currentVersion, HttpClient? customClient = null)
     {
         try
@@ -27,30 +81,7 @@ public static class UpdateService
                     http.DefaultRequestHeaders.UserAgent.ParseAdd("NodeRadarPro/1.0");
 
                 var response = await http.GetStringAsync("https://api.github.com/repos/PyPie-Studio/NodeRadar-Pro/releases/latest");
-
-                var tagIdx = response.IndexOf("\"tag_name\"");
-                if (tagIdx < 0) return (false, "", "");
-
-                var valStart = response.IndexOf('"', tagIdx + 11) + 1;
-                var valEnd = response.IndexOf('"', valStart);
-                var latestVersion = response[valStart..valEnd].TrimStart('v');
-
-                if (latestVersion != currentVersion && !string.IsNullOrEmpty(latestVersion))
-                {
-                    var urlStartPattern = "\"browser_download_url\": \"";
-                    var urlStartIdx = response.IndexOf(urlStartPattern);
-                    while (urlStartIdx > 0)
-                    {
-                        var urlStart = urlStartIdx + urlStartPattern.Length;
-                        var urlEnd = response.IndexOf('"', urlStart);
-                        var downloadUrl = response[urlStart..urlEnd];
-                        if (downloadUrl.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                        {
-                            return (true, latestVersion, downloadUrl);
-                        }
-                        urlStartIdx = response.IndexOf(urlStartPattern, urlEnd);
-                    }
-                }
+                return ParseReleaseJson(response, currentVersion);
             }
             finally
             {
