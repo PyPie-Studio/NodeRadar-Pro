@@ -172,7 +172,7 @@ public class SubnetScanner
         return activeNodes.ToList();
     }
 
-    public async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
+    public virtual async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
         await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token);
         ResolveBindingIp();
