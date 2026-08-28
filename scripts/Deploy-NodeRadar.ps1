@@ -16,13 +16,19 @@
     Skips Inno Setup installer compilation (produces obfuscated publish binaries only).
 
 .PARAMETER SkipTag
-    Skips creating a git deploy tag and updating CHANGELOG.md.
+    Skips creating a git deploy tag, updating CHANGELOG.md, and pushing.
+
+.PARAMETER Push
+    Pushes the changelog release commit and deployment tag to the git remote origin.
 
 .PARAMETER LogPath
     Custom path for deployment log output.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\Deploy-NodeRadar.ps1
+
+.EXAMPLE
+    powershell -ExecutionPolicy Bypass -File scripts\Deploy-NodeRadar.ps1 -Push
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts\Deploy-NodeRadar.ps1 -SkipOui -SkipGate
@@ -34,6 +40,7 @@ param(
     [switch]$SkipTests,
     [switch]$SkipInno,
     [switch]$SkipTag,
+    [switch]$Push,
     [string]$LogPath = ""
 )
 
@@ -162,10 +169,12 @@ if ($installers) {
     Complete-Step "5" $true "published binaries generated (no installer)"
 }
 
-# Phase 6: Changelog Sync & Git Tagging
+# Phase 6: Changelog Sync, Git Commit & Release Tagging
 if (-not $SkipTag) {
-    Write-Step "6" "Changelog & Git Release Tagging"
+    Write-Step "6" "Changelog Sync, Git Commit & Release Tagging"
+    $prevEap = $ErrorActionPreference
     try {
+        $ErrorActionPreference = "SilentlyContinue"
         $changelogFile = Join-Path $root "CHANGELOG.md"
         $deployTag = "deploy-$(Get-Date -Format yyyy.MM.dd-HHmm)"
         $existingTags = (git tag --list)
@@ -179,18 +188,42 @@ if (-not $SkipTag) {
             $body = ($commits | ForEach-Object { "- $_" }) -join "`n"
             $entry = "$header$body`n"
 
+            $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
             if (Test-Path $changelogFile) {
-                $existing = Get-Content $changelogFile -Raw
-                $entry + $existing | Set-Content $changelogFile -Encoding utf8
+                $existing = [System.IO.File]::ReadAllText($changelogFile)
+                [System.IO.File]::WriteAllText($changelogFile, $entry + $existing, $utf8NoBom)
             } else {
-                "# NodeRadar Pro Changelog`n$entry" | Set-Content $changelogFile -Encoding utf8
+                [System.IO.File]::WriteAllText($changelogFile, "# NodeRadar Pro Changelog`n$entry", $utf8NoBom)
             }
         }
 
-        git tag $deployTag 2>$null
-        Complete-Step "6" $true "tagged $deployTag"
+        # Stage and commit updated changelog
+        $hasChangelogDiff = git status --porcelain $changelogFile 2>$null
+        if ($hasChangelogDiff) {
+            git add $changelogFile 2>$null
+            git commit -m "chore(release): sync changelog for $deployTag" 2>$null
+        }
+
+        # Create annotated release tag
+        git tag -a $deployTag -m "Release $deployTag" -f 2>$null
+
+        $pushDetail = ""
+        if ($Push) {
+            Write-Host "  > Pushing release commit and tag $deployTag to origin..." -ForegroundColor Yellow
+            git push origin HEAD 2>$null
+            git push origin $deployTag --force 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $pushDetail = " (pushed to origin)"
+            } else {
+                $pushDetail = " (push deferred)"
+            }
+        }
+
+        Complete-Step "6" $true "tagged $deployTag$pushDetail"
     } catch {
         Complete-Step "6" $true "changelog/tag skipped: $($_.Exception.Message)"
+    } finally {
+        $ErrorActionPreference = $prevEap
     }
 } else {
     Write-Step "6" "SKIPPED (SkipTag switch)"
