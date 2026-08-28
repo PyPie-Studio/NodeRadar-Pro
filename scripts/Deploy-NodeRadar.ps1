@@ -88,8 +88,8 @@ Write-Step "0" "Preflight: Git state, SDK & Project Version inspection"
 $branch = git rev-parse --abbrev-ref HEAD 2>$null
 if (-not $branch) { $branch = "main" }
 
-# Extract Version from NodeRadar Pro.csproj
-$csprojPath = Join-Path $root "NodeRadar Pro.csproj"
+# Extract Version from NodeRadarPro.csproj
+$csprojPath = Join-Path $root "src\NodeRadarPro\NodeRadarPro.csproj"
 [xml]$projXml = Get-Content $csprojPath
 $appVersion = $projXml.Project.PropertyGroup.Version | Where-Object { $_ } | Select-Object -First 1
 if (-not $appVersion) { $appVersion = "1.0.0" }

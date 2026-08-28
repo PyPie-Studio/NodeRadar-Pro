@@ -13,8 +13,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$projectName = "NodeRadar Pro"
-$publishDir = Join-Path $root "bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
+$projectName = "NodeRadarPro"
+$projectPath = Join-Path $root "src\NodeRadarPro\NodeRadarPro.csproj"
+$publishDir = Join-Path $root "src\NodeRadarPro\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
 $obfuscatedDir = Join-Path $publishDir "Obfuscated"
 $releasesDir = Join-Path $root "releases"
 $innoScript = Join-Path $root "Inno\installer.iss"
@@ -34,7 +35,7 @@ New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
 
 Push-Location $root
 try {
-    & dotnet publish "$projectName.csproj" -c Release -r win-x64 --self-contained true `
+    & dotnet publish $projectPath -c Release -r win-x64 --self-contained true `
         -p:PublishSingleFile=false -p:PublishReadyToRun=false -p:PublishTrimmed=false --nologo
     if ($LASTEXITCODE -ne 0) {
         throw "Dotnet publish failed with exit code $LASTEXITCODE"

@@ -3,13 +3,13 @@
 #define MyAppName "NodeRadar Pro"
 #define MyAppPublisher "PyPie Studio"
 #define MyAppURL "https://github.com/PyPie-Studio/NodeRadar-Pro"
-#define MyAppExeName "NodeRadar Pro.exe"
-#define MySourceDir "..\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
+#define MyAppExeName "NodeRadarPro.exe"
+#define MySourceDir "..\src\NodeRadarPro\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
 #define MyAppExePath MySourceDir + "\" + MyAppExeName
 
 #ifndef MyAppVersion
   ; Dynamically read version from the compiled exe (Single Source of Truth)
-  #define FullAppVersion GetFileVersion(SourcePath + "\" + MyAppExePath)
+  #define FullAppVersion GetVersionNumbersString(SourcePath + "\" + MyAppExePath)
   #if FullAppVersion == ""
     #define MyAppVersion "1.0.0"
   #else
@@ -54,9 +54,9 @@ VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}
 VersionInfoCopyright=© 2026 PyPie Studio
 
-; x64 architecture requirements
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+; 64-bit architecture requirements
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir=..\releases
 
 [Languages]

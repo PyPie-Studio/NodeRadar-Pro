@@ -19,30 +19,34 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
 
     public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
     {
-        using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
-        udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-        // Try to bind to port 5353 (standard mDNS port)
         try
         {
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 5353));
-        }
-        catch
-        {
-            // If port 5353 is locked, bind to an ephemeral port
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-        }
+            using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
+            if (udp?.Client == null) return;
 
-        try
-        {
-            udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.251"));
-        }
-        catch { }
+            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
 
-        var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
+            // Try to bind to port 5353 (standard mDNS port)
+            try
+            {
+                udp.Client.Bind(new IPEndPoint(IPAddress.Any, 5353));
+            }
+            catch
+            {
+                // If port 5353 is locked, bind to an ephemeral port
+                udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+            }
 
-        // Standard local service queries to trigger sleeping mobile/IoT devices
-        string[] services = {
+            try
+            {
+                udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.251"));
+            }
+            catch { }
+
+            var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
+
+            // Standard local service queries to trigger sleeping mobile/IoT devices
+            string[] services = {
             "_services._dns-sd._udp.local",
             "_airplay._tcp.local",
             "_googlecast._tcp.local",
@@ -57,79 +61,81 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
             "_hap._tcp.local"
         };
 
-        // Listen in background
-        var listenTask = Task.Run(async () =>
-        {
-            while (!ct.IsCancellationRequested)
+            // Listen in background
+            var listenTask = Task.Run(async () =>
             {
-                try
+                while (!ct.IsCancellationRequested)
                 {
-                    var result = await udp.ReceiveAsync(ct);
-                    string senderIp = result.RemoteEndPoint.Address.ToString();
-                    if (senderIp.StartsWith("169.254")) continue;
-                    byte[] buffer = result.Buffer;
-
-                    DiagnosticLogger.Log(Name, $"Received response from {senderIp} ({buffer.Length} bytes)");
-
-                    string hostname = ParseMdnsHostname(buffer);
-                    if (!string.IsNullOrEmpty(hostname) && hostname != "Unknown")
+                    try
                     {
-                        string deviceType = GetDeviceTypeFromMdns(hostname, buffer);
-                        string vendor = GetVendorFromMdns(hostname, buffer);
+                        var result = await udp.ReceiveAsync(ct);
+                        string senderIp = result.RemoteEndPoint.Address.ToString();
+                        if (senderIp.StartsWith("169.254")) continue;
+                        byte[] buffer = result.Buffer;
 
-                        var device = new NetworkDevice
+                        Logger.Log(LogLevel.Info, Name, $"Received response from {senderIp} ({buffer.Length} bytes)");
+
+                        string hostname = ParseMdnsHostname(buffer);
+                        if (!string.IsNullOrEmpty(hostname) && hostname != "Unknown")
                         {
-                            IpAddress = senderIp,
-                            Hostname = hostname,
-                            Vendor = vendor,
-                            DeviceType = deviceType,
-                            SourceProtocol = Name,
-                            IsOnline = true,
-                            RawDetails = $"mDNS Hostname: {hostname} | Response Length: {buffer.Length} bytes"
-                        };
+                            string deviceType = GetDeviceTypeFromMdns(hostname, buffer);
+                            string vendor = GetVendorFromMdns(hostname, buffer);
 
-                        DiagnosticLogger.Log(Name, $"Discovered Device: IP={senderIp}, Host={hostname}, Vendor={vendor}, Type={deviceType}");
-                        onDeviceDiscovered(device);
+                            var device = new NetworkDevice
+                            {
+                                IpAddress = senderIp,
+                                Hostname = hostname,
+                                Vendor = vendor,
+                                DeviceType = deviceType,
+                                SourceProtocol = Name,
+                                IsOnline = true,
+                                RawDetails = $"mDNS Hostname: {hostname} | Response Length: {buffer.Length} bytes"
+                            };
+
+                            Logger.Log(LogLevel.Info, Name, $"Discovered Device: IP={senderIp}, Host={hostname}, Vendor={vendor}, Type={deviceType}");
+                            onDeviceDiscovered(device);
+                        }
+                    }
+                    catch (OperationCanceledException) { break; }
+                    catch (ObjectDisposedException) { break; }
+                    catch (SocketException ex)
+                    {
+                        Logger.Log(LogLevel.Info, Name, $"Socket closed or error in listening loop: {ex.Message}");
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Info, Name, $"Fatal error in listening loop: {ex.Message}");
+                        break;
                     }
                 }
-                catch (OperationCanceledException) { break; }
-                catch (ObjectDisposedException) { break; }
-                catch (SocketException ex)
+            }, ct);
+
+            // Send query packets
+            foreach (var service in services)
+            {
+                if (ct.IsCancellationRequested) break;
+                try
                 {
-                    DiagnosticLogger.Log(Name, $"Socket closed or error in listening loop: {ex.Message}");
-                    break;
+                    byte[] query = CreateMdnsQuery(service);
+                    await udp.SendAsync(query, query.Length, target);
+                    Logger.Log(LogLevel.Info, Name, $"Sent query for service: {service}");
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLogger.Log(Name, $"Fatal error in listening loop: {ex.Message}");
-                    break;
+                    Logger.Log(LogLevel.Info, Name, $"Error sending query for {service}: {ex.Message}");
                 }
+                await Task.Delay(50, ct);
             }
-        }, ct);
 
-        // Send query packets
-        foreach (var service in services)
-        {
-            if (ct.IsCancellationRequested) break;
+            // Wait for responses
             try
             {
-                byte[] query = CreateMdnsQuery(service);
-                await udp.SendAsync(query, query.Length, target);
-                DiagnosticLogger.Log(Name, $"Sent query for service: {service}");
+                await Task.Delay(3000, ct);
             }
-            catch (Exception ex)
-            {
-                DiagnosticLogger.Log(Name, $"Error sending query for {service}: {ex.Message}");
-            }
-            await Task.Delay(50, ct);
+            catch (OperationCanceledException) { }
         }
-
-        // Wait for responses
-        try
-        {
-            await Task.Delay(3000, ct);
-        }
-        catch (OperationCanceledException) { }
+        catch { }
     }
 
     private byte[] CreateMdnsQuery(string serviceName)

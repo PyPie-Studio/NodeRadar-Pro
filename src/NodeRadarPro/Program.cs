@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadar_Pro
+namespace NodeRadarPro
 {
     internal static class Program
     {
@@ -80,12 +80,15 @@ namespace NodeRadar_Pro
 
         // Avalonia configuration, don't remove; also used by visual designer.
         public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<App>()
-                .UsePlatformDetect()
+        {
+            var builder = AppBuilder.Configure<App>()
+                .UsePlatformDetect();
 #if DEBUG
-                .WithDeveloperTools()
+            builder = builder.WithDeveloperTools();
 #endif
+            return builder
                 .WithInterFont()
                 .LogToTrace();
+        }
     }
 }

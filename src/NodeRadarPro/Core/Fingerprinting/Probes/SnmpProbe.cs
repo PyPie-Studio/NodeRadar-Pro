@@ -6,7 +6,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-[assembly: InternalsVisibleTo("Core.Tests")]
+[assembly: InternalsVisibleTo("NodeRadarPro.Tests")]
+[assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 
 namespace NodeRadarPro.Core.Fingerprinting.Probes;
 

@@ -111,13 +111,35 @@ public class MdnsProbe : IFingerprintProbe
         return Task.FromResult(result);
     }
 
-    private static byte[] CreateMdnsQuery(string serviceName)
+    internal static void InjectCacheForTesting(string ip, MdnsData data)
     {
-        int totalLen = 12 + serviceName.Length + 2 + 5;
-        byte[] buffer = new byte[totalLen];
-        buffer[5] = 0x01; // QDCOUNT = 1
+        _cache[ip] = data;
+    }
 
-        int idx = 12;
+    internal static void ClearCacheForTesting()
+    {
+        _cache.Clear();
+    }
+
+    internal static byte[] CreateMdnsQuery(string serviceName)
+    {
+        byte[] buffer = new byte[12 + serviceName.Length + 6];
+        int idx = 0;
+
+        // Transaction ID: 0x0000
+        buffer[idx++] = 0x00; buffer[idx++] = 0x00;
+        // Flags: Standard query (0x0000)
+        buffer[idx++] = 0x00; buffer[idx++] = 0x00;
+        // Questions: 1 (0x0001)
+        buffer[idx++] = 0x00; buffer[idx++] = 0x01;
+        // Answer RRs: 0
+        buffer[idx++] = 0x00; buffer[idx++] = 0x00;
+        // Authority RRs: 0
+        buffer[idx++] = 0x00; buffer[idx++] = 0x00;
+        // Additional RRs: 0
+        buffer[idx++] = 0x00; buffer[idx++] = 0x00;
+
+        // Question Name: format each label with its length prefix
         int start = 0;
         while (start < serviceName.Length)
         {
@@ -143,7 +165,7 @@ public class MdnsProbe : IFingerprintProbe
         return buffer;
     }
 
-    private static void ParseTxtRecords(byte[] buffer, MdnsData data)
+    internal static void ParseTxtRecords(byte[] buffer, MdnsData data)
     {
         try
         {
@@ -180,13 +202,13 @@ public class MdnsProbe : IFingerprintProbe
         catch { }
     }
 
-    private static string ExtractMdnsInstanceName(byte[] buffer)
+    internal static string ExtractMdnsInstanceName(byte[] buffer)
     {
         try
         {
             byte[] localPattern = { 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00 };
             int localIdx = -1;
-            for (int i = 0; i < buffer.Length - 7; i++)
+            for (int i = 0; i <= buffer.Length - 7; i++)
             {
                 bool match = true;
                 for (int j = 0; j < 7; j++) if (buffer[i + j] != localPattern[j]) { match = false; break; }
@@ -195,11 +217,13 @@ public class MdnsProbe : IFingerprintProbe
 
             if (localIdx > 2)
             {
-                int nameLen = buffer[localIdx - 1];
-                if (localIdx - 1 - nameLen >= 0)
+                for (int len = 1; len <= 63 && localIdx - 1 - len >= 0; len++)
                 {
-                    string name = Encoding.UTF8.GetString(buffer, localIdx - 1 - nameLen, nameLen);
-                    if (!name.StartsWith("_") && name.Length > 2) return name;
+                    if (buffer[localIdx - 1 - len] == len)
+                    {
+                        string name = Encoding.UTF8.GetString(buffer, localIdx - len, len);
+                        if (!name.StartsWith("_") && name.Length > 2) return name;
+                    }
                 }
             }
         }

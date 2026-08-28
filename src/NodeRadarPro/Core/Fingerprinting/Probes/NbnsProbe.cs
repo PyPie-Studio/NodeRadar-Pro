@@ -74,7 +74,7 @@ public class NbnsProbe : IFingerprintProbe
         return result;
     }
 
-    private static void ParseNodeStatusResponse(byte[] buf, ProbeResult result)
+    internal static void ParseNodeStatusResponse(byte[] buf, ProbeResult result)
     {
         // Minimum: 12 (header) + 34 (query name section) + 10 (RR header) + 1 (numNames) = 57
         if (buf.Length < 57) return;

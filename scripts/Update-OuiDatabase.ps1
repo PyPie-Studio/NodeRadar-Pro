@@ -36,7 +36,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$vendorLookupFile = Join-Path $root "Data\VendorLookup.cs"
+$vendorLookupFile = Join-Path $root "src\NodeRadarPro\Data\VendorLookup.cs"
 $jsonExportFile = Join-Path $root $JsonPath
 
 Write-Host "== NodeRadar Pro IEEE MAC OUI Auto-Updater ==" -ForegroundColor Cyan

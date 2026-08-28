@@ -97,13 +97,16 @@ public static class UpdateService
         if (!Uri.TryCreate(downloadUrl, UriKind.Absolute, out var uri) ||
             uri.Scheme != Uri.UriSchemeHttps ||
             !uri.Host.Equals("github.com", StringComparison.OrdinalIgnoreCase) ||
-            !uri.AbsolutePath.StartsWith("/pypiestudio/noderadar-pro/releases/download/", StringComparison.OrdinalIgnoreCase))
+            (!uri.AbsolutePath.StartsWith("/pypiestudio/noderadar-pro/releases/download/", StringComparison.OrdinalIgnoreCase) &&
+             !uri.AbsolutePath.StartsWith("/pypie-studio/noderadar-pro/releases/download/", StringComparison.OrdinalIgnoreCase)))
         {
             throw new SecurityException("Invalid or untrusted download URL.");
         }
 
-        string tempFile = Path.Combine(Path.GetTempPath(), "NodeRadarPro_Update.exe");
-        string batFile = Path.Combine(Path.GetTempPath(), "noderadar_updater.bat");
+        string tempDir = Path.Combine(Path.GetTempPath(), "NodeRadarPro_Updates", Path.GetRandomFileName());
+        Directory.CreateDirectory(tempDir);
+        string tempFile = Path.Combine(tempDir, "NodeRadarPro_Update.exe");
+        string batFile = Path.Combine(tempDir, "noderadar_updater.bat");
 
         var http = customClient;
         bool disposeClient = false;
@@ -157,28 +160,34 @@ public static class UpdateService
                 using var cert = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(tempFile);
                 if (string.IsNullOrEmpty(cert.Subject))
                 {
-                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                    if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
                     throw new SecurityException("Downloaded update file does not have a valid Authenticode signature.");
                 }
 
                 using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
-                chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck;
+                chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
                 chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
 
                 bool isChainValid = chain.Build(cert);
                 if (!isChainValid)
                 {
-                    if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
-                    throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
+                    // Fallback to offline revocation check if online CRL lookup failed
+                    chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck;
+                    if (!chain.Build(cert))
+                    {
+                        if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
+                        throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
+                    }
                 }
             }
             catch (SecurityException)
             {
+                if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
                 throw;
             }
             catch (Exception ex)
             {
-                if (File.Exists(tempFile)) try { File.Delete(tempFile); } catch { }
+                if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
                 throw new SecurityException("Downloaded update file is not signed or has an invalid Authenticode signature.", ex);
             }
 

@@ -111,7 +111,17 @@ public class SsdpProbe : IFingerprintProbe
         catch { }
     }
 
-    private static string ExtractXmlValue(string xml, string tag)
+    internal static void InjectCacheForTesting(string ip, SsdpData data)
+    {
+        _cache[ip] = data;
+    }
+
+    internal static void ClearCacheForTesting()
+    {
+        _cache.Clear();
+    }
+
+    internal static string ExtractXmlValue(string xml, string tag)
     {
         try
         {

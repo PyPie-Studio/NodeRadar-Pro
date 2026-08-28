@@ -447,7 +447,7 @@ public class SettingsPage : Border
             try
             {
                 string path = Uri.UnescapeDataString(file.Path.LocalPath);
-                string resultPath = _db.BackupDatabase(path);
+                string resultPath = _db.Backup.BackupDatabase(path);
                 if (!string.IsNullOrEmpty(resultPath))
                 {
                     _maintenanceStatus.Text = $"Backup successful: {System.IO.Path.GetFileName(resultPath)}";
@@ -494,7 +494,7 @@ public class SettingsPage : Border
             try
             {
                 string path = Uri.UnescapeDataString(files[0].Path.LocalPath);
-                bool success = _db.RestoreDatabase(path);
+                bool success = _db.Backup.RestoreDatabase(path);
 
                 if (success)
                 {

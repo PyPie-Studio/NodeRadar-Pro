@@ -234,7 +234,7 @@ public class SystemLogsPage : Border
                 var sb = new StringBuilder();
                 sb.AppendLine("Timestamp,Level,Source,Message,Device");
                 foreach (var log in logs)
-                    sb.AppendLine($"\"{log.Timestamp:yyyy-MM-dd HH:mm:ss}\",\"{log.Level}\",\"{log.Source}\",\"{log.Message.Replace("\"", "\"\"")}\",\"{log.DeviceMac ?? ""}\"");
+                    sb.AppendLine($"\"{log.Timestamp:yyyy-MM-dd  hh:mm:ss tt}\",\"{log.Level}\",\"{log.Source}\",\"{log.Message.Replace("\"", "\"\"")}\",\"{log.DeviceMac ?? ""}\"");
 
                 string exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", $"logs_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
                 return (exportPath, sb.ToString());

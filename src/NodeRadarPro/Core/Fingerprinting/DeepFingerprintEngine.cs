@@ -14,29 +14,41 @@ public class DeepFingerprintEngine
 
     private readonly List<IFingerprintProbe> _probes;
 
-    private DeepFingerprintEngine()
+    public DeepFingerprintEngine() : this(new IFingerprintProbe[]
     {
-        _probes = new List<IFingerprintProbe>
-        {
-            new MacOuiProbe(),
-            new MdnsProbe(),
-            new SsdpProbe(),
-            new SnmpProbe(),
-            new BannerGrabProbe()
-        };
+        new MacOuiProbe(),
+        new MdnsProbe(),
+        new SsdpProbe(),
+        new SnmpProbe(),
+        new NbnsProbe(),
+        new BannerGrabProbe()
+    })
+    {
+    }
+
+    internal DeepFingerprintEngine(IEnumerable<IFingerprintProbe> probes)
+    {
+        _probes = probes?.ToList() ?? new List<IFingerprintProbe>();
     }
 
     /// <summary>
     /// Starts background broadcast probes (mDNS, SSDP) to populate the caches.
     /// Should be called at the beginning of a subnet sweep.
     /// </summary>
-    public async Task StartDiscoverySweepAsync()
+    public async Task StartDiscoverySweepAsync(CancellationToken externalToken = default)
     {
-        using var cts = new CancellationTokenSource(4000); // 4 seconds sweep
-        var mdnsTask = Task.Run(() => MdnsProbe.StartSweepAsync(cts.Token));
-        var ssdpTask = Task.Run(() => SsdpProbe.StartSweepAsync(cts.Token));
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(externalToken);
+        cts.CancelAfter(4000); // 4 seconds sweep
 
-        await Task.WhenAll(mdnsTask, ssdpTask);
+        var mdnsTask = Task.Run(() => MdnsProbe.StartSweepAsync(cts.Token), cts.Token);
+        var ssdpTask = Task.Run(() => SsdpProbe.StartSweepAsync(cts.Token), cts.Token);
+
+        try
+        {
+            await Task.WhenAll(mdnsTask, ssdpTask);
+        }
+        catch (OperationCanceledException) { }
+        catch { }
     }
 
     /// <summary>

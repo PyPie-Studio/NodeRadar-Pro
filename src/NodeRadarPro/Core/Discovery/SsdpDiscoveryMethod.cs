@@ -39,7 +39,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
                     if (senderIp.StartsWith("169.254")) continue;
                     string data = Encoding.UTF8.GetString(result.Buffer);
 
-                    DiagnosticLogger.Log(Name, $"Received response from {senderIp} ({result.Buffer.Length} bytes):\r\n{data}");
+                    Logger.Log(LogLevel.Info, Name, $"Received response from {senderIp} ({result.Buffer.Length} bytes):\r\n{data}");
 
                     // Parse SSDP response headers
                     string server = string.Empty;
@@ -100,7 +100,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
                             RawDetails = $"Server: {server} | Location: {location}"
                         };
 
-                        DiagnosticLogger.Log(Name, $"Discovered UPnP: IP={senderIp}, Host={hostname}, Vendor={vendor}");
+                        Logger.Log(LogLevel.Info, Name, $"Discovered UPnP: IP={senderIp}, Host={hostname}, Vendor={vendor}");
                         onDeviceDiscovered(device);
                     }
                 }
@@ -108,12 +108,12 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
                 catch (ObjectDisposedException) { break; }
                 catch (SocketException ex)
                 {
-                    DiagnosticLogger.Log(Name, $"Socket closed or error in listening loop: {ex.Message}");
+                    Logger.Log(LogLevel.Info, Name, $"Socket closed or error in listening loop: {ex.Message}");
                     break;
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLogger.Log(Name, $"Fatal error in listening loop: {ex.Message}");
+                    Logger.Log(LogLevel.Info, Name, $"Fatal error in listening loop: {ex.Message}");
                     break;
                 }
             }
@@ -123,11 +123,11 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         try
         {
             await udp.SendAsync(query, query.Length, target);
-            DiagnosticLogger.Log(Name, "Broadcasted SSDP M-SEARCH discovery packet.");
+            Logger.Log(LogLevel.Info, Name, "Broadcasted SSDP M-SEARCH discovery packet.");
         }
         catch (Exception ex)
         {
-            DiagnosticLogger.Log(Name, $"Error sending M-SEARCH query: {ex.Message}");
+            Logger.Log(LogLevel.Info, Name, $"Error sending M-SEARCH query: {ex.Message}");
         }
 
         // Keep listening for 3 seconds

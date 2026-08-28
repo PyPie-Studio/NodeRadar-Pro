@@ -17,9 +17,6 @@ public class MacOuiProbe : IFingerprintProbe
         {
             return Task.FromResult(result);
         }
-
-        string prefix = node.MacAddress[..8].Replace("-", ":").ToUpperInvariant();
-
         // 1. Check for MAC Randomization (Locally Administered Bit is set)
         if (node.MacAddress.Length >= 2)
         {
@@ -31,17 +28,9 @@ public class MacOuiProbe : IFingerprintProbe
             }
         }
 
-        // 2. Query OuiDatabase
-        string? vendor = OuiDatabase.Instance.GetVendor(prefix);
-
-        // 3. Fallback to existing VendorLookup
-        if (string.IsNullOrEmpty(vendor))
-        {
-            vendor = VendorLookup.GetVendor(node.MacAddress);
-            if (vendor == "Unknown Vendor") vendor = null;
-        }
-
-        if (!string.IsNullOrEmpty(vendor))
+        // 2. Query VendorLookup
+        string vendor = VendorLookup.GetVendor(node.MacAddress);
+        if (vendor != "Unknown Vendor")
         {
             result.RawData["Vendor"] = vendor;
         }

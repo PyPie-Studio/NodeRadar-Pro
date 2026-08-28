@@ -1,4 +1,4 @@
 @echo off
 cd /d "%~dp0"
 echo Starting NodeRadar Pro in local development mode...
-dotnet run --project "NodeRadar Pro.csproj" %*
+dotnet run --project "src\NodeRadarPro\NodeRadarPro.csproj" %*

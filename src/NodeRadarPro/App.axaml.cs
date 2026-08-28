@@ -6,7 +6,7 @@ using NodeRadarPro.UI;
 using NodeRadarPro.Data;
 using NodeRadarPro.Core;
 
-namespace NodeRadar_Pro
+namespace NodeRadarPro
 {
     public partial class App : Application
     {

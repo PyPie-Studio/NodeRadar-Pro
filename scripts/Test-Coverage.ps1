@@ -146,12 +146,13 @@ foreach ($xf in $xmlFiles) {
 
 # 3. Categorize into Architectural Layers
 function Get-LayerName([string]$path) {
-    if ($path -match "^Core/Engines/") { return "Core / Engines" }
-    if ($path -match "^Core/Services/") { return "Core / Services" }
-    if ($path -match "^Core/(Discovery|Fingerprinting)/") { return "Core / Discovery & Fingerprinting" }
-    if ($path -match "^Core/(Models|Messaging)/") { return "Core / Models & Messaging" }
-    if ($path -match "^Data/") { return "Data Layer" }
-    if ($path -match "^UI/") { return "UI / Presentation Layer" }
+    $p = $path -replace '^src/NodeRadarPro/', ''
+    if ($p -match "^Core/Engines/") { return "Core / Engines" }
+    if ($p -match "^Core/Services/") { return "Core / Services" }
+    if ($p -match "^Core/(Discovery|Fingerprinting)/") { return "Core / Discovery & Fingerprinting" }
+    if ($p -match "^Core/(Models|Messaging)/") { return "Core / Models & Messaging" }
+    if ($p -match "^Data/") { return "Data Layer" }
+    if ($p -match "^UI/") { return "UI / Presentation Layer" }
     return "Other"
 }
 

@@ -107,17 +107,17 @@ public class DiscoveryEngine
             {
                 try
                 {
-                    DiagnosticLogger.Log("DiscoveryEngine", $"Starting discovery method: {method.Name}...");
+                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Starting discovery method: {method.Name}...");
                     await method.DiscoverAsync(baseIp, targetIps, HandleDiscoveredDevice, ct);
-                    DiagnosticLogger.Log("DiscoveryEngine", $"Completed discovery method: {method.Name}.");
+                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Completed discovery method: {method.Name}.");
                 }
                 catch (OperationCanceledException)
                 {
-                    DiagnosticLogger.Log("DiscoveryEngine", $"Discovery method cancelled: {method.Name}.");
+                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Discovery method cancelled: {method.Name}.");
                 }
                 catch (Exception ex)
                 {
-                    DiagnosticLogger.Log("DiscoveryEngine", $"Error in discovery method {method.Name}: {ex.Message}");
+                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Error in discovery method {method.Name}: {ex.Message}");
                 }
             }, ct);
         });

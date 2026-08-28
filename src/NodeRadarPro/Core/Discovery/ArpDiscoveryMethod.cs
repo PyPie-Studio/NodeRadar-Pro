@@ -80,13 +80,13 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
                         RawDetails = $"ARP Response: MAC successfully resolved to {mac}."
                     };
 
-                    DiagnosticLogger.Log(Name, $"Resolved IP {ip} -> MAC {mac} ({vendor})");
+                    Logger.Log(LogLevel.Info, Name, $"Resolved IP {ip} -> MAC {mac} ({vendor})");
                     onDeviceDiscovered(device);
                 }
             }
             catch (Exception ex)
             {
-                DiagnosticLogger.Log(Name, $"Error resolving {ip}: {ex.Message}");
+                Logger.Log(LogLevel.Info, Name, $"Error resolving {ip}: {ex.Message}");
             }
             finally
             {
@@ -119,6 +119,12 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
             if (BasicOuiDictionary.TryGetValue(oui, out string? vendor))
             {
                 return vendor;
+            }
+
+            string fullLookup = Data.VendorLookup.GetVendor(mac);
+            if (fullLookup != "Unknown Vendor" && !string.IsNullOrEmpty(fullLookup))
+            {
+                return fullLookup;
             }
         }
 

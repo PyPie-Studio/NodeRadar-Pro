@@ -65,10 +65,12 @@ public class TracerouteEngine
         }
     }
 
+    private static readonly byte[] ProbeBuffer = Encoding.ASCII.GetBytes("NodeRadar-Trace-Probe");
+
     private async Task<RouteHop> ProbeHopAsync(IPAddress destination, int ttl, int timeoutMs, Func<IPingClient> pingClientFactory)
     {
         var hop = new RouteHop { HopNumber = ttl };
-        byte[] buffer = Encoding.ASCII.GetBytes("NodeRadar-Trace-Probe");
+        byte[] buffer = ProbeBuffer;
         var options = new PingOptions(ttl, true);
 
         try

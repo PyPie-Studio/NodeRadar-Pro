@@ -22,6 +22,9 @@ public static class ArpResolver
     [DllImport("iphlpapi.dll", ExactSpelling = true)]
     private static extern int SendARP(int DestIP, int SrcIP, byte[] pMacAddr, ref uint PhyAddrLen);
 
+    [DllImport("iphlpapi.dll", SetLastError = true)]
+    private static extern int GetIpNetTable(IntPtr pIpNetTable, ref int pdwSize, bool bOrder);
+
     /// <summary>
     /// Attempts to resolve the MAC address for a given IP address.
     /// </summary>
@@ -201,10 +204,17 @@ public static class ArpResolver
         }
     }
 
-    // ── Windows: Full ARP table via `arp -a` ──
+    // ── Windows: Full ARP table via native Win32 P/Invoke with CLI fallback ──
 
     private static List<(string Ip, string Mac)> GetWindowsArpTable()
     {
+        try
+        {
+            var nativeResults = GetWindowsArpTableNative();
+            if (nativeResults.Count > 0) return nativeResults;
+        }
+        catch { }
+
         var results = new List<(string, string)>();
 
         try
@@ -270,6 +280,59 @@ public static class ArpResolver
         catch (ObjectDisposedException ex)
         {
             Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
+        }
+
+        return results;
+    }
+
+    private static List<(string Ip, string Mac)> GetWindowsArpTableNative()
+    {
+        var results = new List<(string, string)>();
+        int bytesNeeded = 0;
+        int result = GetIpNetTable(IntPtr.Zero, ref bytesNeeded, false);
+        // 122 = ERROR_INSUFFICIENT_BUFFER
+        if (result != 122 && result != 0) return results;
+
+        IntPtr buffer = Marshal.AllocHGlobal(bytesNeeded);
+        try
+        {
+            result = GetIpNetTable(buffer, ref bytesNeeded, false);
+            if (result == 0)
+            {
+                int numEntries = Marshal.ReadInt32(buffer);
+                IntPtr currentPtr = IntPtr.Add(buffer, 4);
+                // MIB_IPNETROW is 24 bytes (4 byte dwIndex, 4 byte dwPhysAddrLen, 8 byte bPhysAddr, 4 byte dwAddr, 4 byte dwType)
+                for (int i = 0; i < numEntries; i++)
+                {
+                    int physAddrLen = Marshal.ReadInt32(currentPtr, 4);
+                    int ipAddrInt = Marshal.ReadInt32(currentPtr, 16);
+                    int type = Marshal.ReadInt32(currentPtr, 20);
+
+                    // Skip invalid entries (type 2)
+                    if (type != 2 && physAddrLen >= 6)
+                    {
+                        byte[] macBytes = new byte[physAddrLen];
+                        Marshal.Copy(IntPtr.Add(currentPtr, 8), macBytes, 0, Math.Min(physAddrLen, 6));
+
+                        var ipAddr = new IPAddress((uint)ipAddrInt);
+                        string ipStr = ipAddr.ToString();
+                        string macStr = string.Join(":", macBytes.Take(6).Select(b => b.ToString("X2")));
+
+                        if (macStr != "00:00:00:00:00:00" && macStr != "FF:FF:FF:FF:FF:FF" &&
+                            !macStr.StartsWith("01:00:5E", StringComparison.OrdinalIgnoreCase) &&
+                            !ipStr.StartsWith("127.") && !ipStr.StartsWith("224.") && !ipStr.StartsWith("239."))
+                        {
+                            results.Add((ipStr, macStr));
+                        }
+                    }
+
+                    currentPtr = IntPtr.Add(currentPtr, 24);
+                }
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
         }
 
         return results;

@@ -179,10 +179,26 @@ public static class DeviceClassifierEngine
             }
         }
 
-        // 4. Hostname Keywords
+        // 4. Hostname Keywords & NetBIOS Resolution
         if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple-")) iosScore += 50;
         if (hostname.Contains("windows") || hostname.Contains("desktop-") || hostname.Contains("laptop-")) winScore += 30;
         if (hostname.Contains("android") || hostname.Contains("galaxy")) iotScore += 30;
+
+        var nbnsProbe = probeResults.FirstOrDefault(pr => pr.Source == "NetBIOS (NBNS)");
+        string nbnsHostname = nbnsProbe?.GetValue("NbnsHostname") ?? "";
+        string nbnsDomain = nbnsProbe?.GetValue("NbnsDomain") ?? "";
+        if (!string.IsNullOrEmpty(nbnsHostname))
+        {
+            winScore += 50;
+            if (string.IsNullOrEmpty(node.Hostname) || node.Hostname == "Unknown Device")
+            {
+                node.Hostname = nbnsHostname;
+            }
+        }
+        if (!string.IsNullOrEmpty(nbnsDomain))
+        {
+            winScore += 20;
+        }
 
         // ═══════════════════════════════════════
         // 5. "Silent Device" Heuristic

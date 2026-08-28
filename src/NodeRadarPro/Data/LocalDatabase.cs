@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LiteDB;
-using System.Security.Cryptography;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Data;
@@ -19,18 +18,37 @@ public class LocalDatabase : IDisposable
 
     private readonly string _dbPath;
     private LiteDatabase _db;
-
     private string _dbPassword;
+    private readonly object _syncRoot = new();
+    private readonly DatabaseBackupService _backupService;
+
+    public DatabaseBackupService Backup => _backupService ?? new DatabaseBackupService(this);
+
+    internal string DbPath => _dbPath;
+    internal string DbPassword => _dbPassword;
+    internal object SyncRoot => _syncRoot ?? this;
+
+    internal LocalDatabase(LiteDatabase db)
+    {
+        _backupService = new DatabaseBackupService(this);
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+        _dbPath = ":memory:";
+        _dbPassword = string.Empty;
+        InitializeSchema();
+    }
 
     public LocalDatabase(string? customDbPath = null, string? customPassword = null)
     {
+        _backupService = new DatabaseBackupService(this);
+
         if (customDbPath != null)
         {
             _dbPath = customDbPath;
             string dir = Path.GetDirectoryName(_dbPath) ?? Environment.CurrentDirectory;
             if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            _dbPassword = customPassword ?? GetOrGenerateSecurePassword(dir);
+            _dbPassword = customPassword ?? CredentialVault.GetOrGenerateDbPassword(dir);
             _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            InitializeSchema();
         }
         else
         {
@@ -39,27 +57,23 @@ public class LocalDatabase : IDisposable
             Directory.CreateDirectory(myFolder);
             _dbPath = Path.Combine(myFolder, "noderadar.db");
 
-            _dbPassword = GetOrGenerateSecurePassword(myFolder);
+            _dbPassword = CredentialVault.GetOrGenerateDbPassword(myFolder);
 
             // Ensure the db_key.bin is created (fallback)
             if (!File.Exists(Path.Combine(myFolder, "db_key.bin")))
             {
-                SaveSecurePassword(myFolder, _dbPassword);
+                CredentialVault.SaveDbPassword(myFolder, _dbPassword);
             }
 
             try
             {
                 _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
             }
-            catch
+            catch (LiteException)
             {
+                DatabaseBackupService.RotateCorruptDatabase(_dbPath);
                 try
                 {
-                    string corruptPath = Path.Combine(myFolder, $"noderadar.db.corrupt_{DateTime.Now:yyyyMMdd_HHmmss}");
-                    if (File.Exists(_dbPath))
-                    {
-                        File.Move(_dbPath, corruptPath, true);
-                    }
                     _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
                 }
                 catch
@@ -67,73 +81,108 @@ public class LocalDatabase : IDisposable
                     _db = new LiteDatabase(new MemoryStream());
                 }
             }
-        }
-    }
-
-    private string GetOrGenerateSecurePassword(string folder)
-    {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return "test_password";
-
-        string keyFile = Path.Combine(folder, "db_key.bin");
-        if (File.Exists(keyFile))
-        {
-            try
+            catch (IOException)
             {
-                byte[] encrypted = File.ReadAllBytes(keyFile);
-                byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
-                return System.Text.Encoding.UTF8.GetString(decrypted);
+                // Transient file lock (antivirus, backup process) — retry once after backoff
+                System.Threading.Thread.Sleep(500);
+                try
+                {
+                    _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+                }
+                catch
+                {
+                    _db = new LiteDatabase(new MemoryStream());
+                }
             }
             catch
             {
-                // If DPAPI decryption fails (e.g., moved to another machine), fallback to a new password
-                // Note: The existing DB won't be openable, but returning a new password avoids a crash here.
-                // The DB open will fail, prompting user to restore from backup or clear DB.
+                _db = new LiteDatabase(new MemoryStream());
             }
-        }
 
-        // Generate a new secure password
-        byte[] secret = new byte[32];
-        using (var rng = RandomNumberGenerator.Create())
-        {
-            rng.GetBytes(secret);
+            InitializeSchema();
         }
-        string newPassword = Convert.ToBase64String(secret);
-        try
-        {
-            SaveSecurePassword(folder, newPassword);
-
-            // Rename database since the old key is lost
-            string dbPath = Path.Combine(folder, "noderadar.db");
-            if (File.Exists(dbPath))
-            {
-                string corruptPath = Path.Combine(folder, $"noderadar.db.corrupt_{DateTime.Now:yyyyMMdd_HHmmss}");
-                File.Move(dbPath, corruptPath, true);
-            }
-        }
-        catch { }
-        return newPassword;
     }
 
-    private void SaveSecurePassword(string folder, string password)
+    internal void DisposeConnection()
     {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return;
+        lock (SyncRoot)
+        {
+            _db?.Dispose();
+            _db = null!;
+        }
+    }
 
-        string keyFile = Path.Combine(folder, "db_key.bin");
-        byte[] secret = System.Text.Encoding.UTF8.GetBytes(password);
-        byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(keyFile, encrypted);
+    internal void ReplaceConnection(LiteDatabase newDb)
+    {
+        lock (SyncRoot)
+        {
+            _db = newDb;
+            InitializeSchema();
+        }
+    }
+
+    internal void ReopenDatabase()
+    {
+        lock (SyncRoot)
+        {
+            try
+            {
+                string dbPath = _dbPath;
+                if (string.IsNullOrEmpty(dbPath))
+                {
+                    dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+                }
+                var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
+                _db = new LiteDatabase(connectionString);
+                InitializeSchema();
+            }
+            catch
+            {
+                try { _db = new LiteDatabase(new MemoryStream()); } catch { /* Ignore */ }
+            }
+        }
+    }
+
+    private void InitializeSchema()
+    {
+        lock (SyncRoot)
+        {
+            if (_db == null) return;
+
+            // devices
+            var devices = _db.GetCollection<NetworkNode>("devices");
+            devices.EnsureIndex("MacAddress", "$.MacAddress", unique: true);
+            devices.EnsureIndex("IpAddress", "$.IpAddress");
+
+            // alerts
+            var alerts = _db.GetCollection<AlertEvent>("alerts");
+            alerts.EnsureIndex("Timestamp", "$.Timestamp");
+
+            // uptime
+            var uptime = _db.GetCollection<UptimeSnapshot>("uptime");
+            uptime.EnsureIndex("MacAddress", "$.MacAddress");
+            uptime.EnsureIndex("Timestamp", "$.Timestamp");
+
+            // logs
+            var logs = _db.GetCollection<LogEntry>("logs");
+            logs.EnsureIndex("Timestamp", "$.Timestamp");
+        }
     }
 
     public void Checkpoint()
     {
-        _db?.Checkpoint();
+        lock (SyncRoot)
+        {
+            _db?.Checkpoint();
+        }
     }
 
     public void Dispose()
     {
-        _db?.Dispose();
+        lock (SyncRoot)
+        {
+            _db?.Dispose();
+        }
     }
 
     // ══════════════════════════════════
@@ -149,220 +198,230 @@ public class LocalDatabase : IDisposable
 
     public List<NetworkNode> MergeWithHistoryBulk(IEnumerable<NetworkNode> scannedNodes)
     {
-        var collection = _db.GetCollection<NetworkNode>("devices");
-        var validNodes = scannedNodes.Where(n => n != null && n.MacAddress != "Unknown").ToList();
-        if (validNodes.Count == 0) return new List<NetworkNode>();
-
-        var macs = validNodes.Select(n => n.MacAddress).Distinct().ToList();
-        var existingNodesList = collection.Find(x => macs.Contains(x.MacAddress)).ToList();
-        var existingNodesDict = existingNodesList.ToDictionary(x => x.MacAddress);
-
-        var toUpdate = new List<NetworkNode>();
-        var toInsert = new List<NetworkNode>();
-        var newNodes = new List<NetworkNode>();
-
-        var now = DateTime.UtcNow;
-
-        foreach (var scannedNode in validNodes)
+        lock (SyncRoot)
         {
-            if (existingNodesDict.TryGetValue(scannedNode.MacAddress, out var existing))
+            var collection = _db.GetCollection<NetworkNode>("devices");
+            var validNodes = scannedNodes.Where(n => n != null && n.MacAddress != "Unknown").ToList();
+            if (validNodes.Count == 0) return new List<NetworkNode>();
+
+            var macs = validNodes.Select(n => n.MacAddress).Distinct().ToList();
+            var existingNodesList = collection.Find(x => macs.Contains(x.MacAddress)).ToList();
+            var existingNodesDict = existingNodesList.ToDictionary(x => x.MacAddress);
+
+            var toUpdate = new List<NetworkNode>();
+            var toInsert = new List<NetworkNode>();
+            var newNodes = new List<NetworkNode>();
+
+            var now = DateTime.UtcNow;
+
+            foreach (var scannedNode in validNodes)
             {
-                scannedNode.CustomName = existing.CustomName;
-                scannedNode.Notes = existing.Notes;
-                scannedNode.Location = existing.Location;
-                if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
-                if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
-
-                if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
-                    scannedNode.IconPath = existing.IconPath;
-
-                if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
-                    scannedNode.DeviceType = existing.DeviceType;
-                scannedNode.IsRegistered = existing.IsRegistered;
-                scannedNode.FirstSeen = existing.FirstSeen;
-                scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
-                scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
-                scannedNode.ThreatLevel = existing.ThreatLevel;
-                scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
-                if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
-
-                if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
-                    scannedNode.Vendor = existing.Vendor;
-
-                if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
-                    scannedNode.OpenPorts = existing.OpenPorts;
-
-                if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
-                    scannedNode.PortBanners = existing.PortBanners;
-                else if (scannedNode.PortBanners != null && existing.PortBanners != null)
+                if (existingNodesDict.TryGetValue(scannedNode.MacAddress, out var existing))
                 {
-                    foreach (var kvp in existing.PortBanners)
+                    scannedNode.CustomName = existing.CustomName;
+                    scannedNode.Notes = existing.Notes;
+                    scannedNode.Location = existing.Location;
+                    if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
+                    if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
+
+                    if (scannedNode.IconPath == "default_device" && !string.IsNullOrEmpty(existing.IconPath))
+                        scannedNode.IconPath = existing.IconPath;
+
+                    if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
+                        scannedNode.DeviceType = existing.DeviceType;
+                    scannedNode.IsRegistered = existing.IsRegistered;
+                    scannedNode.FirstSeen = existing.FirstSeen;
+                    scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
+                    scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
+                    scannedNode.ThreatLevel = existing.ThreatLevel;
+                    scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+                    if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
+
+                    if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
+                        scannedNode.Vendor = existing.Vendor;
+
+                    if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
+                        scannedNode.OpenPorts = existing.OpenPorts;
+
+                    if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
+                        scannedNode.PortBanners = existing.PortBanners;
+                    else if (scannedNode.PortBanners != null && existing.PortBanners != null)
                     {
-                        if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
-                            scannedNode.PortBanners[kvp.Key] = kvp.Value;
+                        foreach (var kvp in existing.PortBanners)
+                        {
+                            if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
+                                scannedNode.PortBanners[kvp.Key] = kvp.Value;
+                        }
                     }
+
+                    if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
+                        scannedNode.OsGuess = existing.OsGuess;
+
+                    existing.IpAddress = scannedNode.IpAddress;
+                    existing.IsOnline = true;
+                    existing.PingLatencyMs = scannedNode.PingLatencyMs;
+                    existing.LastSeen = now;
+                    existing.Hostname = scannedNode.Hostname;
+                    if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
+                        existing.Vendor = scannedNode.Vendor;
+                    if (scannedNode.OpenPorts?.Count > 0)
+                        existing.OpenPorts = scannedNode.OpenPorts;
+
+                    if (scannedNode.PortBanners?.Count > 0)
+                        existing.PortBanners = scannedNode.PortBanners;
+
+                    if (!string.IsNullOrEmpty(scannedNode.OsGuess))
+                        existing.OsGuess = scannedNode.OsGuess;
+
+                    existing.ThreatLevel = scannedNode.ThreatLevel;
+                    existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
+                    if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
+                    if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
+                    if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
+
+                    toUpdate.Add(existing);
                 }
-
-                if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
-                    scannedNode.OsGuess = existing.OsGuess;
-
-                existing.IpAddress = scannedNode.IpAddress;
-                existing.IsOnline = true;
-                existing.PingLatencyMs = scannedNode.PingLatencyMs;
-                existing.LastSeen = now;
-                existing.Hostname = scannedNode.Hostname;
-                if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
-                    existing.Vendor = scannedNode.Vendor;
-                if (scannedNode.OpenPorts?.Count > 0)
-                    existing.OpenPorts = scannedNode.OpenPorts;
-
-                if (scannedNode.PortBanners?.Count > 0)
-                    existing.PortBanners = scannedNode.PortBanners;
-
-                if (!string.IsNullOrEmpty(scannedNode.OsGuess))
-                    existing.OsGuess = scannedNode.OsGuess;
-
-                existing.ThreatLevel = scannedNode.ThreatLevel;
-                existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
-                if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
-                if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
-                if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
-
-                toUpdate.Add(existing);
+                else
+                {
+                    scannedNode.FirstSeen = now;
+                    scannedNode.LastSeen = now;
+                    toInsert.Add(scannedNode);
+                    newNodes.Add(scannedNode);
+                }
             }
-            else
+
+            if (toUpdate.Count > 0)
+                collection.Update(toUpdate);
+
+            if (toInsert.Count > 0)
             {
-                scannedNode.FirstSeen = now;
-                scannedNode.LastSeen = now;
-                toInsert.Add(scannedNode);
-                newNodes.Add(scannedNode);
+                collection.InsertBulk(toInsert);
             }
+            Checkpoint();
+
+            return newNodes;
         }
-
-        if (toUpdate.Count > 0)
-            collection.Update(toUpdate);
-
-        if (toInsert.Count > 0)
-        {
-            collection.InsertBulk(toInsert);
-            collection.EnsureIndex(x => x.MacAddress);
-        }
-        Checkpoint();
-
-        return newNodes;
     }
-
-
 
     public void UpdateRegistration(string macAddress, string customName, string notes,
         string location, string deviceName, string deviceModel, string icon,
         string? ipAddress = null, int score = 0, ThreatLevel threat = ThreatLevel.Safe, string exactModel = "")
     {
-        var collection = _db.GetCollection<NetworkNode>("devices");
-
-        var existing = collection.FindOne(x => x.MacAddress == macAddress);
-        if (existing != null)
+        lock (SyncRoot)
         {
-            existing.CustomName = customName;
-            existing.Notes = notes;
-            existing.Location = location;
-            existing.DeviceName = deviceName;
-            existing.DeviceModel = deviceModel;
-            existing.IconPath = icon;
-            existing.IsRegistered = true;
-            existing.VulnerabilityScore = score;
-            existing.ThreatLevel = threat;
-            if (!string.IsNullOrEmpty(exactModel)) existing.ExactModel = exactModel;
+            var collection = _db.GetCollection<NetworkNode>("devices");
 
-            if (!string.IsNullOrEmpty(ipAddress))
-                existing.IpAddress = ipAddress;
-            collection.Update(existing);
-        }
-        else
-        {
-            var node = new NetworkNode
+            var existing = collection.FindOne(x => x.MacAddress == macAddress);
+            if (existing != null)
             {
-                MacAddress = macAddress,
-                CustomName = customName,
-                Notes = notes,
-                Location = location,
-                DeviceName = deviceName,
-                DeviceModel = deviceModel,
-                IconPath = icon,
-                IpAddress = ipAddress ?? "0.0.0.0",
-                IsRegistered = true,
-                VulnerabilityScore = score,
-                ThreatLevel = threat,
-                ExactModel = exactModel,
-                FirstSeen = DateTime.UtcNow,
-                LastSeen = DateTime.UtcNow
-            };
-            collection.Insert(node);
-            collection.EnsureIndex(x => x.MacAddress);
+                existing.CustomName = customName;
+                existing.Notes = notes;
+                existing.Location = location;
+                existing.DeviceName = deviceName;
+                existing.DeviceModel = deviceModel;
+                existing.IconPath = icon;
+                existing.IsRegistered = true;
+                existing.VulnerabilityScore = score;
+                existing.ThreatLevel = threat;
+                if (!string.IsNullOrEmpty(exactModel)) existing.ExactModel = exactModel;
+
+                if (!string.IsNullOrEmpty(ipAddress))
+                    existing.IpAddress = ipAddress;
+                collection.Update(existing);
+            }
+            else
+            {
+                var node = new NetworkNode
+                {
+                    MacAddress = macAddress,
+                    CustomName = customName,
+                    Notes = notes,
+                    Location = location,
+                    DeviceName = deviceName,
+                    DeviceModel = deviceModel,
+                    IconPath = icon,
+                    IpAddress = ipAddress ?? "0.0.0.0",
+                    IsRegistered = true,
+                    VulnerabilityScore = score,
+                    ThreatLevel = threat,
+                    ExactModel = exactModel,
+                    FirstSeen = DateTime.UtcNow,
+                    LastSeen = DateTime.UtcNow
+                };
+                collection.Insert(node);
+            }
+            Checkpoint();
         }
-        Checkpoint();
     }
-
-
 
     public void UpdateDeviceAlertPrefs(string macAddress, bool alertConnLost, bool alertHighLatency)
     {
-        var collection = _db.GetCollection<NetworkNode>("devices");
-        var existing = collection.FindOne(x => x.MacAddress == macAddress);
-        if (existing != null)
+        lock (SyncRoot)
         {
-            existing.AlertOnConnectionLost = alertConnLost;
-            existing.AlertOnHighLatency = alertHighLatency;
-            collection.Update(existing);
+            var collection = _db.GetCollection<NetworkNode>("devices");
+            var existing = collection.FindOne(x => x.MacAddress == macAddress);
+            if (existing != null)
+            {
+                existing.AlertOnConnectionLost = alertConnLost;
+                existing.AlertOnHighLatency = alertHighLatency;
+                collection.Update(existing);
+            }
         }
     }
 
-
-
     public bool DeleteDevice(string macAddress)
     {
-        var collection = _db.GetCollection<NetworkNode>("devices");
-        var existing = collection.FindOne(x => x.MacAddress == macAddress);
-        if (existing != null) { collection.Delete(existing.Id); Checkpoint(); return true; }
-        return false;
+        lock (SyncRoot)
+        {
+            var collection = _db.GetCollection<NetworkNode>("devices");
+            var existing = collection.FindOne(x => x.MacAddress == macAddress);
+            if (existing != null) { collection.Delete(existing.Id); Checkpoint(); return true; }
+            return false;
+        }
     }
 
     public int DeleteDevices(IEnumerable<string> macAddresses)
     {
-        var collection = _db.GetCollection<NetworkNode>("devices");
+        lock (SyncRoot)
+        {
+            var collection = _db.GetCollection<NetworkNode>("devices");
 
-        var macList = System.Linq.Enumerable.ToList(macAddresses);
-        int deletedCount = collection.DeleteMany(x => macList.Contains(x.MacAddress));
+            var macList = System.Linq.Enumerable.ToList(macAddresses);
+            int deletedCount = collection.DeleteMany(x => macList.Contains(x.MacAddress));
 
-        Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
-        Checkpoint();
-        return deletedCount;
+            Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
+            Checkpoint();
+            return deletedCount;
+        }
     }
-
-
-
 
     public NetworkNode? GetRegisteredDeviceByIp(string ip)
     {
-        try
+        lock (SyncRoot)
         {
-            return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
-        }
-        catch
-        {
-            return null;
+            try
+            {
+                return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
+            }
+            catch
+            {
+                return null;
+            }
         }
     }
 
     public List<NetworkNode> GetRegisteredDevices()
     {
-        try
+        lock (SyncRoot)
         {
-            return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
-        }
-        catch
-        {
-            return new List<NetworkNode>();
+            try
+            {
+                return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
+            }
+            catch
+            {
+                return new List<NetworkNode>();
+            }
         }
     }
 
@@ -372,68 +431,84 @@ public class LocalDatabase : IDisposable
 
     public void InsertAlert(AlertEvent alert)
     {
-        var col = _db.GetCollection<AlertEvent>("alerts");
-        col.Insert(alert);
-        col.EnsureIndex(x => x.Timestamp);
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            col.Insert(alert);
+        }
     }
 
     public List<AlertEvent> GetAlerts(int limit = 200)
     {
-        return _db.GetCollection<AlertEvent>("alerts")
-            .Find(Query.All("Timestamp", Query.Descending), limit: limit).ToList();
+        lock (SyncRoot)
+        {
+            return _db.GetCollection<AlertEvent>("alerts")
+                .Find(Query.All("Timestamp", Query.Descending), limit: limit).ToList();
+        }
     }
-
-
 
     public int GetUnresolvedAlertCount()
     {
-        return _db.GetCollection<AlertEvent>("alerts").Count(x => !x.IsResolved);
+        lock (SyncRoot)
+        {
+            return _db.GetCollection<AlertEvent>("alerts").Count(x => !x.IsResolved);
+        }
     }
 
     public void ResolveAlert(ObjectId alertId)
     {
-        var col = _db.GetCollection<AlertEvent>("alerts");
-        var alert = col.FindById(alertId);
-        if (alert != null)
+        lock (SyncRoot)
         {
-            alert.IsResolved = true;
-            alert.ResolvedAt = DateTime.UtcNow;
-            col.Update(alert);
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            var alert = col.FindById(alertId);
+            if (alert != null)
+            {
+                alert.IsResolved = true;
+                alert.ResolvedAt = DateTime.UtcNow;
+                col.Update(alert);
+            }
         }
     }
 
     public void ResolveAllAlerts()
     {
-        var col = _db.GetCollection<AlertEvent>("alerts");
-        var unresolved = col.Find(x => !x.IsResolved).ToList();
-        var now = DateTime.UtcNow;
-        foreach (var a in unresolved)
+        lock (SyncRoot)
         {
-            a.IsResolved = true;
-            a.ResolvedAt = now;
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            var unresolved = col.Find(x => !x.IsResolved).ToList();
+            var now = DateTime.UtcNow;
+            foreach (var a in unresolved)
+            {
+                a.IsResolved = true;
+                a.ResolvedAt = now;
+            }
+            if (unresolved.Count > 0) col.Update(unresolved);
         }
-        if (unresolved.Count > 0) col.Update(unresolved);
     }
 
     // ══════════════════════════════════
     // UPTIME HISTORY
     // ══════════════════════════════════
 
-
-
     public void InsertUptimeSnapshots(List<UptimeSnapshot> snapshots)
     {
         if (snapshots.Count == 0) return;
-        var col = _db.GetCollection<UptimeSnapshot>("uptime");
-        col.InsertBulk(snapshots);
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<UptimeSnapshot>("uptime");
+            col.InsertBulk(snapshots);
+        }
     }
 
     public List<UptimeSnapshot> GetUptimeHistory(string macAddress, int hours = 24)
     {
-        var cutoff = DateTime.UtcNow.AddHours(-hours);
-        return _db.GetCollection<UptimeSnapshot>("uptime")
-            .Find(x => x.MacAddress == macAddress && x.Timestamp >= cutoff)
-            .OrderBy(x => x.Timestamp).ToList();
+        lock (SyncRoot)
+        {
+            var cutoff = DateTime.UtcNow.AddHours(-hours);
+            return _db.GetCollection<UptimeSnapshot>("uptime")
+                .Find(x => x.MacAddress == macAddress && x.Timestamp >= cutoff)
+                .OrderBy(x => x.Timestamp).ToList();
+        }
     }
 
     // ══════════════════════════════════
@@ -442,9 +517,11 @@ public class LocalDatabase : IDisposable
 
     public void InsertLog(LogEntry entry)
     {
-        var col = _db.GetCollection<LogEntry>("logs");
-        col.Insert(entry);
-        col.EnsureIndex(x => x.Timestamp);
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>("logs");
+            col.Insert(entry);
+        }
     }
 
     public void Log(LogLevel level, string source, string message, string? deviceMac = null)
@@ -465,16 +542,20 @@ public class LocalDatabase : IDisposable
 
     public List<LogEntry> GetLogs(int limit = 500, LogLevel? levelFilter = null, string? deviceMacFilter = null)
     {
-        var col = _db.GetCollection<LogEntry>("logs");
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>("logs");
+            var query = col.Query();
 
-        IEnumerable<LogEntry> query = col.Find(Query.All("Timestamp", Query.Descending), limit: limit);
+            if (levelFilter.HasValue)
+                query = query.Where(x => x.Level == levelFilter.Value);
+            if (!string.IsNullOrEmpty(deviceMacFilter))
+                query = query.Where(x => x.DeviceMac == deviceMacFilter);
 
-        if (levelFilter.HasValue)
-            query = query.Where(x => x.Level == levelFilter.Value);
-        if (!string.IsNullOrEmpty(deviceMacFilter))
-            query = query.Where(x => x.DeviceMac == deviceMacFilter);
-
-        return query.ToList();
+            return query.OrderByDescending(x => x.Timestamp)
+                .Limit(limit)
+                .ToList();
+        }
     }
 
     // ══════════════════════════════════
@@ -483,309 +564,108 @@ public class LocalDatabase : IDisposable
 
     public AppSettings LoadSettings()
     {
-        var bsonCol = _db.GetCollection("settings");
-        var doc = bsonCol.FindById(1);
-
-        if (doc != null && doc.ContainsKey("SmtpPassword") && !doc["SmtpPassword"].IsNull && !string.IsNullOrEmpty(doc["SmtpPassword"].AsString))
+        lock (SyncRoot)
         {
-            var plainPass = doc["SmtpPassword"].AsString;
-            try
+            var bsonCol = _db.GetCollection("settings");
+            var doc = bsonCol.FindById(1);
+
+            if (doc != null && doc.ContainsKey("SmtpPassword") && !doc["SmtpPassword"].IsNull && !string.IsNullOrEmpty(doc["SmtpPassword"].AsString))
             {
-                doc["SmtpPasswordEncrypted"] = EncryptSecret(plainPass);
-            }
-            catch (Exception ex)
-            {
-                Log(LogLevel.Error, "Database", $"Failed to encrypt legacy SmtpPassword: {ex.Message}");
+                var plainPass = doc["SmtpPassword"].AsString;
+                try
+                {
+                    doc["SmtpPasswordEncrypted"] = CredentialVault.EncryptSecret(plainPass);
+                }
+                catch (Exception ex)
+                {
+                    Log(LogLevel.Error, "Database", $"Failed to encrypt legacy SmtpPassword: {ex.Message}");
+                }
+
+                doc.Remove("SmtpPassword");
+                bsonCol.Update(doc);
             }
 
-            doc.Remove("SmtpPassword");
-            bsonCol.Update(doc);
+            var collection = _db.GetCollection<AppSettings>("settings");
+            var settings = collection.FindById(1) ?? new AppSettings();
+
+            if (!string.IsNullOrEmpty(settings.SmtpPasswordEncrypted))
+            {
+                try
+                {
+                    settings.SmtpPassword = CredentialVault.DecryptSecret(settings.SmtpPasswordEncrypted);
+                }
+                catch (Exception ex)
+                {
+                    Log(LogLevel.Error, "Database", $"Failed to decrypt SmtpPassword: {ex.Message}");
+                    settings.SmtpPassword = "";
+                }
+            }
+
+            return settings;
         }
-
-        var collection = _db.GetCollection<AppSettings>("settings");
-        var settings = collection.FindById(1) ?? new AppSettings();
-
-        if (!string.IsNullOrEmpty(settings.SmtpPasswordEncrypted))
-        {
-            try
-            {
-                settings.SmtpPassword = DecryptSecret(settings.SmtpPasswordEncrypted);
-            }
-            catch (Exception ex)
-            {
-                Log(LogLevel.Error, "Database", $"Failed to decrypt SmtpPassword: {ex.Message}");
-                settings.SmtpPassword = "";
-            }
-        }
-
-        return settings;
     }
 
     public void SaveSettings(AppSettings settings)
     {
-        if (!string.IsNullOrEmpty(settings.SmtpPassword))
+        lock (SyncRoot)
         {
-            try
+            if (!string.IsNullOrEmpty(settings.SmtpPassword))
             {
-                settings.SmtpPasswordEncrypted = EncryptSecret(settings.SmtpPassword);
-            }
-            catch (Exception ex)
-            {
-                Log(LogLevel.Error, "Database", $"Failed to encrypt SmtpPassword during save: {ex.Message}");
-            }
-        }
-        else
-        {
-            settings.SmtpPasswordEncrypted = null;
-        }
-
-        var collection = _db.GetCollection<AppSettings>("settings");
-        collection.Upsert(settings);
-        Checkpoint();
-    }
-
-    // ── Backup & Maintenance ──
-
-    public string BackupDatabase(string? customPath = null)
-    {
-        try
-        {
-            if (!File.Exists(_dbPath))
-            {
-                Log(LogLevel.Info, "Database", "Backup skipped: Database file not found (new install?)");
-                return "";
-            }
-
-            string destPath;
-            string backupDir;
-
-            if (customPath != null)
-            {
-                destPath = customPath;
-                backupDir = Path.GetDirectoryName(destPath) ?? "";
+                try
+                {
+                    settings.SmtpPasswordEncrypted = CredentialVault.EncryptSecret(settings.SmtpPassword);
+                }
+                catch (Exception ex)
+                {
+                    Log(LogLevel.Error, "Database", $"Failed to encrypt SmtpPassword during save: {ex.Message}");
+                }
             }
             else
             {
-                backupDir = Path.Combine(Path.GetDirectoryName(_dbPath)!, "Backups");
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                destPath = Path.Combine(backupDir, $"noderadar_backup_{timestamp}.db");
+                settings.SmtpPasswordEncrypted = null;
             }
 
-            if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir))
-                Directory.CreateDirectory(backupDir);
-
-            File.Copy(_dbPath, destPath, true);
-            Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
-
-            if (customPath == null) CleanupOldBackups(backupDir);
-
-            return destPath;
-        }
-        catch (IOException ex)
-        {
-            Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
-            return "";
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
-            return "";
+            var collection = _db.GetCollection<AppSettings>("settings");
+            collection.Upsert(settings);
+            Checkpoint();
         }
     }
 
-    public bool RestoreDatabase(string backupPath)
+    // ── Maintenance & Pruning ──
+
+    /// <summary>
+    /// Prunes old uptime snapshots, resolved alerts, and log entries to prevent unbounded DB growth.
+    /// Called from the auto-backup timer or manually from maintenance routines.
+    /// </summary>
+    public int PruneOldData(int uptimeRetentionDays = 30, int logRetentionDays = 14, int resolvedAlertRetentionDays = 30)
     {
-        try
+        lock (SyncRoot)
         {
-            if (!File.Exists(backupPath)) return false;
+            int deleted = 0;
+            var now = DateTime.UtcNow;
 
-            string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+            // Prune uptime snapshots
+            var uptimeCutoff = now.AddDays(-uptimeRetentionDays);
+            deleted += _db.GetCollection<UptimeSnapshot>("uptime")
+                .DeleteMany(x => x.Timestamp < uptimeCutoff);
 
-            // We must close the current connection before overwriting the file
-            _db.Dispose();
+            // Prune old logs
+            var logCutoff = now.AddDays(-logRetentionDays);
+            deleted += _db.GetCollection<LogEntry>("logs")
+                .DeleteMany(x => x.Timestamp < logCutoff);
 
-            File.Copy(backupPath, dbPath, true);
+            // Prune resolved alerts older than retention
+            var alertCutoff = now.AddDays(-resolvedAlertRetentionDays);
+            deleted += _db.GetCollection<AlertEvent>("alerts")
+                .DeleteMany(x => x.IsResolved && x.ResolvedAt != null && x.ResolvedAt < alertCutoff);
 
-            // Re-initialize (Note: In a real app, we would probably trigger an app restart)
-            var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
-            _db = new LiteDatabase(connectionString);
-
-            Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
-            return true;
-        }
-        catch (IOException ex)
-        {
-            TryReopenDatabase();
-            Log(LogLevel.Error, "Database", $"Database restore failed: File in use or I/O error. {ex.Message}");
-            return false;
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            TryReopenDatabase();
-            Log(LogLevel.Error, "Database", $"Database restore failed: Permission denied when accessing file. {ex.Message}");
-            return false;
-        }
-        catch (LiteException ex)
-        {
-            TryReopenDatabase();
-            Log(LogLevel.Error, "Database", $"Database restore failed: Database structure invalid/corrupted. {ex.Message}");
-            return false;
-        }
-        catch (Exception ex)
-        {
-            TryReopenDatabase();
-            Log(LogLevel.Error, "Database", $"Restore failed: {ex.Message}");
-            return false;
-        }
-    }
-
-    private void TryReopenDatabase()
-    {
-        // Try to re-open if possible
-        try
-        {
-            if (_db == null)
+            if (deleted > 0)
             {
-                string dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
-                var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
-                _db = new LiteDatabase(connectionString);
-            }
-        }
-        catch { }
-    }
-
-    private void CleanupOldBackups(string backupDir)
-    {
-        try
-        {
-            var files = Directory.GetFiles(backupDir, "noderadar_backup_*.db")
-                .Select(f => new FileInfo(f))
-                .OrderByDescending(f => f.CreationTime)
-                .Skip(7) // Keep last 7 backups
-                .ToList();
-
-            foreach (var file in files)
-            {
-                file.Delete();
-                Log(LogLevel.Info, "Database", $"Cleaned up old backup: {file.Name}");
-            }
-        }
-        catch { }
-    }
-
-    private static byte[] GetFallbackEncryptionKeyLegacy()
-    {
-        string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        return sha256.ComputeHash(System.Text.Encoding.UTF8.GetBytes(identifier));
-    }
-
-    private static byte[] DeriveKeyPbkdf2(byte[] salt)
-    {
-        string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
-        return System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, System.Security.Cryptography.HashAlgorithmName.SHA256, 32);
-    }
-
-    private static string EncryptSecret(string plainText)
-    {
-        if (string.IsNullOrEmpty(plainText)) return "";
-        try
-        {
-            var secret = System.Text.Encoding.UTF8.GetBytes(plainText);
-            var encrypted = System.Security.Cryptography.ProtectedData.Protect(secret, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(encrypted);
-        }
-        catch (PlatformNotSupportedException)
-        {
-            byte[] salt = new byte[16];
-            byte[] nonce = new byte[12];
-            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
-                rng.GetBytes(nonce);
+                Checkpoint();
+                Log(LogLevel.Info, "Database", $"Pruned {deleted} expired records (uptime>{uptimeRetentionDays}d, logs>{logRetentionDays}d, resolved alerts>{resolvedAlertRetentionDays}d).");
             }
 
-            byte[] key = DeriveKeyPbkdf2(salt);
-            byte[] plainBytes = System.Text.Encoding.UTF8.GetBytes(plainText);
-            byte[] cipherText = new byte[plainBytes.Length];
-            byte[] tag = new byte[16];
-
-            using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
-            {
-                aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
-            }
-
-            // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
-            byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
-            result[0] = 0x02;
-            Buffer.BlockCopy(salt, 0, result, 1, 16);
-            Buffer.BlockCopy(nonce, 0, result, 17, 12);
-            Buffer.BlockCopy(tag, 0, result, 29, 16);
-            Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
-            return Convert.ToBase64String(result);
+            return deleted;
         }
     }
-
-    private static string DecryptSecret(string encryptedBase64)
-    {
-        if (string.IsNullOrEmpty(encryptedBase64)) return "";
-        byte[] data;
-        try
-        {
-            data = Convert.FromBase64String(encryptedBase64);
-        }
-        catch
-        {
-            return "";
-        }
-
-        try
-        {
-            var decrypted = System.Security.Cryptography.ProtectedData.Unprotect(data, null, System.Security.Cryptography.DataProtectionScope.CurrentUser);
-            return System.Text.Encoding.UTF8.GetString(decrypted);
-        }
-        catch (PlatformNotSupportedException)
-        {
-            if (data.Length >= 45 && data[0] == 0x02)
-            {
-                byte[] salt = new byte[16];
-                byte[] nonce = new byte[12];
-                byte[] tag = new byte[16];
-                byte[] cipherText = new byte[data.Length - 45];
-
-                Buffer.BlockCopy(data, 1, salt, 0, 16);
-                Buffer.BlockCopy(data, 17, nonce, 0, 12);
-                Buffer.BlockCopy(data, 29, tag, 0, 16);
-                Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
-
-                byte[] key = DeriveKeyPbkdf2(salt);
-                byte[] plainBytes = new byte[cipherText.Length];
-                using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
-                {
-                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
-                }
-                return System.Text.Encoding.UTF8.GetString(plainBytes);
-            }
-            if (data.Length >= 29 && data[0] == 0x01)
-            {
-                byte[] key = GetFallbackEncryptionKeyLegacy();
-                byte[] nonce = new byte[12];
-                byte[] tag = new byte[16];
-                byte[] cipherText = new byte[data.Length - 29];
-
-                Buffer.BlockCopy(data, 1, nonce, 0, 12);
-                Buffer.BlockCopy(data, 13, tag, 0, 16);
-                Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
-
-                byte[] plainBytes = new byte[cipherText.Length];
-                using (var aesGcm = new System.Security.Cryptography.AesGcm(key, 16))
-                {
-                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
-                }
-                return System.Text.Encoding.UTF8.GetString(plainBytes);
-            }
-            return System.Text.Encoding.UTF8.GetString(data);
-        }
-    }
-
 }

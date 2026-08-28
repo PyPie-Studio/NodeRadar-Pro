@@ -14,10 +14,12 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class EmailService
 {
-    public static async Task SendAlertAsync(AppSettings settings, string subject, string body)
+    public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null)
     {
         if (!settings.EnableEmailAlerts || string.IsNullOrEmpty(settings.SmtpHost))
             return;
+
+        var targetDb = db ?? LocalDatabase.Instance;
 
         try
         {
@@ -48,27 +50,27 @@ public static class EmailService
         }
         catch (AuthenticationException ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Authentication failed: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Authentication failed: {ex.Message}");
         }
         catch (SmtpCommandException ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Command failed: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Command failed: {ex.Message}");
         }
         catch (SmtpProtocolException ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"SMTP Protocol error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Protocol error: {ex.Message}");
         }
         catch (SocketException ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"Network error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"Network error: {ex.Message}");
         }
         catch (IOException ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"I/O error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"I/O error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            LocalDatabase.Instance.Log(LogLevel.Error, "EmailService", $"Failed to send email alert: {ex.Message}");
+            targetDb.Log(LogLevel.Error, "EmailService", $"Failed to send email alert: {ex.Message}");
         }
     }
 }

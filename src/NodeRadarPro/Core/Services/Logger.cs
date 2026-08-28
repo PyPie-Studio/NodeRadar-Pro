@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -12,26 +13,35 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class Logger
 {
-    private static readonly string LogDir;
-    private static readonly string CurrentLogFile;
+    private static readonly string _defaultLogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "Logs");
+    private static string? _customLogDir;
     private static readonly object _fileLock = new();
     private static readonly ConcurrentQueue<string> _logQueue = new();
     private static bool _isProcessing = false;
 
-    static Logger()
+    private static string LogDir => _customLogDir ?? _defaultLogDir;
+    private static string CurrentLogFile => Path.Combine(LogDir, "noderadar_system.log");
+
+    internal static void SetCustomLogDirectoryForTesting(string? customDir)
     {
-        LogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "Logs");
-        if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+        _customLogDir = customDir;
+        if (!string.IsNullOrEmpty(customDir) && !Directory.Exists(customDir))
+        {
+            Directory.CreateDirectory(customDir);
+        }
+    }
 
-        CurrentLogFile = Path.Combine(LogDir, "noderadar_system.log");
-
-        // Initial cleanup of old logs (keep last 5 days)
-        CleanupOldLogs();
+    internal static void FlushForTesting()
+    {
+        while (!_logQueue.IsEmpty || _isProcessing)
+        {
+            System.Threading.Thread.Sleep(10);
+        }
     }
 
     public static void Log(LogLevel level, string source, string message, string? deviceMac = null)
     {
-        string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        string timestamp = DateTime.Now.ToString("yyyy-MM-dd  hh:mm:ss.fff tt");
         string threadId = System.Threading.Thread.CurrentThread.ManagedThreadId.ToString().PadLeft(3, '0');
         string macInfo = !string.IsNullOrEmpty(deviceMac) ? $" [{deviceMac}]" : "";
 
@@ -54,12 +64,19 @@ public static class Logger
         {
             try
             {
+                var batch = new List<string>(32);
                 while (_logQueue.TryDequeue(out string? line))
                 {
-                    lock (_fileLock)
+                    batch.Add(line);
+                    if (batch.Count >= 64 || _logQueue.IsEmpty)
                     {
-                        CheckRotation();
-                        File.AppendAllText(CurrentLogFile, line + Environment.NewLine);
+                        lock (_fileLock)
+                        {
+                            if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+                            CheckRotation();
+                            File.AppendAllLines(CurrentLogFile, batch);
+                        }
+                        batch.Clear();
                     }
                 }
             }

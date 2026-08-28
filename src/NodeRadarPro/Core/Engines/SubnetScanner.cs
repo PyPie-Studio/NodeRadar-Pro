@@ -29,6 +29,15 @@ public class SubnetScanner
     public string PreferredInterfaceName { get; set; } = ""; // S3: Interface preference
     private string _localBindingIp = "";
 
+    private readonly IPingProvider _pingProvider;
+    private readonly IArpResolver _arpResolver;
+
+    public SubnetScanner(IPingProvider? pingProvider = null, IArpResolver? arpResolver = null)
+    {
+        _pingProvider = pingProvider ?? new DefaultPingProvider();
+        _arpResolver = arpResolver ?? new DefaultArpResolver();
+    }
+
     private void ResolveBindingIp()
     {
         _localBindingIp = "";
@@ -66,7 +75,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
-        _ = Task.Run(() => DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(), token);
+        _ = DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token);
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
@@ -118,7 +127,7 @@ public class SubnetScanner
         {
             try
             {
-                var arpTable = ArpResolver.GetFullArpTable();
+                var arpTable = _arpResolver.GetFullArpTable();
                 var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
@@ -165,7 +174,7 @@ public class SubnetScanner
 
     public async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
-        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync();
+        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token);
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
@@ -174,7 +183,7 @@ public class SubnetScanner
         // Pre-Sweep: Rapid ARP check for silent devices (Issue 8)
         try
         {
-            var arpTable = ArpResolver.GetFullArpTable();
+            var arpTable = _arpResolver.GetFullArpTable();
             var preSweepTasks = new List<Task<NetworkNode>>();
             foreach (var (ip, mac) in arpTable)
             {
@@ -269,7 +278,7 @@ public class SubnetScanner
 
             try
             {
-                var arpTable = ArpResolver.GetFullArpTable();
+                var arpTable = _arpResolver.GetFullArpTable();
                 var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
@@ -326,8 +335,7 @@ public class SubnetScanner
 
         try
         {
-            using var pinger = new Ping();
-            var reply = await pinger.SendPingAsync(ip, pingTimeout);
+            var reply = await _pingProvider.SendPingAsync(ip, pingTimeout);
             if (reply.Status == IPStatus.Success)
             {
                 isReachable = true;
@@ -338,15 +346,16 @@ public class SubnetScanner
 
         try
         {
-            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
+            mac = await Task.Run(() => _arpResolver.ResolveMacAddress(ip, _localBindingIp));
 
             // Fallback: If direct SendARP failed, check the full system ARP table
             if (mac == "Unknown")
             {
-                var table = ArpResolver.GetFullArpTableAsDictionary();
-                if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
+                var arpList = _arpResolver.GetFullArpTable();
+                var found = arpList.FirstOrDefault(x => x.Ip == ip);
+                if (!string.IsNullOrEmpty(found.Mac))
                 {
-                    mac = foundMac;
+                    mac = found.Mac;
                 }
             }
 
@@ -450,7 +459,7 @@ public class SubnetScanner
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
                     cts.CancelAfter(3000);
 
-                    string netbios = await Task.Run(() => ArpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
+                    string netbios = await Task.Run(() => _arpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
                     if (!string.IsNullOrEmpty(netbios))
                         node.Hostname = netbios;
                 }

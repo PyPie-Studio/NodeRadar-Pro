@@ -148,7 +148,11 @@ public class DarkPurpleTheme
             };
             _autoBackupTimer.Tick += (s, e) =>
             {
-                Task.Run(() => LocalDatabase.Instance.BackupDatabase());
+                Task.Run(() =>
+                {
+                    LocalDatabase.Instance.PruneOldData();
+                    LocalDatabase.Instance.Backup.BackupDatabase();
+                });
             };
             _autoBackupTimer.Start();
         }
@@ -452,7 +456,7 @@ public class DarkPurpleTheme
         settingsPage.SettingsSaved += (newSettings) =>
         {
             settings = newSettings;
-            ApplySettings(newSettings, monitor, scanner);
+            ApplySettings(newSettings, monitor, scanner, detector);
             try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
             db.Checkpoint();
             SyncGlobalStats();
@@ -549,7 +553,7 @@ public class DarkPurpleTheme
             });
 
             // Apply settings to services (Non-UI)
-            ApplySettings(settings, monitor, scanner);
+            ApplySettings(settings, monitor, scanner, detector);
 
             // UI Status Updates
             Dispatcher.UIThread.Post(() =>
@@ -589,9 +593,9 @@ public class DarkPurpleTheme
     }
 
     /// <summary>
-    /// Pushes AppSettings values to the scanner and monitor services.
+    /// Pushes AppSettings values to the scanner, monitor, and detector services.
     /// </summary>
-    private static void ApplySettings(AppSettings settings, ConnectivityMonitor monitor, SubnetScanner scanner)
+    private static void ApplySettings(AppSettings settings, ConnectivityMonitor monitor, SubnetScanner scanner, IntrusionDetector detector)
     {
         monitor.IntervalSeconds = settings.SweepFrequencySeconds > 0 ? settings.SweepFrequencySeconds : settings.MonitorIntervalSeconds;
         monitor.TimeoutMs = settings.ResponseTimeoutMs;
@@ -617,5 +621,7 @@ public class DarkPurpleTheme
         scanner.EnableInlinePortScan = settings.EnableInlinePortScan;
         scanner.FastScanMode = settings.EnableFastScan;
         scanner.EnableOsDetection = settings.EnableOsDetection;
+
+        detector.Configure(settings);
     }
 }
