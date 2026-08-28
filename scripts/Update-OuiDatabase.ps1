@@ -245,7 +245,8 @@ $null = $sb.AppendLine("#pragma warning restore S1133")
 $null = $sb.AppendLine("}")
 $null = $sb.AppendLine()
 
-[System.IO.File]::WriteAllText($vendorLookupFile, $sb.ToString(), [System.Text.Encoding]::UTF8)
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText($vendorLookupFile, $sb.ToString(), $utf8NoBom)
 Write-Host "Updated Data/VendorLookup.cs with $(($categorized.Values | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum) curated vendor prefixes!" -ForegroundColor Green
 
 # 5. Optional JSON Export

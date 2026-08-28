@@ -10,12 +10,11 @@
     <Title>NodeRadar Pro</Title>
     <Authors>PyPie Studio</Authors>
     <PackageIcon>NodeRadar Pro Icon.png</PackageIcon>
-    <PublishSingleFile>true</PublishSingleFile>
+    <PublishSingleFile>false</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>Resources\NodeRadar Pro Icon.ico</ApplicationIcon>
 	  <Version>1.0.0</Version>

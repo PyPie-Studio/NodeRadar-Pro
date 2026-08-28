@@ -35,7 +35,7 @@ New-Item -ItemType Directory -Path $releasesDir -Force | Out-Null
 Push-Location $root
 try {
     & dotnet publish "$projectName.csproj" -c Release -r win-x64 --self-contained true `
-        -p:PublishSingleFile=false -p:PublishReadyToRun=false -p:PublishTrimmed=true --nologo
+        -p:PublishSingleFile=false -p:PublishReadyToRun=false -p:PublishTrimmed=false --nologo
     if ($LASTEXITCODE -ne 0) {
         throw "Dotnet publish failed with exit code $LASTEXITCODE"
     }
