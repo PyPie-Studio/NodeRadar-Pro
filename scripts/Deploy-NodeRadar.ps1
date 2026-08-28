@@ -243,17 +243,23 @@ try {
 
     $releaseNotesText = $notesLines -join "`n"
 
-    # Prepend entry to CHANGELOG.md (UTF-8 without BOM)
+    # Insert entry into CHANGELOG.md (UTF-8 without BOM)
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     if (Test-Path $changelogFile) {
         $existing = [System.IO.File]::ReadAllText($changelogFile)
-        [System.IO.File]::WriteAllText($changelogFile, $releaseNotesText + "`n" + $existing, $utf8NoBom)
+        if ($existing -match "(?ms)^(# NodeRadar Pro Changelog\s*\r?\n)(.*)$") {
+            $header = $matches[1]
+            $body = $matches[2]
+            [System.IO.File]::WriteAllText($changelogFile, "$header`n$releaseNotesText`n$body", $utf8NoBom)
+        } else {
+            [System.IO.File]::WriteAllText($changelogFile, "# NodeRadar Pro Changelog`n`n$releaseNotesText`n$existing", $utf8NoBom)
+        }
     } else {
         [System.IO.File]::WriteAllText($changelogFile, "# NodeRadar Pro Changelog`n`n$releaseNotesText", $utf8NoBom)
     }
 
-    # Stage and commit changelog + project version bump if modified
-    git add $changelogFile $csprojPath 2>$null
+    # Stage all modifications and commit
+    git add -A
     git commit -m "chore(release): release $versionTag" 2>$null
 
     # Create annotated tag
@@ -285,20 +291,21 @@ if (-not $SkipRelease) {
 
             $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
 
-            Write-Host "  > Creating GitHub Release via gh CLI..." -ForegroundColor Yellow
-            $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
+            Write-Host "  > Creating/updating GitHub Release via gh CLI..." -ForegroundColor Yellow
 
-            if ($targetInstaller -and (Test-Path $targetInstaller)) {
-                & gh release create $versionTag "$targetInstaller" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile" 2>$null
-            } else {
-                & gh release create $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile" 2>$null
-            }
-
-            if ($LASTEXITCODE -ne 0) {
-                # Release exists; edit notes and re-upload installer
-                & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile" 2>$null
+            $releaseExists = (& gh release view $versionTag 2>$null)
+            if ($LASTEXITCODE -eq 0) {
+                # Release already exists: update notes and upload installer
+                & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
                 if ($targetInstaller -and (Test-Path $targetInstaller)) {
-                    & gh release upload $versionTag "$targetInstaller" --clobber 2>$null
+                    & gh release upload $versionTag "$targetInstaller" --clobber
+                }
+            } else {
+                # Create brand new release
+                if ($targetInstaller -and (Test-Path $targetInstaller)) {
+                    & gh release create $versionTag "$targetInstaller" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+                } else {
+                    & gh release create $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
                 }
             }
 

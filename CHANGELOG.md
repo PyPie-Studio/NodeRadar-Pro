@@ -1,12 +1,17 @@
+# NodeRadar Pro Changelog
+
 ## NodeRadar Pro v1.5.0 (2026-08-29)
 
-### New Features
-- automate GitHub releases with categorized changelogs and installer upload
+### Architecture & Solution Restructuring
+- Restructured solution into standard `src/NodeRadarPro/` and `tests/NodeRadarPro.Tests/` hierarchy
+- Reorganized test suites with 1:1 domain directory mirroring across Core, Data, and UI layers
+- Unified root application namespace to `NodeRadarPro` and removed MSBuild compile hacks
+- Modernized Inno Setup installer compilation to eliminate deprecation warnings
 
 ### Maintenance and Refactoring
-- chore(deploy): streamline release notes and remove redundant checksum table
-
-# NodeRadar Pro Changelog
+- Excised redundant `DiagnosticLogger` forwarding wrapper in favor of direct `Logger` invocations
+- Synchronized all automation scripts (`Test-MasterGate.ps1`, `Build-ReleasePackage.ps1`, `Deploy-NodeRadar.ps1`, `Test-Coverage.ps1`, `Update-OuiDatabase.ps1`)
+- Master Quality Gate passed with 100% test success (238/238 passing on xUnit v3)
 
 ## NodeRadar Pro v1.0.0 (2026-08-28)
 
