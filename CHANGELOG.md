@@ -1,3 +1,38 @@
+## NodeRadar Pro v1.0.0 (2026-08-28)
+
+### New Features
+- add -Push switch and automated changelog commit to Deploy-NodeRadar.ps1
+- enhance PortScanner throttling, UpdateService SemVer parsing, and constant-time integrity verification
+- add GitHub Actions CI workflow, test.runsettings, and Test-MasterGate -WithTests
+- onboard Central Package Management and phase-gated deploy pipeline
+
+### Maintenance and Refactoring
+- ci: remove GitHub Actions workflows in favor of 100% local-first CI/CD pipeline
+- chore(deploy): add automated deploy.bat and optimize packaging scripts
+- chore(deploy): replace legacy publish_pro.bat with unified deploy.bat pipeline
+- test(ui): remediate UptimeChartControl tests and upgrade to xunit.v3
+- test: add unit tests for UptimeChartControl
+- test: add unit tests for UptimeChartControl
+- 🧹 format: remove unused usings in InventoryPage
+- 🔒 Fix Command Injection vulnerability in InventoryPage web UI button
+- 🔒 Fix Command Injection vulnerability in InventoryPage web UI button
+- 🧹 format: remove unused usings in AppUtilsTests
+- test: resolve rebase conflict and merge AppUtilsTests.cs
+- test: add AppUtils.GetMacAddress and GetLocalIpAddress with tests
+- 🧹 format: clean up unused usings across tests
+- 🔒 fix: use PBKDF2 with random salt for fallback AES-GCM and fix tests
+- 🔒 strengthen key derivation using PBKDF2 and random salt for AES-GCM fallback
+- 🔒 fix insecure base64 fallback for smtp password encryption
+- 🔒 [security fix] Add X509Chain validation for update signature certificate
+- 🔒 [security fix] Verify Authenticode signature before executing update executable
+
+### Verification and Installation Checksums
+
+| File | Size | SHA-256 Checksum |
+| :--- | :--- | :--- |
+
+| `NodeRadar Pro_v1.0.0_Setup.exe` | 43.06 MB | `E3A5E9073E8269D11DDBDFAE24574F2703AA8C04C8139BB55A484E8674C96413` |
+
 
 ## deploy-2026.08.28-2030
 - 893716f feat(core): enhance PortScanner throttling, UpdateService SemVer parsing, and constant-time integrity verification
