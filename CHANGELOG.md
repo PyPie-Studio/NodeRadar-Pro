@@ -1,3 +1,11 @@
+## NodeRadar Pro v1.5.0 (2026-08-29)
+
+### New Features
+- automate GitHub releases with categorized changelogs and installer upload
+
+### Maintenance and Refactoring
+- chore(deploy): streamline release notes and remove redundant checksum table
+
 # NodeRadar Pro Changelog
 
 ## NodeRadar Pro v1.0.0 (2026-08-28)

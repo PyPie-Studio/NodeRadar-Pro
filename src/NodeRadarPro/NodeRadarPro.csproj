@@ -1,8 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <OutputType>WinExe</OutputType>
-	<TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -17,29 +16,14 @@
     <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>Resources\NodeRadar Pro Icon.ico</ApplicationIcon>
-	  <Version>1.0.0</Version>
+    <Version>1.5.0</Version>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Core.Tests\**" />
-    <Content Remove="Core.Tests\**" />
-    <EmbeddedResource Remove="Core.Tests\**" />
-    <None Remove="Core.Tests\**" />
-  </ItemGroup>
 
   <PropertyGroup Label="Avalonia">
     <EnableAvaloniaXamlCompilation>True</EnableAvaloniaXamlCompilation>
   </PropertyGroup>
 
-
   <ItemGroup>
-    <Compile Remove="NodeRadarPro.Tests\**" />
-    <Content Remove="NodeRadarPro.Tests\**" />
-    <EmbeddedResource Remove="NodeRadarPro.Tests\**" />
-    <None Remove="NodeRadarPro.Tests\**" />
-  </ItemGroup>
-
-  <ItemGroup>
-
     <AvaloniaResource Include="Resources\**" />
   </ItemGroup>
 
@@ -66,10 +50,5 @@
     <PackageReference Include="System.Windows.Extensions" />
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Remove="NodeRadarPro.Tests\**" />
-    <EmbeddedResource Remove="NodeRadarPro.Tests\**" />
-    <None Remove="NodeRadarPro.Tests\**" />
   </ItemGroup>
 </Project>
