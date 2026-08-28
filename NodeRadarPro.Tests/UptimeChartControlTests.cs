@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Media;
 using Moq;
@@ -7,7 +5,6 @@ using Moq.Protected;
 using NodeRadarPro.Core;
 using NodeRadarPro.UI;
 using NodeRadar_Pro;
-using Xunit;
 
 namespace NodeRadarPro.Tests;
 
@@ -26,9 +23,10 @@ public class UptimeChartControlTests
                     .WithInterFont()
                     .SetupWithoutStarting();
             }
-            catch
+            catch (Exception ex)
             {
-                // Platform already initialized or fallback
+                // Avalonia platform may already be initialized by preceding test fixtures
+                _ = ex;
             }
             _appInitialized = true;
         }
@@ -54,6 +52,19 @@ public class UptimeChartControlTests
             ItExpr.IsAny<IPen>(),
             ItExpr.IsAny<RoundedRect>(),
             ItExpr.IsAny<BoxShadows>());
+
+        // 3 grid lines
+        mockContext.Protected().Verify(
+            "DrawLineCore",
+            Times.Exactly(3),
+            ItExpr.IsAny<IPen>(),
+            ItExpr.IsAny<Point>(),
+            ItExpr.IsAny<Point>());
+
+        // Empty state text
+        mockContext.Verify(
+            c => c.DrawText(It.IsNotNull<FormattedText>(), It.IsAny<Point>()),
+            Times.Once());
     }
 
     [Fact]
@@ -80,6 +91,10 @@ public class UptimeChartControlTests
             ItExpr.IsAny<IPen>(),
             ItExpr.IsAny<Point>(),
             ItExpr.IsAny<Point>());
+
+        mockContext.Verify(
+            c => c.DrawText(It.IsAny<FormattedText>(), It.IsAny<Point>()),
+            Times.Never());
     }
 
     [Fact]
@@ -109,6 +124,11 @@ public class UptimeChartControlTests
             ItExpr.IsAny<IPen>(),
             ItExpr.IsAny<Point>(),
             ItExpr.IsAny<Point>());
+
+        // Empty state text
+        mockContext.Verify(
+            c => c.DrawText(It.IsNotNull<FormattedText>(), It.IsAny<Point>()),
+            Times.Once());
     }
 
     [Fact]
@@ -131,13 +151,49 @@ public class UptimeChartControlTests
         var mockContext = new Mock<DrawingContext>();
         control.Render(mockContext.Object);
 
-        // 1 background + 4 snapshot bars = 5 DrawRectangleCore calls
+        // Verify background (EmptyBrush: #0C1322)
         mockContext.Protected().Verify(
             "DrawRectangleCore",
-            Times.Exactly(5),
-            ItExpr.IsAny<IBrush>(),
-            ItExpr.IsAny<IPen>(),
-            ItExpr.IsAny<RoundedRect>(),
+            Times.Once(),
+            ItExpr.Is<IBrush>(b => b != null && ((ISolidColorBrush)b).Color == Color.Parse("#0C1322")),
+            ItExpr.IsNull<IPen>(),
+            ItExpr.Is<RoundedRect>(r => r.Rect.Width == 200 && r.Rect.Height == 100),
+            ItExpr.IsAny<BoxShadows>());
+
+        // Verify offline bar (OfflineBrush: #FFB4AB, height 15)
+        mockContext.Protected().Verify(
+            "DrawRectangleCore",
+            Times.Once(),
+            ItExpr.Is<IBrush>(b => b != null && ((ISolidColorBrush)b).Color == Color.Parse("#FFB4AB")),
+            ItExpr.IsNull<IPen>(),
+            ItExpr.Is<RoundedRect>(r => r.Rect.Height == 15),
+            ItExpr.IsAny<BoxShadows>());
+
+        // Verify online low-latency bar (OnlineBrush: #4CD7F6, 15ms -> height 85)
+        mockContext.Protected().Verify(
+            "DrawRectangleCore",
+            Times.Once(),
+            ItExpr.Is<IBrush>(b => b != null && ((ISolidColorBrush)b).Color == Color.Parse("#4CD7F6")),
+            ItExpr.IsNull<IPen>(),
+            ItExpr.Is<RoundedRect>(r => r.Rect.Height == 85),
+            ItExpr.IsAny<BoxShadows>());
+
+        // Verify online high-latency bar (OnlineBrush: #4CD7F6, 80ms -> height 20)
+        mockContext.Protected().Verify(
+            "DrawRectangleCore",
+            Times.Once(),
+            ItExpr.Is<IBrush>(b => b != null && ((ISolidColorBrush)b).Color == Color.Parse("#4CD7F6")),
+            ItExpr.IsNull<IPen>(),
+            ItExpr.Is<RoundedRect>(r => r.Rect.Height == 20),
+            ItExpr.IsAny<BoxShadows>());
+
+        // Verify online no-latency bar (OnlineBrush: #4CD7F6, 0ms -> height 90)
+        mockContext.Protected().Verify(
+            "DrawRectangleCore",
+            Times.Once(),
+            ItExpr.Is<IBrush>(b => b != null && ((ISolidColorBrush)b).Color == Color.Parse("#4CD7F6")),
+            ItExpr.IsNull<IPen>(),
+            ItExpr.Is<RoundedRect>(r => r.Rect.Height == 90),
             ItExpr.IsAny<BoxShadows>());
 
         // 3 grid lines
