@@ -73,36 +73,10 @@ public class SettingsPage : Border
         _settings = db.LoadSettings();
         Background = ThemeTokens.Surface;
 
-        // ═══════════════════════
-        // PAGE HEADER
-        // ═══════════════════════
-        var topLabel = new TextBlock
-        {
-            Text = "SETTINGS CONFIGURATION",
-            FontSize = 12,
-            FontWeight = FontWeight.Bold,
-            Foreground = ThemeTokens.NavAccentBorder,
-            FontFamily = new FontFamily("Inter"),
-            LetterSpacing = 2.5,
-            Margin = new Thickness(0, 0, 0, 8)
-        };
-
-        var title = ThemeTokens.Headline("System Configurations", 36);
-        title.Margin = new Thickness(0, 0, 0, 6);
-        var subtitle = ThemeTokens.Body("Manage network interfaces, scan parameters, and alert routing protocols.", 14);
-
-        var headerSection = new StackPanel { Margin = new Thickness(0, 0, 0, 28), Children = { topLabel, title, subtitle } };
-
-        // ═══════════════════════
-        // LEFT: General Settings
-        // ═══════════════════════
-        var generalIcon = new TextBlock { Text = "<>", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
-        var generalTitle = ThemeTokens.Headline("General Settings", 22);
-        var generalHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 24), Children = { generalIcon, generalTitle } };
-
-        // Network Interface dropdown
-        var interfaceLabel = new TextBlock { Text = "Primary Network Interface", FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 4) };
-        var interfaceDesc = new TextBlock { Text = "Select the interface for primary radar sweeps.", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 10) };
+        // Initialize controls requiring default values from _settings
+        _monitorInterval = new NumericUpDown { Value = _settings.MonitorIntervalSeconds, Minimum = 10, Maximum = 600, IsVisible = false };
+        _fadeOutToggle = new CheckBox { IsChecked = _settings.EnableOfflineFadeOut, IsVisible = false };
+        _fadeOutSeconds = new NumericUpDown { Value = _settings.FadeOutSeconds, IsVisible = false };
 
         _interfaceSelector = new ComboBox
         {
@@ -115,80 +89,25 @@ public class SettingsPage : Border
             FontFamily = new FontFamily("Inter")
         };
         ThemeTokens.SetToolTip(_interfaceSelector, "Choose the physical or virtual network adapter to use for scanning and monitoring.");
-        // Populate with available interfaces
         PopulateNetworkInterfaces();
 
-        // Promiscuous Mode toggle
         _promiscuousToggle = new CheckBox { IsChecked = false };
         ThemeTokens.SetToolTip(_promiscuousToggle, "Attempt to listen to all packets on the network segment, not just those addressed to this host.");
-        var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
 
-        // Hidden persistence controls
-        _monitorInterval = new NumericUpDown { Value = _settings.MonitorIntervalSeconds, Minimum = 10, Maximum = 600, IsVisible = false };
-        _fadeOutToggle = new CheckBox { IsChecked = _settings.EnableOfflineFadeOut, IsVisible = false };
-        _fadeOutSeconds = new NumericUpDown { Value = _settings.FadeOutSeconds, IsVisible = false };
-
-        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector, new Panel { Height = 20 }, promiscRow, _monitorInterval, _fadeOutToggle, _fadeOutSeconds } };
-        var generalCard = ThemeTokens.Card(generalContent, ThemeTokens.SurfaceContainerLow, 32);
-
-        // ═══════════════════════
-        // LEFT: Scan Parameters
-        // ═══════════════════════
-        var scanIcon = new TextBlock { Text = "◎", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
-        var scanTitle = ThemeTokens.Headline("Scan Parameters", 22);
-        var scanHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { scanIcon, scanTitle } };
-
-        // Sweep Frequency slider
         _sweepFrequency = new Slider { Minimum = 5, Maximum = 120, Value = 30 };
         ThemeTokens.SetToolTip(_sweepFrequency, "Set how often the background monitor probes each registered device.");
         _sweepFreqValue = new TextBlock { Text = "30s", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
         _sweepFrequency.ValueChanged += (s, e) => _sweepFreqValue.Text = $"{(int)_sweepFrequency.Value}s";
 
-        // Response Timeout slider
         _responseTimeout = new Slider { Minimum = 100, Maximum = 5000, Value = 1500 };
         ThemeTokens.SetToolTip(_responseTimeout, "Maximum time to wait for a device to respond before marking it as potentially offline.");
         _responseTimeoutValue = new TextBlock { Text = "1500ms", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter") };
         _responseTimeout.ValueChanged += (s, e) => _responseTimeoutValue.Text = $"{(int)_responseTimeout.Value}ms";
 
-        var sliderGrid = new Grid
-        {
-            ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }
-        };
-
-        var sweepCard = MakeSliderCard("Sweep Frequency", "Interval between active node discoveries.", _sweepFrequency, _sweepFreqValue);
-        var timeoutCard = MakeSliderCard("Response Timeout", "Maximum wait time for ICMP/TCP replies.", _responseTimeout, _responseTimeoutValue);
-
-        Grid.SetColumn(sweepCard, 0);
-        Grid.SetColumn(timeoutCard, 1);
-        sweepCard.Margin = new Thickness(0, 0, 6, 0);
-        timeoutCard.Margin = new Thickness(6, 0, 0, 0);
-        sliderGrid.Children.Add(sweepCard);
-        sliderGrid.Children.Add(timeoutCard);
-
-        // SYN Scan + DNS toggles
         _synScanToggle = new CheckBox { IsChecked = false };
         ThemeTokens.SetToolTip(_synScanToggle, "Enable aggressive TCP SYN scanning to identify open ports behind stealthy firewalls.");
         _dnsResolveToggle = new CheckBox { IsChecked = true };
         ThemeTokens.SetToolTip(_dnsResolveToggle, "Perform reverse DNS lookups to resolve IP addresses to human-readable hostnames.");
-        var synRow = MakeToggleCard("Aggressive Port Scanning (SYN)", "", _synScanToggle, "⊕");
-        var dnsRow = MakeToggleCard("Resolve Hostnames (DNS)", "", _dnsResolveToggle, "◉");
-
-        var scanContent = new StackPanel { Spacing = 12, Children = { scanHeader, sliderGrid, synRow, dnsRow } };
-        var scanCard = ThemeTokens.Card(scanContent, ThemeTokens.SurfaceContainerLow, 32);
-        scanCard.Margin = new Thickness(0, 20, 0, 0);
-
-        var leftCol = new StackPanel { Children = { generalCard, scanCard } };
-
-        // ═══════════════════════
-        // RIGHT: Notification Center
-        // ═══════════════════════
-        var notifIcon = new TextBlock { Text = "🔔", FontSize = 18, VerticalAlignment = VerticalAlignment.Center };
-        var notifTitle = ThemeTokens.Headline("Notification Center", 22);
-        var notifHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { notifIcon, notifTitle } };
-
-        var separator1 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 0, 0, 12) };
-
-        var routingLabel = ThemeTokens.SectionLabel("ALERT ROUTING");
 
         _toastToggle = new CheckBox { IsChecked = true };
         ThemeTokens.SetToolTip(_toastToggle, "Show visual desktop notifications when devices go offline or reconnect.");
@@ -197,11 +116,6 @@ public class SettingsPage : Border
         _emailToggle = new CheckBox { IsChecked = false };
         ThemeTokens.SetToolTip(_emailToggle, "Dispatch automated email alerts for critical outages and security intrusions.");
 
-        var toastRow = MakeCheckboxCard("UI Popups (Toasts)", "Display transient alerts in dashboard.", _toastToggle);
-        var soundRow = MakeCheckboxCard("Audible Alarms", "Play sounds for critical events.", _soundToggle);
-        var emailRow = MakeCheckboxCard("Email Dispatch", "Send summaries to admin@node.local", _emailToggle);
-
-        // SMTP Fields
         _smtpHost = ThemeTokens.Input("SMTP Host (e.g., smtp.gmail.com)");
         ThemeTokens.SetToolTip(_smtpHost, "The hostname of your outgoing mail server.");
         _smtpPort = ThemeTokens.Input("Port (e.g., 587)");
@@ -226,41 +140,25 @@ public class SettingsPage : Border
                 _smtpPass
             }
         };
-
         _emailToggle.IsCheckedChanged += (s, e) => _smtpSettingsPanel.IsVisible = _emailToggle.IsChecked == true;
-
-        var separator2 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 12, 0, 8) };
-
-        var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
 
         _latencyThresholdSlider = new Slider { Minimum = 50, Maximum = 1000, Value = _settings.LatencyThresholdMs };
         _latencyThresholdValue = new TextBlock { Text = $"{_settings.LatencyThresholdMs}ms", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center };
         _latencyThresholdSlider.ValueChanged += (s, e) => _latencyThresholdValue.Text = $"{(int)_latencyThresholdSlider.Value}ms";
-        var latencyCard = MakeThresholdSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue);
 
         _packetLossThresholdSlider = new Slider { Minimum = 1, Maximum = 50, Value = _settings.PacketLossThresholdPct };
         _packetLossThresholdValue = new TextBlock { Text = $"{_settings.PacketLossThresholdPct:F1}%", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center };
         _packetLossThresholdSlider.ValueChanged += (s, e) => _packetLossThresholdValue.Text = $"{_packetLossThresholdSlider.Value:F1}%";
-        var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
-
-        // Maintenance & Lifecycle
-        var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
 
         _checkUpdatesOnStartupToggle = new CheckBox { IsChecked = true };
         ThemeTokens.SetToolTip(_checkUpdatesOnStartupToggle, "Automatically check for new NodeRadar Pro releases when the application starts.");
-        var updateStartupRow = MakeCheckboxCard("Check Updates on Startup", "Validate version with PyPie Studio API.", _checkUpdatesOnStartupToggle);
 
         _enableAutoBackupToggle = new CheckBox { IsChecked = true };
         ThemeTokens.SetToolTip(_enableAutoBackupToggle, "Enable background database snapshots at regular intervals to prevent data loss.");
-        var autoBackupRow = MakeCheckboxCard("Auto-Backup Database", "Create periodic snapshots of local DB.", _enableAutoBackupToggle);
 
         _autoBackupIntervalSlider = new Slider { Minimum = 1, Maximum = 168, Value = 24 };
         _autoBackupIntervalValue = new TextBlock { Text = "24h", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center };
         _autoBackupIntervalSlider.ValueChanged += (s, e) => _autoBackupIntervalValue.Text = $"{(int)_autoBackupIntervalSlider.Value}h";
-        var intervalCard = MakeSliderCard("Backup Interval", "Hours between automatic snapshots.", _autoBackupIntervalSlider, _autoBackupIntervalValue);
-        intervalCard.Margin = new Thickness(0, 0, 0, 8);
-        intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
-        _enableAutoBackupToggle.IsCheckedChanged += (s, e) => intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
 
         _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
 
@@ -272,48 +170,13 @@ public class SettingsPage : Border
         ThemeTokens.SetToolTip(_restoreBtn, "Import a database file to overwrite the current system state.");
         _restoreBtn.Click += OnRestoreClicked;
 
-        var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 10) };
-        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        Grid.SetColumn(_backupBtn, 0);
-        Grid.SetColumn(_restoreBtn, 1);
-        _backupBtn.Margin = new Thickness(0, 0, 4, 0);
-        _restoreBtn.Margin = new Thickness(4, 0, 0, 0);
-        maintGrid.Children.Add(_backupBtn);
-        maintGrid.Children.Add(_restoreBtn);
+        var headerSection = BuildHeaderSection();
+        var generalCard = BuildGeneralSettingsCard();
+        var scanCard = BuildScanParametersCard();
+        var notifCard = BuildNotificationCenterCard();
 
-        // Buttons
-        var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
-        ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
-        resetBtn.Height = 50;
-        resetBtn.FontSize = 12;
-        resetBtn.Click += (s, e) => { _settings = new AppSettings(); _db.SaveSettings(_settings); Refresh(); SettingsSaved?.Invoke(_settings); };
+        var leftCol = new StackPanel { Children = { generalCard, scanCard } };
 
-        var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
-        ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
-        saveBtn.Height = 50;
-        saveBtn.FontSize = 12;
-        saveBtn.Click += OnSaveClicked;
-
-        var btnGrid = new Grid { Margin = new Thickness(0, 20, 0, 0) };
-        btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        Grid.SetColumn(resetBtn, 0);
-        Grid.SetColumn(saveBtn, 1);
-        resetBtn.Margin = new Thickness(0, 0, 4, 0);
-        saveBtn.Margin = new Thickness(4, 0, 0, 0);
-        btnGrid.Children.Add(resetBtn);
-        btnGrid.Children.Add(saveBtn);
-
-        var notifContent = new StackPanel
-        {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, updateStartupRow, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, btnGrid }
-        };
-        var notifCard = ThemeTokens.GlassCard(notifContent, 28);
-
-        // ═══════════════════════
-        // ROOT
-        // ═══════════════════════
         var rootGrid = new Grid
         {
             ColumnDefinitions =
@@ -338,6 +201,145 @@ public class SettingsPage : Border
             Margin = new Thickness(32, 28),
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         };
+    }
+
+    private static StackPanel BuildHeaderSection()
+    {
+        var topLabel = new TextBlock
+        {
+            Text = "SETTINGS CONFIGURATION",
+            FontSize = 12,
+            FontWeight = FontWeight.Bold,
+            Foreground = ThemeTokens.NavAccentBorder,
+            FontFamily = new FontFamily("Inter"),
+            LetterSpacing = 2.5,
+            Margin = new Thickness(0, 0, 0, 8)
+        };
+
+        var title = ThemeTokens.Headline("System Configurations", 36);
+        title.Margin = new Thickness(0, 0, 0, 6);
+        var subtitle = ThemeTokens.Body("Manage network interfaces, scan parameters, and alert routing protocols.", 14);
+
+        return new StackPanel { Margin = new Thickness(0, 0, 0, 28), Children = { topLabel, title, subtitle } };
+    }
+
+    private Control BuildGeneralSettingsCard()
+    {
+        var generalIcon = new TextBlock { Text = "<>", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
+        var generalTitle = ThemeTokens.Headline("General Settings", 22);
+        var generalHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 24), Children = { generalIcon, generalTitle } };
+
+        var interfaceLabel = new TextBlock { Text = "Primary Network Interface", FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 4) };
+        var interfaceDesc = new TextBlock { Text = "Select the interface for primary radar sweeps.", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 10) };
+
+        var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
+
+        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector, new Panel { Height = 20 }, promiscRow, _monitorInterval, _fadeOutToggle, _fadeOutSeconds } };
+        return ThemeTokens.Card(generalContent, ThemeTokens.SurfaceContainerLow, 32);
+    }
+
+    private Control BuildScanParametersCard()
+    {
+        var scanIcon = new TextBlock { Text = "◎", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
+        var scanTitle = ThemeTokens.Headline("Scan Parameters", 22);
+        var scanHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { scanIcon, scanTitle } };
+
+        var sliderGrid = new Grid
+        {
+            ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }
+        };
+
+        var sweepCard = MakeSliderCard("Sweep Frequency", "Interval between active node discoveries.", _sweepFrequency, _sweepFreqValue);
+        var timeoutCard = MakeSliderCard("Response Timeout", "Maximum wait time for ICMP/TCP replies.", _responseTimeout, _responseTimeoutValue);
+
+        Grid.SetColumn(sweepCard, 0);
+        Grid.SetColumn(timeoutCard, 1);
+        sweepCard.Margin = new Thickness(0, 0, 6, 0);
+        timeoutCard.Margin = new Thickness(6, 0, 0, 0);
+        sliderGrid.Children.Add(sweepCard);
+        sliderGrid.Children.Add(timeoutCard);
+
+        var synRow = MakeToggleCard("Aggressive Port Scanning (SYN)", "", _synScanToggle, "⊕");
+        var dnsRow = MakeToggleCard("Resolve Hostnames (DNS)", "", _dnsResolveToggle, "◉");
+
+        var scanContent = new StackPanel { Spacing = 12, Children = { scanHeader, sliderGrid, synRow, dnsRow } };
+        var scanCard = ThemeTokens.Card(scanContent, ThemeTokens.SurfaceContainerLow, 32);
+        scanCard.Margin = new Thickness(0, 20, 0, 0);
+        return scanCard;
+    }
+
+    private Control BuildNotificationCenterCard()
+    {
+        var notifIcon = new TextBlock { Text = "🔔", FontSize = 18, VerticalAlignment = VerticalAlignment.Center };
+        var notifTitle = ThemeTokens.Headline("Notification Center", 22);
+        var notifHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { notifIcon, notifTitle } };
+
+        var separator1 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 0, 0, 12) };
+        var routingLabel = ThemeTokens.SectionLabel("ALERT ROUTING");
+
+        var toastRow = MakeCheckboxCard("UI Popups (Toasts)", "Display transient alerts in dashboard.", _toastToggle);
+        var soundRow = MakeCheckboxCard("Audible Alarms", "Play sounds for critical events.", _soundToggle);
+        var emailRow = MakeCheckboxCard("Email Dispatch", "Send summaries to admin@node.local", _emailToggle);
+
+        var separator2 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 12, 0, 8) };
+        var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
+
+        var latencyCard = MakeThresholdSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue);
+        var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
+
+        var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
+        var updateStartupRow = MakeCheckboxCard("Check Updates on Startup", "Validate version with PyPie Studio API.", _checkUpdatesOnStartupToggle);
+        var autoBackupRow = MakeCheckboxCard("Auto-Backup Database", "Create periodic snapshots of local DB.", _enableAutoBackupToggle);
+
+        var intervalCard = MakeSliderCard("Backup Interval", "Hours between automatic snapshots.", _autoBackupIntervalSlider, _autoBackupIntervalValue);
+        intervalCard.Margin = new Thickness(0, 0, 0, 8);
+        intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
+        _enableAutoBackupToggle.IsCheckedChanged += (s, e) => intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
+
+        var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 10) };
+        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        Grid.SetColumn(_backupBtn, 0);
+        Grid.SetColumn(_restoreBtn, 1);
+        _backupBtn.Margin = new Thickness(0, 0, 4, 0);
+        _restoreBtn.Margin = new Thickness(4, 0, 0, 0);
+        maintGrid.Children.Add(_backupBtn);
+        maintGrid.Children.Add(_restoreBtn);
+
+        var actionButtonsGrid = BuildActionButtonsGrid();
+
+        var notifContent = new StackPanel
+        {
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, updateStartupRow, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, actionButtonsGrid }
+        };
+        return ThemeTokens.GlassCard(notifContent, 28);
+    }
+
+    private Grid BuildActionButtonsGrid()
+    {
+        var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
+        ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
+        resetBtn.Height = 50;
+        resetBtn.FontSize = 12;
+        resetBtn.Click += (s, e) => { _settings = new AppSettings(); _db.SaveSettings(_settings); Refresh(); SettingsSaved?.Invoke(_settings); };
+
+        var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
+        ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
+        saveBtn.Height = 50;
+        saveBtn.FontSize = 12;
+        saveBtn.Click += OnSaveClicked;
+
+        var btnGrid = new Grid { Margin = new Thickness(0, 20, 0, 0) };
+        btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
+        Grid.SetColumn(resetBtn, 0);
+        Grid.SetColumn(saveBtn, 1);
+        resetBtn.Margin = new Thickness(0, 0, 4, 0);
+        saveBtn.Margin = new Thickness(4, 0, 0, 0);
+        btnGrid.Children.Add(resetBtn);
+        btnGrid.Children.Add(saveBtn);
+
+        return btnGrid;
     }
 
     public void Refresh()
@@ -667,6 +669,4 @@ public class SettingsPage : Border
             }
         };
     }
-
-
 }
