@@ -48,37 +48,24 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.1" />
-    <PackageReference Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3">
+    <PackageReference Include="Avalonia" />
+    <PackageReference Include="Avalonia.Desktop" />
+    <PackageReference Include="Avalonia.Themes.Fluent" />
+    <PackageReference Include="Avalonia.Fonts.Inter" />
+    <PackageReference Include="AvaloniaUI.DiagnosticsSupport">
       <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
       <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="LiteDB" Version="5.0.21" />
-    <PackageReference Include="MailKit" Version="4.17.0" />
-    <PackageReference Include="Obfuscar" Version="2.2.50">
+    <PackageReference Include="LiteDB" />
+    <PackageReference Include="MailKit" />
+    <PackageReference Include="Obfuscar">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="System.Management" Version="10.0.11" />
-    <PackageReference Include="System.Windows.Extensions" Version="10.0.11" />
-    <PackageReference Include="Tmds.DBus.Protocol" Version="0.95.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Resources\NodeRadar Pro Icon.png">
-      <Pack>True</Pack>
-          <PackagePath>\</PackagePath>
-    </None>
-    <None Update="Resources\NodeRadar Pro.png">
-      <Pack>True</Pack>
-      <PackagePath>\</PackagePath>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
+    <PackageReference Include="System.Management" />
+    <PackageReference Include="System.Windows.Extensions" />
+    <PackageReference Include="Tmds.DBus.Protocol" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="NodeRadarPro.Tests\**" />
