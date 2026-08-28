@@ -535,31 +535,8 @@ public class SettingsPage : Border
 
     // ── UI FACTORY HELPERS ──
 
-    private static Border MakeThresholdSliderCard(string title, string description, Slider slider, TextBlock valueLabel)
-    {
-        var header = new Grid();
-        header.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-
-        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
-        Grid.SetColumn(titleTb, 0);
-        Grid.SetColumn(valueLabel, 1);
-        header.Children.Add(titleTb);
-        header.Children.Add(valueLabel);
-
-        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 8) };
-
-        return new Border
-        {
-            Background = ThemeTokens.SurfaceContainerLowest,
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(16, 12),
-            Margin = new Thickness(0, 0, 0, 8),
-            BorderBrush = ThemeTokens.GhostBorder,
-            BorderThickness = new Thickness(1),
-            Child = new StackPanel { Children = { header, desc, slider } }
-        };
-    }
+    private static Border MakeThresholdSliderCard(string title, string description, Slider slider, TextBlock valueLabel) =>
+        MakeSliderCard(title, description, slider, valueLabel, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
 
     private static Border MakeToggleCard(string title, string description, CheckBox toggle, string? icon = null)
     {
@@ -616,25 +593,26 @@ public class SettingsPage : Border
         };
     }
 
-    private static Border MakeSliderCard(string title, string description, Slider slider, TextBlock valueLabel)
+    private static Border MakeSliderCard(string title, string description, Slider slider, TextBlock valueLabel, FontWeight fontWeight = FontWeight.Medium, Thickness? descMargin = null, Thickness? padding = null, Thickness? margin = null)
     {
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
 
-        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
+        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = fontWeight, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
         Grid.SetColumn(titleTb, 0);
         Grid.SetColumn(valueLabel, 1);
         header.Children.Add(titleTb);
         header.Children.Add(valueLabel);
 
-        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 10) };
+        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = descMargin ?? new Thickness(0, 4, 0, 10) };
 
         return new Border
         {
             Background = ThemeTokens.SurfaceContainerLowest,
             CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(16, 14),
+            Padding = padding ?? new Thickness(16, 14),
+            Margin = margin ?? new Thickness(0),
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
             Child = new StackPanel { Children = { header, desc, slider } }
