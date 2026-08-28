@@ -10,45 +10,62 @@
 #>
 [CmdletBinding()]
 param(
-    [switch]$SkipBuild
+    [switch]$SkipBuild,
+    [switch]$WithTests
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $fail = $false
+$totalSteps = if ($WithTests) { 4 } else { 3 }
 
 Write-Host "== NodeRadar Pro Master Gate ==" -ForegroundColor Cyan
 
 if (-not $SkipBuild) {
-    Write-Host "[1/3] Release build (NodeRadarPro.slnx)..." -ForegroundColor Yellow
+    Write-Host "[1/$totalSteps] Release build (NodeRadarPro.slnx)..." -ForegroundColor Yellow
     Push-Location $root
     try {
         & dotnet build NodeRadarPro.slnx --configuration Release --nologo
-        if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[1/3] BUILD FAILED" -ForegroundColor Red }
+        if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[1/$totalSteps] BUILD FAILED" -ForegroundColor Red }
     } finally { Pop-Location }
 } else {
-    Write-Host "[1/3] Skipped (SkipBuild)" -ForegroundColor DarkGray
+    Write-Host "[1/$totalSteps] Skipped (SkipBuild)" -ForegroundColor DarkGray
 }
 
-Write-Host "[2/3] Roslyn format verification (style + analyzers)..." -ForegroundColor Yellow
+if ($WithTests) {
+    Write-Host "[2/$totalSteps] Running unit and integration tests (xUnit v3)..." -ForegroundColor Yellow
+    Push-Location $root
+    try {
+        if (-not $SkipBuild) {
+            & dotnet test NodeRadarPro.slnx --configuration Release --no-build --nologo
+        } else {
+            & dotnet test NodeRadarPro.slnx --configuration Release --nologo
+        }
+        if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[2/$totalSteps] TEST SUITE FAILED" -ForegroundColor Red }
+    } finally { Pop-Location }
+}
+
+$formatStep = if ($WithTests) { 3 } else { 2 }
+Write-Host "[$formatStep/$totalSteps] Roslyn format verification (style + analyzers)..." -ForegroundColor Yellow
 Push-Location $root
 try {
     & dotnet format NodeRadarPro.slnx --verify-no-changes --no-restore
-    if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[2/3] FORMAT VIOLATIONS - run 'dotnet format NodeRadarPro.slnx' and re-verify" -ForegroundColor Red }
+    if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$formatStep/$totalSteps] FORMAT VIOLATIONS - run 'dotnet format NodeRadarPro.slnx' and re-verify" -ForegroundColor Red }
 } finally { Pop-Location }
 
-Write-Host "[3/3] NuGet package vulnerability check..." -ForegroundColor Yellow
+$vulnStep = if ($WithTests) { 4 } else { 3 }
+Write-Host "[$vulnStep/$totalSteps] NuGet package vulnerability check..." -ForegroundColor Yellow
 Push-Location $root
 try {
     $out = dotnet list NodeRadarPro.slnx package --vulnerable --include-transitive 2>&1
     if ($LASTEXITCODE -ne 0) {
         $fail = $true
-        Write-Host "[3/3] NUGET VULNERABILITY CHECK COMMAND FAILED (exit code $LASTEXITCODE):" -ForegroundColor Red
+        Write-Host "[$vulnStep/$totalSteps] NUGET VULNERABILITY CHECK COMMAND FAILED (exit code $LASTEXITCODE):" -ForegroundColor Red
         Write-Host ($out -join "`n") -ForegroundColor Red
     } elseif ($out -match "has the following vulnerable packages") {
         $fail = $true
-        Write-Host "[3/3] VULNERABLE NUGET PACKAGES DETECTED:" -ForegroundColor Red
+        Write-Host "[$vulnStep/$totalSteps] VULNERABLE NUGET PACKAGES DETECTED:" -ForegroundColor Red
         Write-Host ($out -join "`n") -ForegroundColor Red
     }
 } finally { Pop-Location }

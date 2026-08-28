@@ -1,0 +1,63 @@
+name: CI Quality Gate & Test Suite
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gate-and-test:
+    name: Build, Gate & Test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore NuGet Packages
+        shell: pwsh
+        run: |
+          dotnet restore NodeRadarPro.slnx --nologo
+
+      - name: Release Build (TreatWarningsAsErrors)
+        shell: pwsh
+        run: |
+          dotnet build NodeRadarPro.slnx --configuration Release --no-restore --nologo
+
+      - name: Roslyn Format & Analyzers Verification
+        shell: pwsh
+        run: |
+          dotnet format NodeRadarPro.slnx --verify-no-changes --no-restore
+
+      - name: Execute Full Test Suite (xUnit v3)
+        shell: pwsh
+        run: |
+          dotnet test NodeRadarPro.slnx --configuration Release --no-build --nologo --verbosity normal
+
+      - name: NuGet Package Vulnerability Audit
+        shell: pwsh
+        run: |
+          $out = dotnet list NodeRadarPro.slnx package --vulnerable --include-transitive 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "Vulnerability check command failed:" -ForegroundColor Red
+            Write-Host ($out -join "`n") -ForegroundColor Red
+            exit 1
+          } elseif ($out -match "has the following vulnerable packages") {
+            Write-Host "Vulnerable NuGet packages detected:" -ForegroundColor Red
+            Write-Host ($out -join "`n") -ForegroundColor Red
+            exit 1
+          } else {
+            Write-Host "No vulnerable packages found." -ForegroundColor Green
+          }

@@ -54,6 +54,9 @@ if (-not $SkipTest) {
     }
     New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 
+    $runSettings = Join-Path $root "test.runsettings"
+    $settingsArg = if (Test-Path $runSettings) { @("--settings", $runSettings) } else { @() }
+
     Write-Host "`n[1/3] Executing Test Suites with Coverlet Collector..." -ForegroundColor Yellow
     Push-Location $root
     try {
@@ -62,7 +65,8 @@ if (-not $SkipTest) {
             --results-directory $resultsDir `
             --configuration Debug `
             --nologo `
-            --verbosity minimal
+            --verbosity minimal `
+            @settingsArg
         
         if ($LASTEXITCODE -ne 0) {
             Write-Host "[ERROR] Test run failed with exit code $LASTEXITCODE" -ForegroundColor Red

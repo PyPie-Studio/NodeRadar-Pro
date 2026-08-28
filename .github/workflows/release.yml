@@ -74,8 +74,8 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:PublishReadyToRun=true `
-            -p:PublishTrimmed=true `
+            -p:PublishReadyToRun=false `
+            -p:PublishTrimmed=false `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:Version=$ver `
             --output "./publish/portable" `
@@ -91,10 +91,26 @@ jobs:
             --runtime win-x64 `
             --self-contained true `
             -p:PublishSingleFile=false `
-            -p:PublishTrimmed=true `
+            -p:PublishTrimmed=false `
             -p:Version=$ver `
             --output "bin/Release/net10.0-windows10.0.19041.0/win-x64/publish" `
             --nologo
+
+      - name: Apply Obfuscar IL Protection
+        shell: pwsh
+        run: |
+          Write-Host "Applying Obfuscar IL Protection..." -ForegroundColor Cyan
+          $obfExe = (Get-ChildItem -Path "$env:USERPROFILE\.nuget\packages\obfuscar" -Filter "Obfuscar.Console.exe" -Recurse | Select-Object -First 1).FullName
+          if ($obfExe -and (Test-Path $obfExe)) {
+            & "$obfExe" "obfuscar.xml"
+            $obfDll = "bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/Obfuscated/NodeRadar Pro.dll"
+            if (Test-Path $obfDll) {
+              Copy-Item -Path $obfDll -Destination "bin/Release/net10.0-windows10.0.19041.0/win-x64/publish/NodeRadar Pro.dll" -Force
+              Write-Host "Obfuscated binary successfully replaced in publish directory." -ForegroundColor Green
+            }
+          } else {
+            Write-Host "Obfuscar.Console.exe not found in NuGet cache, proceeding without IL obfuscation." -ForegroundColor Yellow
+          }
 
       - name: Compile Inno Setup Installer
         shell: pwsh
