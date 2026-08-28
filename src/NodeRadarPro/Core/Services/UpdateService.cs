@@ -166,18 +166,15 @@ public static class UpdateService
 
                 using var chain = new System.Security.Cryptography.X509Certificates.X509Chain();
                 chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.Online;
+                chain.ChainPolicy.RevocationFlag = System.Security.Cryptography.X509Certificates.X509RevocationFlag.ExcludeRoot;
+                chain.ChainPolicy.UrlRetrievalTimeout = TimeSpan.FromSeconds(10);
                 chain.ChainPolicy.VerificationFlags = System.Security.Cryptography.X509Certificates.X509VerificationFlags.NoFlag;
 
                 bool isChainValid = chain.Build(cert);
                 if (!isChainValid)
                 {
-                    // Fallback to offline revocation check if online CRL lookup failed
-                    chain.ChainPolicy.RevocationMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck;
-                    if (!chain.Build(cert))
-                    {
-                        if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
-                        throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
-                    }
+                    if (Directory.Exists(tempDir)) try { Directory.Delete(tempDir, true); } catch { }
+                    throw new SecurityException("Downloaded update file signature certificate chain is untrusted or invalid.");
                 }
             }
             catch (SecurityException)
