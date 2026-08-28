@@ -241,14 +241,6 @@ try {
         }
     }
 
-    if ($installerChecksums.Count -gt 0) {
-        $notesLines += "### Verification and Installation Checksums`n"
-        $notesLines += "| File | Size | SHA-256 Checksum |`n| :--- | :--- | :--- |`n"
-        foreach ($cs in $installerChecksums) {
-            $notesLines += "| ``$($cs.Name)`` | $($cs.SizeMb) MB | ``$($cs.Hash)`` |`n"
-        }
-    }
-
     $releaseNotesText = $notesLines -join "`n"
 
     # Prepend entry to CHANGELOG.md (UTF-8 without BOM)
