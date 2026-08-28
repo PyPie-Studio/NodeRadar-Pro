@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,9 +27,8 @@ public class NbnsProbe : IFingerprintProbe
             var packet = new List<byte>();
 
             // Transaction ID (random 2 bytes)
-            var rng = new Random();
             byte[] txId = new byte[2];
-            rng.NextBytes(txId);
+            RandomNumberGenerator.Fill(txId);
             packet.AddRange(txId);
 
             // Flags: 0x0000 (standard query)
