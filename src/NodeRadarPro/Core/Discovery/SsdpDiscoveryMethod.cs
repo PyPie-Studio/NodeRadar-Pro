@@ -12,9 +12,14 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
 {
     public string Name => "UPnP / SSDP";
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
+    public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        using var udp = new UdpClient();
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+    }
+
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
+    {
+        using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
         udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
         udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
@@ -138,7 +143,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         catch (OperationCanceledException) { }
     }
 
-    private string ParseVendorFromServerHeader(string serverHeader)
+    public static string ParseVendorFromServerHeader(string serverHeader)
     {
         string[] knownVendors = { "Huawei", "TP-Link", "MikroTik", "Cisco", "Netgear", "Linksys", "D-Link", "ASUS", "Xiaomi" };
         foreach (var vendor in knownVendors)
