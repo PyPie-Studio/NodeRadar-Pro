@@ -2,6 +2,19 @@
 
 
 
+
+## NodeRadar Pro v1.6.0 (2026-08-30)
+
+### Maintenance and Refactoring
+- ≡ƒº╣ Remove MakeThresholdSliderCard wrapper and update call sites to use MakeSliderCard directly
+- ≡ƒº╣ Refactor MakeThresholdSliderCard to reduce duplication
+- ≡ƒº╣ refactor: reduce complexity in SettingsPage constructor
+- ≡ƒº╣ [remove deprecated GuessDeviceType method]
+- test: add unit tests for AlertTypeExtensions
+- test: add unit tests for IntrusionDetector
+- ≡ƒöÆ Replace System.Random with RandomNumberGenerator in NbnsProbe
+- ≡ƒöÆ Fix command injection in AppUtils.OpenSafeUrl
+
 ## NodeRadar Pro v1.6.0 (2026-08-30)
 
 ### Maintenance and Refactoring

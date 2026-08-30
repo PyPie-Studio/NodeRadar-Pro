@@ -312,23 +312,31 @@ if (-not $SkipRelease) {
             Fail-Run "7" "Installer binary not found for release publishing ($targetInstaller)"
         }
 
+        $installerFileName = [System.IO.Path]::GetFileName($targetInstaller)
+        $installerDir = [System.IO.Path]::GetDirectoryName($targetInstaller)
+
         $notesTmpFile = Join-Path $logDir "release-notes-$versionTag.md"
         [System.IO.File]::WriteAllText($notesTmpFile, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
 
         Write-Host "  > Creating/updating GitHub Release via gh CLI..." -ForegroundColor Yellow
 
-        $null = (& gh release view $versionTag 2>&1)
-        if ($LASTEXITCODE -eq 0) {
-            # Release already exists: update notes and upload installer
-            & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
+        Push-Location $installerDir
+        try {
+            $null = (& gh release view $versionTag 2>&1)
+            if ($LASTEXITCODE -eq 0) {
+                # Release already exists: update notes and upload installer
+                & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
 
-            & gh release upload $versionTag "$targetInstaller" --clobber
-            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to upload installer to release $versionTag" }
-        } else {
-            # Create brand new release with installer asset
-            & gh release create $versionTag "$targetInstaller" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to create release $versionTag via gh CLI" }
+                & gh release upload $versionTag ".\$installerFileName" --clobber
+                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to upload installer to release $versionTag" }
+            } else {
+                # Create brand new release with installer asset
+                & gh release create $versionTag ".\$installerFileName" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to create release $versionTag via gh CLI" }
+            }
+        } finally {
+            Pop-Location
         }
 
         # 3. CRITICAL: LIVE CONFIRMATION QUERY (Zero False Positives)
@@ -340,13 +348,14 @@ if (-not $SkipRelease) {
 
         $releaseInfo = $verificationRaw | ConvertFrom-Json
         $assetNames = @($releaseInfo.assets | ForEach-Object { $_.name })
-        $expectedAssetName = [System.IO.Path]::GetFileName($targetInstaller)
-        if ($expectedAssetName -notin $assetNames) {
-            Fail-Run "7" "Live confirmation failed: Asset '$expectedAssetName' is missing from GitHub release assets (found: $($assetNames -join ', '))"
+        $normalizedAssetName = $installerFileName -replace ' ', '.'
+        $matchedAsset = $assetNames | Where-Object { $_ -eq $installerFileName -or $_ -eq $normalizedAssetName }
+        if (-not $matchedAsset) {
+            Fail-Run "7" "Live confirmation failed: Asset '$installerFileName' is missing from GitHub release assets (found: $($assetNames -join ', '))"
         }
 
         $releaseUrl = $releaseInfo.url
-        Complete-Step "7" $true "Verified release $versionTag on GitHub with asset '$expectedAssetName' ($releaseUrl)"
+        Complete-Step "7" $true "Verified release $versionTag on GitHub with asset '$($matchedAsset -join ', ')' ($releaseUrl)"
     } catch {
         Fail-Run "7" "Release publishing failed: $($_.Exception.Message)"
     } finally {
