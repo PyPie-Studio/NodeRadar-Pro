@@ -284,8 +284,8 @@ public class SettingsPage : Border
         var separator2 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 12, 0, 8) };
         var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
 
-        var latencyCard = MakeThresholdSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue);
-        var packetCard = MakeThresholdSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue);
+        var latencyCard = MakeSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
+        var packetCard = MakeSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
 
         var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
         var updateStartupRow = MakeCheckboxCard("Check Updates on Startup", "Validate version with PyPie Studio API.", _checkUpdatesOnStartupToggle);
@@ -534,9 +534,6 @@ public class SettingsPage : Border
     }
 
     // ── UI FACTORY HELPERS ──
-
-    private static Border MakeThresholdSliderCard(string title, string description, Slider slider, TextBlock valueLabel) =>
-        MakeSliderCard(title, description, slider, valueLabel, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
 
     private static Border MakeToggleCard(string title, string description, CheckBox toggle, string? icon = null)
     {
