@@ -459,17 +459,7 @@ public class SettingsPage : Border
                     _maintenanceStatus.Foreground = ThemeTokens.Error;
                 }
             }
-            catch (System.IO.IOException ex)
-            {
-                _maintenanceStatus.Text = $"Error: {ex.Message}";
-                _maintenanceStatus.Foreground = ThemeTokens.Error;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _maintenanceStatus.Text = $"Error: {ex.Message}";
-                _maintenanceStatus.Foreground = ThemeTokens.Error;
-            }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
             {
                 _maintenanceStatus.Text = $"Error: {ex.Message}";
                 _maintenanceStatus.Foreground = ThemeTokens.Error;
@@ -508,17 +498,7 @@ public class SettingsPage : Border
                     _maintenanceStatus.Foreground = ThemeTokens.Error;
                 }
             }
-            catch (System.IO.IOException ex)
-            {
-                _maintenanceStatus.Text = $"Error: {ex.Message}";
-                _maintenanceStatus.Foreground = ThemeTokens.Error;
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                _maintenanceStatus.Text = $"Error: {ex.Message}";
-                _maintenanceStatus.Foreground = ThemeTokens.Error;
-            }
-            catch (InvalidOperationException ex)
+            catch (Exception ex) when (ex is System.IO.IOException || ex is UnauthorizedAccessException || ex is InvalidOperationException)
             {
                 _maintenanceStatus.Text = $"Error: {ex.Message}";
                 _maintenanceStatus.Foreground = ThemeTokens.Error;
