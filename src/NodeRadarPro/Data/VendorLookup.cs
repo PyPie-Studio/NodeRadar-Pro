@@ -3797,7 +3797,7 @@ public static class VendorLookup
         if (string.IsNullOrEmpty(macAddress) || macAddress.Length < 8)
             return "Unknown Vendor";
 
-        string prefix = macAddress[..8].Replace("-", ":").ToUpperInvariant();
+        string prefix = macAddress[..8].Replace('-', ':').ToUpperInvariant();
 
         if (_vendors.TryGetValue(prefix, out string? vendor))
             return vendor;
