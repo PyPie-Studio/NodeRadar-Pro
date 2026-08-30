@@ -3813,15 +3813,6 @@ public static class VendorLookup
         return "Unknown Vendor";
     }
 
-    /// <summary>
-    /// Deprecated backwards-compatible shim for legacy tests and callers.
-    /// </summary>
-#pragma warning disable S1133
-    [Obsolete("Guessing is now completely offloaded to DeviceClassifierEngine.")]
-    public static string GuessDeviceType(string vendor, string hostname)
-    {
-        return "Generic Network Device";
-    }
-#pragma warning restore S1133
+
 }
 
