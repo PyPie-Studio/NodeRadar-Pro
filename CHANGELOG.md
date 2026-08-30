@@ -1,54 +1,22 @@
 # NodeRadar Pro Changelog
-
-
-
-
+ 
 ## NodeRadar Pro v1.6.0 (2026-08-30)
 
-### Maintenance and Refactoring
-- ≡ƒº╣ Remove MakeThresholdSliderCard wrapper and update call sites to use MakeSliderCard directly
-- ≡ƒº╣ Refactor MakeThresholdSliderCard to reduce duplication
-- ≡ƒº╣ refactor: reduce complexity in SettingsPage constructor
-- ≡ƒº╣ [remove deprecated GuessDeviceType method]
-- test: add unit tests for AlertTypeExtensions
-- test: add unit tests for IntrusionDetector
-- ≡ƒöÆ Replace System.Random with RandomNumberGenerator in NbnsProbe
-- ≡ƒöÆ Fix command injection in AppUtils.OpenSafeUrl
+### 🔒 Security Enhancements
+- Enforced strict online certificate revocation checking (`X509RevocationMode.Online`) in `UpdateService` without insecure fallbacks.
+- Eliminated command injection vector in `AppUtils.OpenSafeUrl` via direct `UseShellExecute = true` Windows protocol handling.
+- Upgraded NetBIOS (NBNS) transaction ID generation to cryptographically secure `RandomNumberGenerator.Fill`.
 
-## NodeRadar Pro v1.6.0 (2026-08-30)
+### 🧹 Refactoring & UI Improvements
+- Modularized monolithic `SettingsPage` constructor into dedicated private builder methods (`BuildHeaderSection`, `BuildGeneralSettingsCard`, etc.).
+- Refactored `MakeThresholdSliderCard` into `MakeSliderCard` with unified styling parameters and eliminated card layout duplication.
+- Pruned obsolete `VendorLookup.GuessDeviceType` method and synchronized OUI database code generator.
+- Resolved CA1307 string comparison warning in `VendorLookup` with zero-allocation char replacement.
 
-### Maintenance and Refactoring
-- ≡ƒº╣ Remove MakeThresholdSliderCard wrapper and update call sites to use MakeSliderCard directly
-- ≡ƒº╣ Refactor MakeThresholdSliderCard to reduce duplication
-- ≡ƒº╣ refactor: reduce complexity in SettingsPage constructor
-- ≡ƒº╣ [remove deprecated GuessDeviceType method]
-- test: add unit tests for AlertTypeExtensions
-- test: add unit tests for IntrusionDetector
-- ≡ƒöÆ Replace System.Random with RandomNumberGenerator in NbnsProbe
-- ≡ƒöÆ Fix command injection in AppUtils.OpenSafeUrl
-- ≡ƒöÆ Enable online certificate revocation check in UpdateService
-
-## NodeRadar Pro v1.6.0 (2026-08-30)
-
-### Bug Fixes
-- embed multi-resolution NodeRadar icon into setup installer
-
-### Maintenance and Refactoring
-- ≡ƒº╣ Remove MakeThresholdSliderCard wrapper and update call sites to use MakeSliderCard directly
-- ≡ƒº╣ Refactor MakeThresholdSliderCard to reduce duplication
-- ≡ƒº╣ refactor: reduce complexity in SettingsPage constructor
-- ≡ƒº╣ [remove deprecated GuessDeviceType method]
-- test: add unit tests for AlertTypeExtensions
-- test: add unit tests for IntrusionDetector
-- ≡ƒöÆ Replace System.Random with RandomNumberGenerator in NbnsProbe
-- ≡ƒöÆ Fix command injection in AppUtils.OpenSafeUrl
-- ≡ƒöÆ Enable online certificate revocation check in UpdateService
-- ≡ƒº¬ Add comprehensive unit tests for SsdpDiscoveryMethod
-- ≡ƒº╣ Consolidate duplicate catch blocks in SettingsPage
-- chore(deploy): enhance git staging and gh release handling in deploy pipeline
-- refactor(core): restructure solution topology into src and tests with 1:1 domain mirroring
-- ≡ƒº¬ test: add unit tests for SsdpProbe
-- test: add unit tests for DeepFingerprintEngine
+### 🧪 Test Coverage & Diagnostics
+- Added comprehensive unit tests for `IntrusionDetector` with constructor DI seams and isolated in-memory LiteDB fixtures.
+- Added parameterized unit tests for `AlertTypeExtensions` display names and icon mappings.
+- Added comprehensive unit test suites for `SsdpDiscoveryMethod`, `SsdpProbe`, and `DeepFingerprintEngine`.
 
 ## NodeRadar Pro v1.5.0 (2026-08-29)
 

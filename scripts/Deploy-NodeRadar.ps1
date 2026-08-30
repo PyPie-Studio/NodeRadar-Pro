@@ -47,6 +47,9 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+
 $root = Split-Path -Parent $PSScriptRoot
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $results = New-Object System.Collections.Generic.List[object]
@@ -195,35 +198,58 @@ if ($installers) {
 Write-Step "6" "Changelog Sync & Git Release Commit ($versionTag)"
 $prevEap = $ErrorActionPreference
 try {
-    $ErrorActionPreference = "SilentlyContinue"
+    $ErrorActionPreference = "Stop"
     $changelogFile = Join-Path $root "CHANGELOG.md"
     $dateStr = Get-Date -Format "yyyy-MM-dd"
 
-    # Discover commits since last version tag
-    $prevTag = (git describe --tags --abbrev=0 --match "v*" 2>$null)
-    $commitRange = if ($prevTag) { "$prevTag..HEAD" } else { "HEAD~15..HEAD" }
-    $commits = git log $commitRange --oneline --no-merges 2>$null
-    if (-not $commits) { $commits = git log -n 10 --oneline --no-merges 2>$null }
+    # Discover commits since previous version tag
+    $allTags = git tag -l "v*" --sort=-v:refname 2>$null
+    $prevTag = $allTags | Where-Object { $_ -ne $versionTag } | Select-Object -First 1
+    $commitRange = if ($prevTag) { "$prevTag..HEAD" } else { "HEAD~20..HEAD" }
+    $rawCommits = git log $commitRange --oneline --no-merges 2>$null
+    if (-not $rawCommits) { $rawCommits = git log -n 20 --oneline --no-merges 2>$null }
 
-    $features = @()
-    $fixes = @()
-    $security = @()
-    $perf = @()
-    $other = @()
+    $features = [System.Collections.Generic.List[string]]::new()
+    $fixes = [System.Collections.Generic.List[string]]::new()
+    $security = [System.Collections.Generic.List[string]]::new()
+    $perf = [System.Collections.Generic.List[string]]::new()
+    $tests = [System.Collections.Generic.List[string]]::new()
+    $refactor = [System.Collections.Generic.List[string]]::new()
 
-    if ($commits) {
-        foreach ($line in $commits) {
-            if ($line -match "^[a-f0-9]+ (?:feat|feature)(\([^)]+\))?: (.*)") {
-                $features += "- $($matches[2])"
-            } elseif ($line -match "^[a-f0-9]+ (?:fix|bug)(\([^)]+\))?: (.*)") {
-                $fixes += "- $($matches[2])"
-            } elseif ($line -match "^[a-f0-9]+ (?:sec|security)(\([^)]+\))?: (.*)") {
-                $security += "- $($matches[2])"
-            } elseif ($line -match "^[a-f0-9]+ (?:perf)(\([^)]+\))?: (.*)") {
-                $perf += "- $($matches[2])"
-            } elseif ($line -notmatch "chore\(release\)") {
-                $msg = $line -replace "^[a-f0-9]+ ", ""
-                $other += "- $msg"
+    if ($rawCommits) {
+        $seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+        foreach ($line in $rawCommits) {
+            $cleaned = $line -replace "^[a-f0-9]+\s+", ""
+            if ($cleaned -match "chore\(release\)" -or [string]::IsNullOrWhiteSpace($cleaned)) { continue }
+
+            # Normalize emoji prefixes and classify
+            if ($cleaned -match "^(?:🔒|🛡️|sec(?:urity)?(?:\([^)]+\))?:)\s*(.*)" -or $cleaned -match "(?i)(?:certificate revocation|command injection|vulnerability|cve|credential|encryption)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $security.Add($item) }
+            } elseif ($cleaned -match "^(?:✨|feat(?:ure)?(?:\([^)]+\))?:)\s*(.*)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $features.Add($item) }
+            } elseif ($cleaned -match "^(?:🐛|🚑|fix(?:\([^)]+\))?:|bug(?:\([^)]+\))?:)\s*(.*)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $fixes.Add($item) }
+            } elseif ($cleaned -match "^(?:⚡|🚀|perf(?:\([^)]+\))?:)\s*(.*)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $perf.Add($item) }
+            } elseif ($cleaned -match "^(?:🧪|test(?:\([^)]+\))?:)\s*(.*)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $tests.Add($item) }
+            } elseif ($cleaned -match "^(?:🧹|♻️|style(?:\([^)]+\))?:|refactor(?:\([^)]+\))?:)\s*(.*)") {
+                $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
+                $item = "- " + $item.TrimStart("- ")
+                if ($seen.Add($item)) { $refactor.Add($item) }
+            } else {
+                $item = "- " + $cleaned.TrimStart("- ")
+                if ($seen.Add($item)) { $refactor.Add($item) }
             }
         }
     }
@@ -235,30 +261,38 @@ try {
     if ($ReleaseNotes) {
         $notesLines += "$ReleaseNotes`n"
     } else {
+        if ($security.Count -gt 0) {
+            $notesLines += "### 🔒 Security Enhancements`n" + ($security -join "`n") + "`n"
+        }
         if ($features.Count -gt 0) {
-            $notesLines += "### New Features`n" + ($features -join "`n") + "`n"
+            $notesLines += "### ✨ New Features`n" + ($features -join "`n") + "`n"
         }
         if ($fixes.Count -gt 0) {
-            $notesLines += "### Bug Fixes`n" + ($fixes -join "`n") + "`n"
-        }
-        if ($security.Count -gt 0) {
-            $notesLines += "### Security Enhancements`n" + ($security -join "`n") + "`n"
+            $notesLines += "### 🐛 Bug Fixes`n" + ($fixes -join "`n") + "`n"
         }
         if ($perf.Count -gt 0) {
-            $notesLines += "### Performance and Optimization`n" + ($perf -join "`n") + "`n"
+            $notesLines += "### ⚡ Performance and Optimization`n" + ($perf -join "`n") + "`n"
         }
-        if ($other.Count -gt 0) {
-            $notesLines += "### Maintenance and Refactoring`n" + ($other -join "`n") + "`n"
+        if ($tests.Count -gt 0) {
+            $notesLines += "### 🧪 Test Coverage & Diagnostics`n" + ($tests -join "`n") + "`n"
+        }
+        if ($refactor.Count -gt 0) {
+            $notesLines += "### 🧹 Maintenance and Refactoring`n" + ($refactor -join "`n") + "`n"
         }
     }
 
     $releaseNotesText = $notesLines -join "`n"
 
-    # Insert entry into CHANGELOG.md (UTF-8 without BOM)
+    # Insert entry into CHANGELOG.md (UTF-8 without BOM, replace existing tag entry if present)
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
     if (Test-Path $changelogFile) {
         $existing = [System.IO.File]::ReadAllText($changelogFile)
-        if ($existing -match "(?ms)^(# NodeRadar Pro Changelog\s*\r?\n)(.*)$") {
+        $escapedTag = [regex]::Escape($versionTag)
+        $sectionPattern = "(?ms)## NodeRadar Pro $escapedTag\s*\([^\)]+\).*?(?=(## NodeRadar Pro v|\Z))"
+        if ($existing -match $sectionPattern) {
+            $existing = $existing -replace $sectionPattern, "$releaseNotesText`n"
+            [System.IO.File]::WriteAllText($changelogFile, $existing, $utf8NoBom)
+        } elseif ($existing -match "(?ms)^(# NodeRadar Pro Changelog\s*\r?\n)(.*)$") {
             $header = $matches[1]
             $body = $matches[2]
             [System.IO.File]::WriteAllText($changelogFile, "$header`n$releaseNotesText`n$body", $utf8NoBom)
