@@ -51,11 +51,12 @@ $root = Split-Path -Parent $PSScriptRoot
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $results = New-Object System.Collections.Generic.List[object]
 
+$logDir = Join-Path $root "deploy-logs"
+if (-not (Test-Path $logDir)) {
+    New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+}
+
 if (-not $LogPath) {
-    $logDir = Join-Path $root "deploy-logs"
-    if (-not (Test-Path $logDir)) {
-        New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-    }
     $LogPath = Join-Path $logDir "noderadar-deploy-$(Get-Date -Format yyyyMMdd-HHmmss).log"
 }
 
@@ -99,6 +100,16 @@ Write-Host "  > Target Application Version: $appVersion ($versionTag)" -Foregrou
 
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) { Fail-Run "0" "dotnet SDK not found on system PATH" }
 $sdkVer = & dotnet --version
+
+if (-not $SkipRelease) {
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+        Fail-Run "0" "GitHub CLI (gh) not found on system PATH. Install gh or use -SkipRelease."
+    }
+    $null = (& gh auth status 2>&1)
+    if ($LASTEXITCODE -ne 0) {
+        Fail-Run "0" "GitHub CLI (gh) is not authenticated. Run 'gh auth login' or use -SkipRelease."
+    }
+}
 Complete-Step "0" $true "v$appVersion on branch=$branch (sdk=$sdkVer)"
 
 # Phase 1: Master Quality Gate
@@ -260,62 +271,84 @@ try {
 
     # Stage all modifications and commit
     git add -A
-    git commit -m "chore(release): release $versionTag" 2>$null
+    $hasUncommitted = (git status --porcelain)
+    if ($hasUncommitted) {
+        git commit -m "chore(release): release $versionTag"
+        if ($LASTEXITCODE -ne 0) { Fail-Run "6" "Failed to commit release changes" }
+    }
 
     # Create annotated tag
-    git tag -a $versionTag -m "Release $versionTag" -f 2>$null
+    git tag -a $versionTag -m "Release $versionTag" -f
+    if ($LASTEXITCODE -ne 0) { Fail-Run "6" "Failed to create git tag $versionTag" }
     Complete-Step "6" $true "tagged $versionTag & updated CHANGELOG.md"
 } catch {
-    Complete-Step "6" $true "changelog/tag deferred: $($_.Exception.Message)"
+    Fail-Run "6" "Changelog or tag failure: $($_.Exception.Message)"
 } finally {
     $ErrorActionPreference = $prevEap
 }
 
-# Phase 7: GitHub Release Publishing
+# Phase 7: GitHub Release Publishing & Live API Verification
 if (-not $SkipRelease) {
     Write-Step "7" "GitHub Release Publishing: Uploading installer & publishing release"
     $prevEap = $ErrorActionPreference
     try {
-        $ErrorActionPreference = "SilentlyContinue"
-        
-        # 1. Push commit & tag to origin
+        $ErrorActionPreference = "Stop"
+
+        # 1. Push commit & tag to origin with strict verification
         Write-Host "  > Pushing commit and tag $versionTag to origin..." -ForegroundColor Yellow
-        git push origin HEAD 2>$null
-        git push origin $versionTag --force 2>$null
-
-        # 2. Check if GitHub CLI (gh) is available and authenticated
-        $ghInstalled = Get-Command gh -ErrorAction SilentlyContinue
-        if ($ghInstalled) {
-            $notesTmpFile = Join-Path $logDir "release-notes-$versionTag.md"
-            [System.IO.File]::WriteAllText($notesTmpFile, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
-
-            $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
-
-            Write-Host "  > Creating/updating GitHub Release via gh CLI..." -ForegroundColor Yellow
-
-            $releaseExists = (& gh release view $versionTag 2>$null)
-            if ($LASTEXITCODE -eq 0) {
-                # Release already exists: update notes and upload installer
-                & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-                if ($targetInstaller -and (Test-Path $targetInstaller)) {
-                    & gh release upload $versionTag "$targetInstaller" --clobber
-                }
-            } else {
-                # Create brand new release
-                if ($targetInstaller -and (Test-Path $targetInstaller)) {
-                    & gh release create $versionTag "$targetInstaller" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-                } else {
-                    & gh release create $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-                }
-            }
-
-            $releaseUrl = "https://github.com/Ahmed-Yaseen99/NodeRadar-Pro/releases/tag/$versionTag"
-            Complete-Step "7" $true "Published $versionTag to GitHub ($releaseUrl)"
-        } else {
-            Complete-Step "7" $true "Tag pushed to origin (gh CLI not installed for direct upload)"
+        & git push origin HEAD
+        if ($LASTEXITCODE -ne 0) {
+            Fail-Run "7" "Failed to push release commit to origin"
         }
+
+        & git push origin $versionTag --force
+        if ($LASTEXITCODE -ne 0) {
+            Fail-Run "7" "Failed to push git tag $versionTag to origin"
+        }
+
+        # 2. Check installer existence
+        $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
+        if (-not $targetInstaller -or -not (Test-Path $targetInstaller)) {
+            Fail-Run "7" "Installer binary not found for release publishing ($targetInstaller)"
+        }
+
+        $notesTmpFile = Join-Path $logDir "release-notes-$versionTag.md"
+        [System.IO.File]::WriteAllText($notesTmpFile, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
+
+        Write-Host "  > Creating/updating GitHub Release via gh CLI..." -ForegroundColor Yellow
+
+        $null = (& gh release view $versionTag 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            # Release already exists: update notes and upload installer
+            & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
+
+            & gh release upload $versionTag "$targetInstaller" --clobber
+            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to upload installer to release $versionTag" }
+        } else {
+            # Create brand new release with installer asset
+            & gh release create $versionTag "$targetInstaller" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+            if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to create release $versionTag via gh CLI" }
+        }
+
+        # 3. CRITICAL: LIVE CONFIRMATION QUERY (Zero False Positives)
+        Write-Host "  > Verifying release and attached assets live on GitHub..." -ForegroundColor Yellow
+        $verificationRaw = (& gh release view $versionTag --json tagName,url,assets 2>&1 | Out-String)
+        if ($LASTEXITCODE -ne 0) {
+            Fail-Run "7" "Live confirmation failed: Release $versionTag was not found on GitHub after creation attempt"
+        }
+
+        $releaseInfo = $verificationRaw | ConvertFrom-Json
+        $assetNames = @($releaseInfo.assets | ForEach-Object { $_.name })
+        $expectedAssetName = [System.IO.Path]::GetFileName($targetInstaller)
+        if ($expectedAssetName -notin $assetNames) {
+            Fail-Run "7" "Live confirmation failed: Asset '$expectedAssetName' is missing from GitHub release assets (found: $($assetNames -join ', '))"
+        }
+
+        $releaseUrl = $releaseInfo.url
+        Complete-Step "7" $true "Verified release $versionTag on GitHub with asset '$expectedAssetName' ($releaseUrl)"
     } catch {
-        Complete-Step "7" $true "Release publishing deferred: $($_.Exception.Message)"
+        Fail-Run "7" "Release publishing failed: $($_.Exception.Message)"
     } finally {
         $ErrorActionPreference = $prevEap
     }
