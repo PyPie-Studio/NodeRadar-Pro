@@ -130,14 +130,9 @@ namespace NodeRadarPro.Core
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = "cmd",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
+                        FileName = safeUrl,
+                        UseShellExecute = true
                     };
-                    psi.ArgumentList.Add("/c");
-                    psi.ArgumentList.Add("start");
-                    psi.ArgumentList.Add("");
-                    psi.ArgumentList.Add(safeUrl);
                     Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
