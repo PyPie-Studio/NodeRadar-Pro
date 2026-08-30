@@ -127,8 +127,23 @@ public class InventoryPage : Border
         };
         _searchBox = ThemeTokens.Input("Search devices, IPs, or tags...");
         _searchBox.Background = Brushes.Transparent;
-        _searchBox.Padding = new Thickness(0, 10);
-        _searchBox.TextChanged += (s, e) => RefreshDeviceList();
+        var clearSearchBtn = new Button
+        {
+            Content = "✖",
+            FontSize = 11,
+            Background = Brushes.Transparent,
+            Foreground = ThemeTokens.OnSurfaceVariant,
+            Padding = new Thickness(6, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; RefreshDeviceList(); };
+        _searchBox.TextChanged += (s, e) =>
+        {
+            clearSearchBtn.IsVisible = !string.IsNullOrEmpty(_searchBox.Text);
+            RefreshDeviceList();
+        };
         ThemeTokens.SetToolTip(_searchBox, "Filter the device list by IP, MAC, Vendor, or Custom Name.");
 
         var searchWrap = new Border
@@ -140,7 +155,7 @@ public class InventoryPage : Border
             Child = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
-                Children = { searchIcon, _searchBox }
+                Children = { searchIcon, _searchBox, clearSearchBtn }
             }
         };
 
@@ -277,7 +292,7 @@ public class InventoryPage : Border
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = "⊞", FontSize = 48, Foreground = new SolidColorBrush(Color.Parse("#4C4452"), 0.3), HorizontalAlignment = HorizontalAlignment.Center },
+                    new TextBlock { Text = "⊞", FontSize = 48, Foreground = ThemeTokens.GhostBorder30, HorizontalAlignment = HorizontalAlignment.Center },
                     ThemeTokens.Headline("Select a Device", 22),
                     ThemeTokens.Body("Click on a device from the list to view full details.", 13)
                 }
@@ -308,7 +323,7 @@ public class InventoryPage : Border
             Margin = new Thickness(12, 0, 0, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsVisible = false,
-            Child = new TextBlock { FontSize = 10, FontWeight = FontWeight.Bold, FontFamily = new FontFamily("Inter") }
+            Child = new TextBlock { FontSize = 10, FontWeight = FontWeight.Bold, FontFamily = ThemeTokens.DefaultFont }
         };
 
         _detailName = new TextBlock
@@ -316,7 +331,7 @@ public class InventoryPage : Border
             FontSize = 28,
             FontWeight = FontWeight.Bold,
             Foreground = ThemeTokens.OnSurface,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             TextTrimming = TextTrimming.CharacterEllipsis
         };
 
@@ -347,15 +362,15 @@ public class InventoryPage : Border
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Children =
                 {
-                    new TextBlock { Text = "Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center, FontFamily = new FontFamily("Inter") },
-                    new TextBlock { Text = "Ports", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center, FontFamily = new FontFamily("Inter") }
+                    new TextBlock { Text = "Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center, FontFamily = ThemeTokens.DefaultFont },
+                    new TextBlock { Text = "Ports", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center, FontFamily = ThemeTokens.DefaultFont }
                 }
             },
             Background = Brushes.Transparent,
             Width = 80,
             Height = 60,
             CornerRadius = new CornerRadius(8),
-            BorderBrush = new SolidColorBrush(Color.Parse("#4CD7F6"), 0.3),
+            BorderBrush = ThemeTokens.TertiaryContainerSubtle,
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -473,8 +488,8 @@ public class InventoryPage : Border
         var telTitle = ThemeTokens.Headline("Telemetry Snapshot", 16);
         var telTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 12), Children = { telIcon, telTitle } };
 
-        _latencyStatText = new TextBlock { Text = "—", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
-        _packetLossText = new TextBlock { Text = "0.0", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
+        _latencyStatText = new TextBlock { Text = "—", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
+        _packetLossText = new TextBlock { Text = "0.0", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont };
         _lastScanText = ThemeTokens.Body("—", 14);
         _lastScanText.FontWeight = FontWeight.Medium;
 
@@ -500,7 +515,7 @@ public class InventoryPage : Border
 
         var lastScanLabel = ThemeTokens.Label("LAST SCAN", 10);
         lastScanLabel.LetterSpacing = 1;
-        var viewLogsLink = new TextBlock { Text = "View Logs →", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), HorizontalAlignment = HorizontalAlignment.Right, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+        var viewLogsLink = new TextBlock { Text = "View Logs →", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, HorizontalAlignment = HorizontalAlignment.Right, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
         viewLogsLink.PointerPressed += (s, e) => { if (_currentNode != null) ViewLogsRequested?.Invoke(_currentNode.MacAddress); };
 
         var lastScanRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
@@ -782,7 +797,7 @@ public class InventoryPage : Border
             var (bg, fg, text) = node.ThreatLevel switch
             {
                 ThreatLevel.Critical => (ThemeTokens.ErrorContainer, ThemeTokens.Error, "CRITICAL RISK"),
-                ThreatLevel.Warning => (new SolidColorBrush(Color.Parse("#FFCE50"), 0.2), new SolidColorBrush(Color.Parse("#FFCE50")), "SECURITY WARNING"),
+                ThreatLevel.Warning => (ThemeTokens.WarningContainer, ThemeTokens.Warning, "SECURITY WARNING"),
                 _ => (ThemeTokens.PrimaryContainer, ThemeTokens.Primary, "SAFE / AUDITED")
             };
             _threatBadge.Background = bg;
@@ -849,7 +864,7 @@ public class InventoryPage : Border
         for (int i = 0; i < 4; i++)
         {
             var time = now.AddHours(-(_uptimeHours / 4.0 * (4 - i)));
-            labels[i] = time.ToString("HH:mm");
+            labels[i] = time.ToString("h:mm tt");
         }
         labels[4] = "Now";
 
@@ -901,7 +916,7 @@ public class InventoryPage : Border
     {
         _statusDot.Background = isOnline ? ThemeTokens.Tertiary : ThemeTokens.Error;
         _statusDot.Opacity = isOnline ? 1.0 : 0.6;
-        _statusDot.BoxShadow = isOnline ? new BoxShadows(new BoxShadow { Blur = 8, Color = Color.Parse("#4CD7F6") }) : default;
+        _statusDot.BoxShadow = isOnline ? new BoxShadows(new BoxShadow { Blur = 8, Color = ThemeTokens.ColorTertiary }) : default;
     }
 
     private void RefreshDeviceList()
@@ -1035,9 +1050,9 @@ public class InventoryPage : Border
             Child = icon
         };
 
-        var nameText = new TextBlock { Text = node.DisplayName, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new FontFamily("Inter") };
-        var subText = new TextBlock { Text = GetRichSubtitle(node), FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 1, 0, 0) };
-        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) };
+        var nameText = new TextBlock { Text = node.DisplayName, FontSize = 13, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = ThemeTokens.DefaultFont };
+        var subText = new TextBlock { Text = GetRichSubtitle(node), FontSize = 10, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 1, 0, 0) };
+        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 11, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 2, 0, 0) };
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameText, subText, ipText } };
         var leftGroup = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Children = { iconBox, textCol } };
 
@@ -1055,7 +1070,7 @@ public class InventoryPage : Border
                 Width = 6,
                 Height = 6,
                 CornerRadius = new CornerRadius(3),
-                Background = node.ThreatLevel == ThreatLevel.Critical ? ThemeTokens.Error : new SolidColorBrush(Color.Parse("#FFCE50")),
+                Background = node.ThreatLevel == ThreatLevel.Critical ? ThemeTokens.Error : ThemeTokens.Warning,
                 VerticalAlignment = VerticalAlignment.Top,
                 Margin = new Thickness(0, 4, 0, 0)
             };
@@ -1226,7 +1241,7 @@ public class InventoryPage : Border
     {
         if (_currentNode == null) return;
         _wakeBtn.IsEnabled = false;
-        _wakeBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgBolt, 16, ThemeTokens.OnSurfaceVariant), new TextBlock { Text = "Sending...", VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") } } };
+        _wakeBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgBolt, 16, ThemeTokens.OnSurfaceVariant), new TextBlock { Text = "Sending...", VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont } } };
 
         bool success = await WakeOnLan.WakeAsync(_currentNode.MacAddress);
 
@@ -1275,7 +1290,7 @@ public class InventoryPage : Border
             BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30,
             BorderThickness = new Thickness(1),
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-            Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium }
+            Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
         chip.PointerPressed += (s, e) => { _activeFilter = filterKey; RefreshDeviceList(); };
         return chip;
@@ -1283,7 +1298,7 @@ public class InventoryPage : Border
 
     private static Border MakeInfoPill(string label, string value)
     {
-        var valTb = new TextBlock { Text = value, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, Tag = "value" };
+        var valTb = new TextBlock { Text = value, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold, Tag = "value" };
         ThemeTokens.AddCopyAction(valTb);
 
         return new Border
@@ -1299,7 +1314,7 @@ public class InventoryPage : Border
                 Spacing = 6,
                 Children =
                 {
-                    new TextBlock { Text = label, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") },
+                    new TextBlock { Text = label, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont },
                     valTb
                 }
             }
@@ -1320,8 +1335,8 @@ public class InventoryPage : Border
             VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) }
+                new TextBlock { Text = title, FontSize = 13, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont },
+                new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 2, 0, 0) }
             }
         };
         toggle.Content = null;
@@ -1343,11 +1358,11 @@ public class InventoryPage : Border
         Padding = new Thickness(12, 5),
         BorderBrush = active ? ThemeTokens.GhostBorder : Brushes.Transparent,
         BorderThickness = new Thickness(1),
-        Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnSurface : ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium }
+        Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnSurface : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
     };
 
     private static TextBlock MakeFieldLabel(string text) => new()
-    { Text = text, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 2) };
+    { Text = text, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 2) };
 
     private static string GetTimeAgo(DateTime utcTime)
     {

@@ -66,7 +66,7 @@ public class SsdpProbe : IFingerprintProbe
                     if (locationLine != null)
                     {
                         string url = locationLine.Substring(9).Trim();
-                        await TryFetchSsdpLocationXmlAsync(url, disc);
+                        _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
                     }
                 }
             }
@@ -90,11 +90,13 @@ public class SsdpProbe : IFingerprintProbe
         return Task.FromResult(result);
     }
 
-    private static async Task TryFetchSsdpLocationXmlAsync(string url, SsdpData data)
+    private static async Task TryFetchSsdpLocationXmlAsync(string url, SsdpData data, CancellationToken token = default)
     {
         try
         {
-            string xml = await _httpClient.GetStringAsync(url);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            cts.CancelAfter(2000);
+            string xml = await _httpClient.GetStringAsync(url, cts.Token);
 
             string fn = ExtractXmlValue(xml, "friendlyName");
             if (!string.IsNullOrEmpty(fn)) data.FriendlyName = fn;

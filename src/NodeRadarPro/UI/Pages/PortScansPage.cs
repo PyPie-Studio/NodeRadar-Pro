@@ -37,15 +37,15 @@ public class PortScansPage : Border
         Background = ThemeTokens.Surface;
 
         // Header
-        var label = new TextBlock { Text = "PORT RECONNAISSANCE", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = new FontFamily("Inter"), LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
+        var label = new TextBlock { Text = "PORT RECONNAISSANCE", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = ThemeTokens.DefaultFont, LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
         var title = ThemeTokens.Headline("Port Scanner", 38);
         title.Margin = new Thickness(0, 0, 0, 6);
         var subtitle = ThemeTokens.Body("Probe individual hosts for open ports, running services, and OS fingerprints.", 16);
 
         _scanBtn = new Button
         {
-            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "▶", FontSize = 15, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "Start Port Scan", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center } } },
-            Background = new LinearGradientBrush { StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative), EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative), GradientStops = { new GradientStop(Color.Parse("#7C3AED"), 0), new GradientStop(Color.Parse("#6B21A8"), 1) } },
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "▶", FontSize = 15, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "Start Port Scan", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center } } },
+            Background = new LinearGradientBrush { StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative), EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative), GradientStops = { new GradientStop(ThemeTokens.ColorPrimaryPurple, 0), new GradientStop(ThemeTokens.ColorPrimaryContainer, 1) } },
             Height = 46,
             Padding = new Thickness(28, 0),
             CornerRadius = new CornerRadius(8),
@@ -58,12 +58,12 @@ public class PortScansPage : Border
 
         _stopBtn = new Button
         {
-            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgStop, 12, ThemeTokens.Error), new TextBlock { Text = "Stop", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Error, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center } } },
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgStop, 12, ThemeTokens.Error), new TextBlock { Text = "Stop", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center } } },
             Background = Brushes.Transparent,
             Height = 46,
             Padding = new Thickness(24, 0),
             CornerRadius = new CornerRadius(8),
-            BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3),
+            BorderBrush = ThemeTokens.ErrorBorderSubtle,
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center
@@ -119,8 +119,8 @@ public class PortScansPage : Border
         // Status Card
         var sweepTitle = ThemeTokens.Headline("Scan Status", 20);
         _statusText = ThemeTokens.Body("Ready to scan.", 15); _statusText.Margin = new Thickness(0, 6, 0, 20);
-        _progressPct = new TextBlock { Text = "0%", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter") };
-        var progLabel = new TextBlock { Text = "Progress", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium };
+        _progressPct = new TextBlock { Text = "0%", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont };
+        var progLabel = new TextBlock { Text = "Progress", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium };
         var progHeader = new Grid();
         progHeader.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         progHeader.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
@@ -280,7 +280,7 @@ public class PortScansPage : Border
             BorderBrush = ThemeTokens.GhostBorder30,
             BorderThickness = new Thickness(1),
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
-            Child = new TextBlock { Text = name, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium }
+            Child = new TextBlock { Text = name, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
         chip.PointerPressed += (s, e) => { _startPort.Text = start; _endPort.Text = end; };
         ThemeTokens.SetToolTip(chip, tooltip);
@@ -300,7 +300,7 @@ public class PortScansPage : Border
             var tb = ThemeTokens.Label(h[i], 12, ThemeTokens.OnSurfaceVariant); tb.LetterSpacing = 1.5; tb.FontWeight = FontWeight.Medium; tb.Margin = new Thickness(16, 0); tb.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetColumn(tb, i); grid.Children.Add(tb);
         }
-        return new Border { Background = new SolidColorBrush(Color.Parse("#070E1D"), 0.5), Padding = new Thickness(0, 14), Child = grid };
+        return new Border { Background = ThemeTokens.SurfaceTableRow, Padding = new Thickness(0, 14), Child = grid };
     }
 
     private static Border MakeResultRow(int port, string ip, bool alt)
@@ -313,13 +313,13 @@ public class PortScansPage : Border
 
         bool isRisky = port == 21 || port == 23 || port == 445 || port == 1433 || port == 3389;
 
-        var portTb = new TextBlock { Text = port.ToString(), FontSize = 15, Foreground = isRisky ? ThemeTokens.Error : ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
-        var svcTb = new TextBlock { Text = PortScanner.GetServiceName(port), FontSize = 15, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
-        var protoTb = new TextBlock { Text = "TCP", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        var portTb = new TextBlock { Text = port.ToString(), FontSize = 15, Foreground = isRisky ? ThemeTokens.Error : ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        var svcTb = new TextBlock { Text = PortScanner.GetServiceName(port), FontSize = 15, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        var protoTb = new TextBlock { Text = "TCP", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
 
-        var badgeBg = isRisky ? ThemeTokens.ErrorContainer : new SolidColorBrush(Color.Parse("#005362"), 0.3);
+        var badgeBg = isRisky ? ThemeTokens.ErrorContainer : ThemeTokens.TertiaryContainerSubtle;
         var badgeFg = isRisky ? ThemeTokens.Error : ThemeTokens.Tertiary;
-        var stateBadge = new Border { Background = badgeBg, CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 4), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0), Child = new TextBlock { Text = isRisky ? "Risk" : "Open", FontSize = 13, Foreground = badgeFg, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
+        var stateBadge = new Border { Background = badgeBg, CornerRadius = new CornerRadius(4), Padding = new Thickness(10, 4), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0), Child = new TextBlock { Text = isRisky ? "Risk" : "Open", FontSize = 13, Foreground = badgeFg, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
 
         if (isRisky) ThemeTokens.SetToolTip(stateBadge, "This port is associated with unencrypted or highly exploitable services.");
 

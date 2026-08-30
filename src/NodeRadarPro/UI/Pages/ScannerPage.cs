@@ -80,14 +80,14 @@ public class ScannerPage : Border
                 Children =
                 {
                     new TextBlock { Text = "▶", FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White },
-                    new TextBlock { Text = "Start Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = new FontFamily("Inter") }
+                    new TextBlock { Text = "Start Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont }
                 }
             },
             Background = new LinearGradientBrush
             {
                 StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
                 EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
-                GradientStops = { new GradientStop(Color.Parse("#7C3AED"), 0), new GradientStop(Color.Parse("#6B21A8"), 1) }
+                GradientStops = { new GradientStop(ThemeTokens.ColorPrimaryPurple, 0), new GradientStop(ThemeTokens.ColorPrimaryContainer, 1) }
             },
             Height = 44,
             Padding = new Thickness(24, 0),
@@ -108,14 +108,14 @@ public class ScannerPage : Border
                 Children =
                 {
                     new TextBlock { Text = "■", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.Error },
-                    new TextBlock { Text = "Stop Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.Error, FontFamily = new FontFamily("Inter") }
+                    new TextBlock { Text = "Stop Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont }
                 }
             },
             Background = Brushes.Transparent,
             Height = 44,
             Padding = new Thickness(24, 0),
             CornerRadius = new CornerRadius(8),
-            BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3),
+            BorderBrush = ThemeTokens.ErrorBorderSubtle,
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -237,7 +237,7 @@ public class ScannerPage : Border
             Content = "Fast Scan (Top 100 ports)",
             Foreground = ThemeTokens.OnSurface,
             FontSize = 13,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             Margin = new Thickness(0, 0, 24, 0)
         };
         ThemeTokens.SetToolTip(_fastScanCheck, "Scan only the most common 100 service ports to significantly reduce scan time.");
@@ -247,7 +247,7 @@ public class ScannerPage : Border
             Content = "OS Detection",
             Foreground = ThemeTokens.OnSurface,
             FontSize = 13,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             IsChecked = true
         };
         ThemeTokens.SetToolTip(_osDetectCheck, "Analyze TCP/IP stack fingerprints and service banners to guess the device OS.");
@@ -272,12 +272,12 @@ public class ScannerPage : Border
             Text = "Idle",
             FontSize = 11,
             Foreground = ThemeTokens.Tertiary,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             FontWeight = FontWeight.Medium
         };
         _scanningBadge = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#005362"), 0.3),
+            Background = ThemeTokens.TertiaryContainerSubtle,
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(10, 4),
             Child = _scanningBadgeText
@@ -299,7 +299,7 @@ public class ScannerPage : Border
             Text = "Progress",
             FontSize = 12,
             Foreground = ThemeTokens.OnSurfaceVariant,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             FontWeight = FontWeight.Medium
         };
         _progressPct = new TextBlock
@@ -308,7 +308,7 @@ public class ScannerPage : Border
             FontSize = 12,
             FontWeight = FontWeight.Bold,
             Foreground = ThemeTokens.Primary,
-            FontFamily = new FontFamily("Inter")
+            FontFamily = ThemeTokens.DefaultFont
         };
 
         var progHeader = new Grid();
@@ -531,7 +531,7 @@ public class ScannerPage : Border
             _scanStartTime = DateTime.UtcNow;
             _statusText.Text = $"Probing {startIp}...";
             _scanningBadgeText.Text = "Scanning";
-            _scanningBadge.Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.4);
+            _scanningBadge.Background = ThemeTokens.PrimaryContainerActive;
             _scanningBadgeText.Foreground = ThemeTokens.Primary;
 
             // Wire checkboxes to scanner settings
@@ -587,7 +587,7 @@ public class ScannerPage : Border
             _progressBar.Value = _scanCts?.IsCancellationRequested == true ? 0 : 100;
             _progressPct.Text = _scanCts?.IsCancellationRequested == true ? "0%" : "100%";
             _scanningBadgeText.Text = "Idle";
-            _scanningBadge.Background = new SolidColorBrush(Color.Parse("#005362"), 0.3);
+            _scanningBadge.Background = ThemeTokens.TertiaryContainerSubtle;
             _scanningBadgeText.Foreground = ThemeTokens.Tertiary;
             DataChanged?.Invoke();
         }
@@ -599,7 +599,7 @@ public class ScannerPage : Border
         _isScanning = false; // Allow immediate restart
         _statusText.Text = "Scan cancelled.";
         _scanningBadgeText.Text = "Idle";
-        _scanningBadge.Background = new SolidColorBrush(Color.Parse("#005362"), 0.3);
+        _scanningBadge.Background = ThemeTokens.TertiaryContainerSubtle;
         _scanningBadgeText.Foreground = ThemeTokens.Tertiary;
     }
 
@@ -645,7 +645,7 @@ public class ScannerPage : Border
 
         return new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#0D1425")),
+            Background = ThemeTokens.SurfaceTableRow,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(0, 14),
@@ -670,11 +670,11 @@ public class ScannerPage : Border
         statusBadge.VerticalAlignment = VerticalAlignment.Center;
 
         // IP
-        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        var ipText = new TextBlock { Text = node.IpAddress, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         ThemeTokens.AddCopyAction(ipText);
 
         // MAC
-        var macText = new TextBlock { Text = node.MacAddress, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
+        var macText = new TextBlock { Text = node.MacAddress, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0) };
         ThemeTokens.AddCopyAction(macText);
 
         // Device identity with icon and OS/Vendor details
@@ -703,10 +703,10 @@ public class ScannerPage : Border
                     Children =
                     {
                         iconControl,
-                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
+                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
                     }
                 },
-                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Opacity = 0.7 }
+                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Opacity = 0.7 }
             }
         };
 
@@ -776,7 +776,7 @@ public class ScannerPage : Border
         return new Border
         {
             Background = alternate ? ThemeTokens.SurfaceContainerLowest : Brushes.Transparent,
-            BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
+            BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(0, 14),
             Child = grid
@@ -789,8 +789,8 @@ public class ScannerPage : Border
         return new Border
         {
             Background = isHighlight
-                ? new SolidColorBrush(Color.Parse("#6B21A8"), 0.4)
-                : new SolidColorBrush(Color.Parse("#232A3A")),
+                ? ThemeTokens.PrimaryContainerActive
+                : ThemeTokens.SurfaceContainerHigh,
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8, 3),
             Child = new TextBlock
@@ -798,7 +798,7 @@ public class ScannerPage : Border
                 Text = port.ToString(),
                 FontSize = 11,
                 Foreground = isHighlight ? ThemeTokens.Primary : ThemeTokens.OnSurface,
-                FontFamily = new FontFamily("Inter"),
+                FontFamily = ThemeTokens.DefaultFont,
                 FontWeight = FontWeight.SemiBold
             }
         };

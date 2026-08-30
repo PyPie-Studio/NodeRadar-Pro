@@ -1,10 +1,9 @@
+using System;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using NodeRadarPro.Core;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace NodeRadarPro.UI;
 
@@ -20,6 +19,13 @@ public class UptimeChartControl : Control
     private static readonly IBrush OfflineBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.7);
     private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.Parse("#0C1322"), 0.3);
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.Parse("#1E293B"), 0.4), 1);
+    private static readonly FormattedText _noDataText = new(
+        "📈  Waiting for monitoring data...",
+        System.Globalization.CultureInfo.CurrentCulture,
+        FlowDirection.LeftToRight,
+        new Typeface("Inter"),
+        14,
+        new SolidColorBrush(Color.Parse("#4C4452"), 0.6));
 
     public void SetData(List<UptimeSnapshot> snapshots)
     {
@@ -48,15 +54,7 @@ public class UptimeChartControl : Control
 
         if (_snapshots.Count == 0)
         {
-            // Show "No data" message with DPI-friendly size
-            var ft = new FormattedText(
-                "📈  Waiting for monitoring data...",
-                System.Globalization.CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                new Typeface("Inter"),
-                14,
-                new SolidColorBrush(Color.Parse("#4C4452"), 0.6));
-            context.DrawText(ft, new Point(Math.Round((w - ft.Width) / 2), Math.Round((h - ft.Height) / 2)));
+            context.DrawText(_noDataText, new Point(Math.Round((w - _noDataText.Width) / 2), Math.Round((h - _noDataText.Height) / 2)));
             return;
         }
 
@@ -66,15 +64,19 @@ public class UptimeChartControl : Control
         double gap = Math.Max(1, Math.Floor(barWidth * 0.1));
         double startX = Math.Floor((w - (barCount * barWidth)) / 2);
 
-        // Find max latency for scaling
-        double maxLatency = _snapshots.Where(s => s.LatencyMs > 0).Select(s => (double)s.LatencyMs).DefaultIfEmpty(100).Max();
-        maxLatency = Math.Max(maxLatency, 20); // minimum scale
-
-        // Draw bars from right to left (most recent on right)
-        var recentSnapshots = _snapshots.TakeLast(barCount).ToList();
-        for (int i = 0; i < recentSnapshots.Count; i++)
+        // Find max latency for scaling using index loop
+        double maxLatency = 20.0;
+        int startIndex = Math.Max(0, _snapshots.Count - barCount);
+        for (int i = startIndex; i < _snapshots.Count; i++)
         {
-            var snapshot = recentSnapshots[i];
+            var lat = (double)_snapshots[i].LatencyMs;
+            if (lat > maxLatency) maxLatency = lat;
+        }
+
+        // Draw bars (most recent on right)
+        for (int i = 0; i < barCount && (startIndex + i) < _snapshots.Count; i++)
+        {
+            var snapshot = _snapshots[startIndex + i];
             double x = startX + i * barWidth;
 
             IBrush brush = snapshot.IsOnline ? OnlineBrush : OfflineBrush;

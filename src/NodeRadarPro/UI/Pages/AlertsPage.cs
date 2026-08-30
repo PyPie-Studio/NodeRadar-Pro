@@ -30,16 +30,16 @@ public class AlertsPage : Border
         Background = ThemeTokens.Surface;
 
         // Header
-        var label = new TextBlock { Text = "THREAT INTELLIGENCE", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = new FontFamily("Inter"), LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
+        var label = new TextBlock { Text = "THREAT INTELLIGENCE", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = ThemeTokens.DefaultFont, LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
         var title = ThemeTokens.Headline("Alert Center", 38);
         title.Margin = new Thickness(0, 0, 0, 6);
         var subtitle = ThemeTokens.Body("Monitor network anomalies, latency spikes, and connection events.", 16);
         var headerSection = new StackPanel { Margin = new Thickness(0, 0, 0, 24), Children = { label, title, subtitle } };
 
         // Quick Stats Cards
-        _activeCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, FontFamily = new FontFamily("Inter") };
-        _resolvedCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
-        _totalCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter") };
+        _activeCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont };
+        _resolvedCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
+        _totalCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont };
 
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 0, 0, 20) };
 
@@ -128,7 +128,7 @@ public class AlertsPage : Border
 
         if (filtered.Count == 0)
         {
-            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == "active" ? "✅  No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = new FontFamily("Inter") });
+            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == "active" ? "✅  No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = ThemeTokens.DefaultFont });
             return;
         }
 
@@ -142,9 +142,9 @@ public class AlertsPage : Border
         string typeText = alert.AlertType.GetDisplayName();
 
         var iconTb = new TextBlock { Text = icon, FontSize = 20, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
-        var titleTb = new TextBlock { Text = $"{typeText}: {alert.DeviceName}", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis };
-        var msgTb = new TextBlock { Text = alert.Message, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0) };
-        var timeTb = new TextBlock { Text = GetTimeAgo(alert.Timestamp), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") };
+        var titleTb = new TextBlock { Text = $"{typeText}: {alert.DeviceName}", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis };
+        var msgTb = new TextBlock { Text = alert.Message, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0) };
+        var timeTb = new TextBlock { Text = GetTimeAgo(alert.Timestamp), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont };
 
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { titleTb, msgTb } };
 
@@ -167,7 +167,7 @@ public class AlertsPage : Border
         else
         {
             row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-            var resolvedBadge = new Border { Background = new SolidColorBrush(Color.Parse("#005362"), 0.2), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = "Resolved", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") } };
+            var resolvedBadge = new Border { Background = ThemeTokens.TertiaryContainerFaint, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, Child = new TextBlock { Text = "Resolved", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont } };
             Grid.SetColumn(resolvedBadge, 3); row.Children.Add(resolvedBadge);
         }
 
@@ -184,7 +184,7 @@ public class AlertsPage : Border
 
     private Border MakeFilterChip(string text, string key, bool active)
     {
-        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
+        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
         chip.PointerPressed += (s, e) => { _filterMode = key; RefreshAlerts(); };
         return chip;
     }
@@ -192,7 +192,7 @@ public class AlertsPage : Border
     private static Border MakeStatCard(string icon, string label, TextBlock valueText, IBrush color)
     {
         var iconTb = new TextBlock { Text = icon, FontSize = 22, VerticalAlignment = VerticalAlignment.Top };
-        var labelTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 0) };
+        var labelTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 0) };
         return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconTb, valueText, labelTb } }, 20);
     }
 

@@ -1,5 +1,28 @@
 # NodeRadar Pro Changelog
 
+
+## NodeRadar Pro v1.6.0 (2026-08-30)
+
+### Bug Fixes
+- embed multi-resolution NodeRadar icon into setup installer
+
+### Maintenance and Refactoring
+- ≡ƒº╣ Remove MakeThresholdSliderCard wrapper and update call sites to use MakeSliderCard directly
+- ≡ƒº╣ Refactor MakeThresholdSliderCard to reduce duplication
+- ≡ƒº╣ refactor: reduce complexity in SettingsPage constructor
+- ≡ƒº╣ [remove deprecated GuessDeviceType method]
+- test: add unit tests for AlertTypeExtensions
+- test: add unit tests for IntrusionDetector
+- ≡ƒöÆ Replace System.Random with RandomNumberGenerator in NbnsProbe
+- ≡ƒöÆ Fix command injection in AppUtils.OpenSafeUrl
+- ≡ƒöÆ Enable online certificate revocation check in UpdateService
+- ≡ƒº¬ Add comprehensive unit tests for SsdpDiscoveryMethod
+- ≡ƒº╣ Consolidate duplicate catch blocks in SettingsPage
+- chore(deploy): enhance git staging and gh release handling in deploy pipeline
+- refactor(core): restructure solution topology into src and tests with 1:1 domain mirroring
+- ≡ƒº¬ test: add unit tests for SsdpProbe
+- test: add unit tests for DeepFingerprintEngine
+
 ## NodeRadar Pro v1.5.0 (2026-08-29)
 
 ### Architecture & Solution Restructuring

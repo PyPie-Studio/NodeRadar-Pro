@@ -16,6 +16,15 @@ namespace NodeRadarPro.UI;
 public static class ThemeTokens
 {
     // ═══════════════════════════════════════════
+    // ██  RAW PALETTE STRUCT COLORS
+    // ═══════════════════════════════════════════
+    public static readonly Color ColorTertiary = Color.Parse("#4CD7F6");
+    public static readonly Color ColorPrimary = Color.Parse("#DFB7FF");
+    public static readonly Color ColorPrimaryPurple = Color.Parse("#7C3AED");
+    public static readonly Color ColorPrimaryContainer = Color.Parse("#6B21A8");
+    public static readonly Color ColorError = Color.Parse("#FFB4AB");
+
+    // ═══════════════════════════════════════════
     // ██  SURFACE HIERARCHY (dark → light)
     // ═══════════════════════════════════════════
     public static readonly IBrush Surface = new SolidColorBrush(Color.Parse("#0C1322"), 0.7);
@@ -56,6 +65,27 @@ public static class ThemeTokens
     // ═══════════════════════════════════════════
     public static readonly IBrush Error = SolidColorBrush.Parse("#FFB4AB");
     public static readonly IBrush ErrorContainer = SolidColorBrush.Parse("#93000A");
+    public static readonly IBrush ErrorContainerSubtle = new SolidColorBrush(Color.Parse("#93000A"), 0.30);
+    public static readonly IBrush ErrorBorderSubtle = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.30);
+    public static readonly IBrush ErrorBorderFaint = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.15);
+
+    // ═══════════════════════════════════════════
+    // ██  WARNING & THREAT ACCENTS
+    // ═══════════════════════════════════════════
+    public static readonly IBrush Warning = SolidColorBrush.Parse("#FFCE50");
+    public static readonly IBrush WarningContainer = new SolidColorBrush(Color.Parse("#FFCE50"), 0.20);
+
+    // ═══════════════════════════════════════════
+    // ██  CONTAINER & GLASS ACCENTS
+    // ═══════════════════════════════════════════
+    public static readonly IBrush GlassSurface = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.02);
+    public static readonly IBrush GlassSurfaceCard = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03);
+    public static readonly IBrush GlassBorder = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.08);
+    public static readonly IBrush TertiaryContainerSubtle = new SolidColorBrush(Color.Parse("#005362"), 0.30);
+    public static readonly IBrush TertiaryContainerFaint = new SolidColorBrush(Color.Parse("#005362"), 0.20);
+    public static readonly IBrush PrimaryContainerSubtle = new SolidColorBrush(Color.Parse("#6B21A8"), 0.30);
+    public static readonly IBrush PrimaryContainerActive = new SolidColorBrush(Color.Parse("#6B21A8"), 0.40);
+    public static readonly IBrush SurfaceTableRow = SolidColorBrush.Parse("#0D1425");
 
     // ═══════════════════════════════════════════
     // ██  TEXT / ON-SURFACE
@@ -64,6 +94,11 @@ public static class ThemeTokens
     public static readonly IBrush OnSurfaceVariant = SolidColorBrush.Parse("#CFC2D4");
     public static readonly IBrush Outline = SolidColorBrush.Parse("#988D9E");
     public static readonly IBrush OutlineVariant = SolidColorBrush.Parse("#4C4452");
+
+    // ═══════════════════════════════════════════
+    // ██  TYPOGRAPHY
+    // ═══════════════════════════════════════════
+    public static readonly FontFamily DefaultFont = new("Inter");
 
     // ═══════════════════════════════════════════
     // ██  SIDEBAR-SPECIFIC
@@ -191,7 +226,7 @@ public static class ThemeTokens
         FontSize = size,
         FontWeight = FontWeight.Bold,
         Foreground = OnSurface,
-        FontFamily = new FontFamily("Inter")
+        FontFamily = DefaultFont
     };
 
     public static TextBlock Body(string text, double size = 16) => new()
@@ -200,7 +235,7 @@ public static class ThemeTokens
         FontSize = size,
         FontWeight = FontWeight.Normal,
         Foreground = OnSurfaceVariant,
-        FontFamily = new FontFamily("Inter")
+        FontFamily = DefaultFont
     };
 
     public static TextBlock Label(string text, double size = 13, IBrush? color = null) => new()
@@ -209,7 +244,7 @@ public static class ThemeTokens
         FontSize = size,
         FontWeight = FontWeight.Normal,
         Foreground = color ?? OnSurfaceVariant,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         LetterSpacing = 0.5
     };
 
@@ -221,11 +256,11 @@ public static class ThemeTokens
         Foreground = new SolidColorBrush(Color.Parse("#CFC2D4"), 0.7),
         LetterSpacing = 1.5,
         Margin = new Thickness(0, 4, 0, 8),
-        FontFamily = new FontFamily("Inter")
+        FontFamily = DefaultFont
     };
 
     public static readonly IBrush HealthSafe = Tertiary;
-    public static readonly IBrush HealthWarning = new SolidColorBrush(Color.Parse("#EAB308"));
+    public static readonly IBrush HealthWarning = Warning;
     public static readonly IBrush HealthCritical = Error;
 
     // ═══════════════════════════════════════════
@@ -244,10 +279,10 @@ public static class ThemeTokens
 
     public static Border GlassCard(Control child, double padding = 24) => new()
     {
-        Background = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.03),
+        Background = GlassSurfaceCard,
         CornerRadius = new CornerRadius(16),
         Padding = new Thickness(padding),
-        BorderBrush = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.08),
+        BorderBrush = GlassBorder,
         BorderThickness = new Thickness(1),
         ClipToBounds = true,
         Child = child
@@ -266,7 +301,7 @@ public static class ThemeTokens
         CornerRadius = new CornerRadius(InputRadius),
         Padding = new Thickness(12, 10),
         FontSize = 15,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         Width = double.IsNaN(width) ? double.NaN : width
     };
 
@@ -286,7 +321,7 @@ public static class ThemeTokens
         Foreground = Brushes.White,
         FontSize = 15,
         FontWeight = FontWeight.SemiBold,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         Height = 44,
         CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -302,7 +337,7 @@ public static class ThemeTokens
         Background = Brushes.Transparent,
         Foreground = OnSurface,
         FontSize = 15,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         Height = 44,
         CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -320,7 +355,7 @@ public static class ThemeTokens
         Background = Brushes.Transparent,
         Foreground = Tertiary,
         FontSize = 14,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
         Padding = new Thickness(8, 4),
@@ -334,14 +369,14 @@ public static class ThemeTokens
         Foreground = Error,
         FontSize = 15,
         FontWeight = FontWeight.SemiBold,
-        FontFamily = new FontFamily("Inter"),
+        FontFamily = DefaultFont,
         Height = 44,
         CornerRadius = new CornerRadius(8),
         HorizontalAlignment = HorizontalAlignment.Stretch,
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
         Padding = new Thickness(24, 0),
-        BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3),
+        BorderBrush = ErrorBorderSubtle,
         BorderThickness = new Thickness(1),
         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
@@ -377,9 +412,7 @@ public static class ThemeTokens
     {
         return new Border
         {
-            Background = isOnline
-                ? new SolidColorBrush(Color.Parse("#005362"), 0.3)
-                : new SolidColorBrush(Color.Parse("#93000A"), 0.3),
+            Background = isOnline ? TertiaryContainerSubtle : ErrorContainerSubtle,
             CornerRadius = new CornerRadius(4),
             Padding = new Thickness(8, 3),
             Child = new TextBlock
@@ -387,7 +420,7 @@ public static class ThemeTokens
                 Text = text,
                 FontSize = 11,
                 Foreground = isOnline ? Tertiary : Error,
-                FontFamily = new FontFamily("Inter")
+                FontFamily = DefaultFont
             }
         };
     }

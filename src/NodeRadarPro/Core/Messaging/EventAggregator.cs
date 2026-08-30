@@ -42,22 +42,16 @@ public class EventAggregator
     {
         if (_subscribers.TryGetValue(typeof(TMessage), out var list))
         {
-            List<Action<TMessage>> actionsToInvoke = new();
+            List<WeakSubscription> subscribersToInvoke;
             lock (list)
             {
                 list.RemoveAll(sub => !sub.IsAlive);
-                foreach (var sub in list)
-                {
-                    if (sub.GetDelegate() is Action<TMessage> typedAction)
-                    {
-                        actionsToInvoke.Add(typedAction);
-                    }
-                }
+                subscribersToInvoke = new List<WeakSubscription>(list);
             }
 
-            foreach (var action in actionsToInvoke)
+            foreach (var sub in subscribersToInvoke)
             {
-                action(message);
+                sub.TryInvoke(message);
             }
         }
     }
@@ -65,23 +59,40 @@ public class EventAggregator
 
 public class WeakSubscription
 {
-    private readonly WeakReference _targetRef;
+    private readonly WeakReference? _targetRef;
     private readonly System.Reflection.MethodInfo _method;
     private readonly Type _delegateType;
+    private readonly bool _isStatic;
 
     public WeakSubscription(Delegate d)
     {
-        _targetRef = new WeakReference(d.Target);
+        _targetRef = d.Target != null ? new WeakReference(d.Target) : null;
         _method = d.Method;
         _delegateType = d.GetType();
+        _isStatic = d.Method.IsStatic;
     }
 
-    public bool IsAlive => _targetRef.Target != null || _method.IsStatic;
+    public bool IsAlive => _isStatic || (_targetRef != null && _targetRef.IsAlive && _targetRef.Target != null);
 
     public Delegate? GetDelegate()
     {
-        var target = _targetRef.Target;
-        if (target == null && !_method.IsStatic) return null;
+        var target = _targetRef?.Target;
+        if (target == null && !_isStatic) return null;
         return Delegate.CreateDelegate(_delegateType, target, _method);
+    }
+
+    public bool TryInvoke<TMessage>(TMessage message)
+    {
+        var target = _targetRef?.Target;
+        if (target == null && !_isStatic) return false;
+        try
+        {
+            _method.Invoke(target, new object?[] { message });
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

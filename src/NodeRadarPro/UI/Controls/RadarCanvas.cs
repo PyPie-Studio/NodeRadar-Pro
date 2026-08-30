@@ -41,6 +41,81 @@ public class RadarCanvas : Control
     private static readonly Color SurfaceBg = Color.Parse("#070E1D");
     private static readonly Color RingColor = Color.Parse("#4CD7F6");
 
+    // Cached brushes and pens for zero-allocation 60 FPS rendering
+    private static readonly IBrush _bgBrush = new ImmutableSolidColorBrush(SurfaceBg, 0.7);
+    private static readonly IPen _innerShadowPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(15, 0, 0, 0)), 30);
+    private static readonly IPen[] _ringPens = new IPen[]
+    {
+        new ImmutablePen(new ImmutableSolidColorBrush(new Color(15, RingColor.R, RingColor.G, RingColor.B)), 1),
+        new ImmutablePen(new ImmutableSolidColorBrush(new Color(25, RingColor.R, RingColor.G, RingColor.B)), 1),
+        new ImmutablePen(new ImmutableSolidColorBrush(new Color(38, RingColor.R, RingColor.G, RingColor.B)), 1),
+        new ImmutablePen(new ImmutableSolidColorBrush(new Color(50, RingColor.R, RingColor.G, RingColor.B)), 1)
+    };
+    private static readonly IPen _crossPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(20, RingColor.R, RingColor.G, RingColor.B)), 0.5);
+    private static readonly IPen _sweepPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(200, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 2);
+    private static readonly IPen[] _trailPens = InitTrailPens();
+    private static readonly IPen[] _wavePens = InitWavePens();
+    private readonly Dictionary<string, FormattedText> _textCache = new();
+
+    private static readonly IBrush _hubGlow = new ImmutableSolidColorBrush(new Color(60, PrimaryPurple.R, PrimaryPurple.G, PrimaryPurple.B));
+    private static readonly IBrush _hubBrush = new ImmutableSolidColorBrush(PrimaryPurple);
+    private static readonly IBrush _hubInner = new ImmutableSolidColorBrush(OnPrimary);
+
+    private static readonly IBrush _cyanGlowBrush = new ImmutableSolidColorBrush(new Color(40, CyanGlow.R, CyanGlow.G, CyanGlow.B));
+    private static readonly IBrush _warningGlowBrush = new ImmutableSolidColorBrush(new Color(40, WarningGlow.R, WarningGlow.G, WarningGlow.B));
+    private static readonly IBrush _errorGlowBrush = new ImmutableSolidColorBrush(new Color(40, ErrorGlow.R, ErrorGlow.G, ErrorGlow.B));
+    private static readonly IBrush _cyanCoreBrush = new ImmutableSolidColorBrush(CyanGlow);
+    private static readonly IBrush _warningCoreBrush = new ImmutableSolidColorBrush(WarningGlow);
+    private static readonly IBrush _errorCoreBrush = new ImmutableSolidColorBrush(ErrorGlow);
+    private static readonly IBrush _offBrush = new ImmutableSolidColorBrush(new Color(150, ErrorGlow.R, ErrorGlow.G, ErrorGlow.B));
+
+    private static readonly IPen _registeredOnlinePen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, CyanGlow.R, CyanGlow.G, CyanGlow.B)), 1.5);
+    private static readonly IPen _registeredOfflinePen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ErrorGlow.R, ErrorGlow.G, ErrorGlow.B)), 1.5);
+    private static readonly IPen _selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5);
+
+    private static readonly IBrush _onlineTextColor = new ImmutableSolidColorBrush(Color.Parse("#DCE2F7"));
+    private static readonly IBrush _offlineTextColor = new ImmutableSolidColorBrush(new Color(100, 220, 226, 247));
+    private static readonly IBrush _zoomTextColor = new ImmutableSolidColorBrush(RingColor, 0.4);
+
+    private static readonly Typeface _typefaceNormal = new("Inter", FontStyle.Normal, FontWeight.Normal);
+    private static readonly Typeface _typefaceBold = new("Inter", FontStyle.Normal, FontWeight.Bold);
+
+    private static readonly FormattedText[] _coordinateLabels = InitCoordinateLabels();
+
+    private static IPen[] InitTrailPens()
+    {
+        var pens = new IPen[10];
+        for (int t = 1; t <= 10; t++)
+        {
+            byte alpha = (byte)Math.Max(5, 100 - (t * 10));
+            pens[t - 1] = new ImmutablePen(new ImmutableSolidColorBrush(new Color(alpha, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 1.2);
+        }
+        return pens;
+    }
+
+    private static IPen[] InitWavePens()
+    {
+        var pens = new IPen[41];
+        for (int a = 0; a <= 40; a++)
+        {
+            pens[a] = new ImmutablePen(new ImmutableSolidColorBrush(new Color((byte)a, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 2);
+        }
+        return pens;
+    }
+
+    private static FormattedText[] InitCoordinateLabels()
+    {
+        var labelBrush = new ImmutableSolidColorBrush(new Color(100, RingColor.R, RingColor.G, RingColor.B));
+        var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Bold);
+        string[] labels = { "N", "E", "S", "W" };
+        var list = new FormattedText[4];
+        for (int i = 0; i < 4; i++)
+        {
+            list[i] = new FormattedText(labels[i], System.Globalization.CultureInfo.InvariantCulture, FlowDirection.LeftToRight, labelTypeface, 16, labelBrush);
+        }
+        return list;
+    }
+
     public RadarCanvas()
     {
         _radarTimer = new Avalonia.Threading.DispatcherTimer
@@ -62,12 +137,14 @@ public class RadarCanvas : Control
     public void UpdateNodes(List<NetworkNode> nodes)
     {
         _activeNodes = nodes;
+        _textCache.Clear();
         InvalidateVisual();
     }
 
     public void SelectNode(string? macAddress)
     {
         _selectedMac = macAddress;
+        _textCache.Clear();
         InvalidateVisual();
     }
 
@@ -80,13 +157,25 @@ public class RadarCanvas : Control
         // Reset pan if zoomed out to 1.0 or less
         if (_zoomLevel <= 1.0) _panOffset = new Vector(0, 0);
 
+        _textCache.Clear();
         InvalidateVisual();
+    }
+
+    private static int ParseLastOctet(string ip)
+    {
+        if (string.IsNullOrEmpty(ip)) return 0;
+        int lastDot = ip.LastIndexOf('.');
+        if (lastDot >= 0 && lastDot < ip.Length - 1 && int.TryParse(ip.AsSpan(lastDot + 1), out int octet))
+        {
+            return octet;
+        }
+        return 0;
     }
 
     private Point GetNodePosition(NetworkNode node, Point center, double maxRadius)
     {
-        string[] ipParts = node.IpAddress.Split('.');
-        if (ipParts.Length == 4 && int.TryParse(ipParts[3], out int lastOctet))
+        int lastOctet = ParseLastOctet(node.IpAddress);
+        if (lastOctet > 0)
         {
             double nodeAngle = (lastOctet * 37.3) % 360;
             double nodeRad = nodeAngle * (Math.PI / 180.0);
@@ -179,55 +268,42 @@ public class RadarCanvas : Control
 
         using var clip = context.PushClip(new Rect(0, 0, bounds.Width, bounds.Height));
 
-        var topLevel = TopLevel.GetTopLevel(this);
-        double scaling = topLevel?.RenderScaling ?? 1.0;
-
         var center = new Point(bounds.Width / 2, bounds.Height / 2);
         double baseRadius = Math.Min(bounds.Width, bounds.Height) / 2.2;
         double maxRadius = baseRadius; // Fixed size for the radar circle
 
         // Background circle — deep surface
-        var bgBrush = new ImmutableSolidColorBrush(SurfaceBg, 0.7);
-        context.DrawEllipse(bgBrush, null, center, maxRadius, maxRadius);
+        context.DrawEllipse(_bgBrush, null, center, maxRadius, maxRadius);
 
         // Inner shadow ring
-        var innerShadowPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(15, 0, 0, 0)), 30);
-        context.DrawEllipse(null, innerShadowPen, center, Math.Max(1, maxRadius - 15), Math.Max(1, maxRadius - 15));
+        context.DrawEllipse(null, _innerShadowPen, center, Math.Max(1, maxRadius - 15), Math.Max(1, maxRadius - 15));
 
         // Concentric rings — tertiary cyan at increasing opacity
-        byte[] ringAlphas = { 15, 25, 38, 50 };
         for (int i = 1; i <= 4; i++)
         {
             double ringRadius = maxRadius * (i / 4.0);
-            byte alpha = ringAlphas[i - 1];
-            var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(alpha, RingColor.R, RingColor.G, RingColor.B)), 1);
-            context.DrawEllipse(null, ringPen, center, ringRadius, ringRadius);
+            context.DrawEllipse(null, _ringPens[i - 1], center, ringRadius, ringRadius);
         }
 
         // Coordinate Labels
-        var labelBrush = new ImmutableSolidColorBrush(new Color(100, RingColor.R, RingColor.G, RingColor.B));
-        var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Bold);
-        string[] labels = { "N", "E", "S", "W" };
         for (int i = 0; i < 4; i++)
         {
             double ang = (i * 90 - 90) * (Math.PI / 180.0);
-            var labelText = new FormattedText(labels[i], System.Globalization.CultureInfo.CurrentCulture, FlowDirection.LeftToRight, labelTypeface, 16, labelBrush);
+            var labelText = _coordinateLabels[i];
             double lx = center.X + Math.Cos(ang) * (maxRadius + 16) - (labelText.Width / 2);
             double ly = center.Y + Math.Sin(ang) * (maxRadius + 16) - (labelText.Height / 2);
             context.DrawText(labelText, new Point(lx, ly));
         }
 
         // Crosshairs — faint
-        var crossPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(20, RingColor.R, RingColor.G, RingColor.B)), 0.5);
-        context.DrawLine(crossPen, new Point(center.X, center.Y - maxRadius), new Point(center.X, center.Y + maxRadius));
-        context.DrawLine(crossPen, new Point(center.X - maxRadius, center.Y), new Point(center.X + maxRadius, center.Y));
+        context.DrawLine(_crossPen, new Point(center.X, center.Y - maxRadius), new Point(center.X, center.Y + maxRadius));
+        context.DrawLine(_crossPen, new Point(center.X - maxRadius, center.Y), new Point(center.X + maxRadius, center.Y));
 
         // Scanning Wave — an expanding, fading ring
         double waveProgress = (_radarAngle / 360.0); // 0.0 to 1.0
         double waveRadius = maxRadius * waveProgress;
-        byte waveAlpha = (byte)(40 * (1.0 - waveProgress));
-        var wavePen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(waveAlpha, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 2);
-        context.DrawEllipse(null, wavePen, center, waveRadius, waveRadius);
+        int waveAlpha = Math.Clamp((int)(40 * (1.0 - waveProgress)), 0, 40);
+        context.DrawEllipse(null, _wavePens[waveAlpha], center, waveRadius, waveRadius);
 
         // Sweep line — tertiary cyan
         double radians = _radarAngle * (Math.PI / 180.0);
@@ -236,8 +312,7 @@ public class RadarCanvas : Control
             center.Y + Math.Sin(radians) * maxRadius
         );
 
-        var sweepPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(200, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 2);
-        context.DrawLine(sweepPen, center, endPoint);
+        context.DrawLine(_sweepPen, center, endPoint);
 
         // Trailing sweep
         for (int t = 1; t <= 10; t++)
@@ -247,18 +322,13 @@ public class RadarCanvas : Control
                 center.X + Math.Cos(trailAngle) * maxRadius,
                 center.Y + Math.Sin(trailAngle) * maxRadius
             );
-            byte alpha = (byte)Math.Max(5, 100 - (t * 10));
-            var trailPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(alpha, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 1.2);
-            context.DrawLine(trailPen, center, trailEnd);
+            context.DrawLine(_trailPens[t - 1], center, trailEnd);
         }
 
         // Center hub — primary purple with inner dot
-        var hubGlow = new ImmutableSolidColorBrush(new Color(60, PrimaryPurple.R, PrimaryPurple.G, PrimaryPurple.B));
-        context.DrawEllipse(hubGlow, null, center, 12, 12);
-        var hubBrush = new ImmutableSolidColorBrush(PrimaryPurple);
-        context.DrawEllipse(hubBrush, null, center, 5, 5);
-        var hubInner = new ImmutableSolidColorBrush(OnPrimary);
-        context.DrawEllipse(hubInner, null, center, 2, 2);
+        context.DrawEllipse(_hubGlow, null, center, 12, 12);
+        context.DrawEllipse(_hubBrush, null, center, 5, 5);
+        context.DrawEllipse(_hubInner, null, center, 2, 2);
 
         // ── PUSH CLIPPING FOR NODES ──
         // Only draw nodes if they are within the radar circle
@@ -268,7 +338,6 @@ public class RadarCanvas : Control
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
 
         // Visibility Scaling: Make elements slightly larger as we zoom in for better clarity
-        // spacing out is already handled by the position calculation
         double nodeScale = Math.Max(1.0, 1.0 + (_zoomLevel - 1.0) * 0.15);
         double textScale = Math.Max(1.0, 1.0 + (_zoomLevel - 1.0) * 0.2);
 
@@ -285,70 +354,71 @@ public class RadarCanvas : Control
                 // Outer glow
                 double glowRadius = nodeBaseRadius + (5 * nodeScale) * pulseScale;
 
-                var glowColor = node.ThreatLevel switch
+                var glowBrush = node.ThreatLevel switch
                 {
-                    ThreatLevel.Critical => ErrorGlow,
-                    ThreatLevel.Warning => WarningGlow,
-                    _ => CyanGlow
+                    ThreatLevel.Critical => _errorGlowBrush,
+                    ThreatLevel.Warning => _warningGlowBrush,
+                    _ => _cyanGlowBrush
                 };
 
-                var glowBrush = new ImmutableSolidColorBrush(new Color(40, glowColor.R, glowColor.G, glowColor.B));
                 context.DrawEllipse(glowBrush, null, nodePoint, glowRadius, glowRadius);
 
                 // Core dot
-                var coreBrush = new ImmutableSolidColorBrush(glowColor);
+                var coreBrush = node.ThreatLevel switch
+                {
+                    ThreatLevel.Critical => _errorCoreBrush,
+                    ThreatLevel.Warning => _warningCoreBrush,
+                    _ => _cyanCoreBrush
+                };
                 context.DrawEllipse(coreBrush, null, nodePoint, nodeBaseRadius, nodeBaseRadius);
             }
             else
             {
                 double offRadius = nodeBaseRadius * 0.7;
-                var offBrush = new ImmutableSolidColorBrush(new Color(150, ErrorGlow.R, ErrorGlow.G, ErrorGlow.B));
-                context.DrawEllipse(offBrush, null, nodePoint, offRadius, offRadius);
+                context.DrawEllipse(_offBrush, null, nodePoint, offRadius, offRadius);
             }
 
             // Registered ring
             if (node.IsRegistered)
             {
-                var ringC = node.IsOnline ? CyanGlow : ErrorGlow;
-                var ringPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(80, ringC.R, ringC.G, ringC.B)), 1.5 * nodeScale);
+                var ringPen = node.IsOnline ? _registeredOnlinePen : _registeredOfflinePen;
                 context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * nodeScale), nodeBaseRadius + (4 * nodeScale));
             }
 
             // Selection highlight
             if (isSelected)
             {
-                var selectPen = new ImmutablePen(new ImmutableSolidColorBrush(Colors.White), 1.5 * nodeScale);
-                context.DrawEllipse(null, selectPen, nodePoint, nodeBaseRadius + (7 * nodeScale), nodeBaseRadius + (7 * nodeScale));
+                context.DrawEllipse(null, _selectPen, nodePoint, nodeBaseRadius + (7 * nodeScale), nodeBaseRadius + (7 * nodeScale));
             }
 
             // Label
-            var textColor = node.IsOnline
-                ? new ImmutableSolidColorBrush(Color.Parse("#DCE2F7"))
-                : new ImmutableSolidColorBrush(new Color(100, 220, 226, 247));
+            var textColor = node.IsOnline ? _onlineTextColor : _offlineTextColor;
+            var typeface = isSelected ? _typefaceBold : _typefaceNormal;
 
-            var typeface = new Typeface("Inter", FontStyle.Normal, isSelected ? FontWeight.Bold : FontWeight.Normal);
-            var formattedText = new FormattedText(
-                node.DisplayName,
-                System.Globalization.CultureInfo.CurrentCulture,
-                FlowDirection.LeftToRight,
-                typeface, 11 * textScale, textColor
-            );
+            string cacheKey = $"{node.MacAddress}|{node.DisplayName}|{node.IsOnline}|{isSelected}|{(int)(textScale * 100)}";
+            if (!_textCache.TryGetValue(cacheKey, out var formattedText))
+            {
+                formattedText = new FormattedText(
+                    node.DisplayName,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    typeface, 11 * textScale, textColor
+                );
+                _textCache[cacheKey] = formattedText;
+            }
 
             double textYOffset = nodePoint.Y > center.Y ? -(24 * nodeScale) : (18 * nodeScale);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
-
-        // Pop the nodeClip
-        // context automatically pops 'using' objects when they go out of scope.
 
         // Zoom Level Indicator (Subtle overlay)
         if (_zoomLevel != 1.0)
         {
             var zoomText = new FormattedText(
                 $"Zoom: {_zoomLevel:F1}x",
-                System.Globalization.CultureInfo.CurrentCulture,
+                System.Globalization.CultureInfo.InvariantCulture,
                 FlowDirection.LeftToRight,
-                new Typeface("Inter"), 12, new ImmutableSolidColorBrush(RingColor, 0.4)
+                _typefaceNormal, 12, _zoomTextColor
             );
             context.DrawText(zoomText, new Point(bounds.Width - zoomText.Width - 10, bounds.Height - zoomText.Height - 10));
         }

@@ -162,10 +162,13 @@ public class LocalDatabase : IDisposable
             var uptime = _db.GetCollection<UptimeSnapshot>("uptime");
             uptime.EnsureIndex("MacAddress", "$.MacAddress");
             uptime.EnsureIndex("Timestamp", "$.Timestamp");
+            uptime.EnsureIndex("Mac_Time", "$.MacAddress + '_' + $.Timestamp");
 
             // logs
             var logs = _db.GetCollection<LogEntry>("logs");
             logs.EnsureIndex("Timestamp", "$.Timestamp");
+            logs.EnsureIndex("DeviceMac", "$.DeviceMac");
+            logs.EnsureIndex("Level", "$.Level");
         }
     }
 
@@ -297,7 +300,6 @@ public class LocalDatabase : IDisposable
             {
                 collection.InsertBulk(toInsert);
             }
-            Checkpoint();
 
             return newNodes;
         }
@@ -417,6 +419,21 @@ public class LocalDatabase : IDisposable
             try
             {
                 return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
+            }
+            catch
+            {
+                return new List<NetworkNode>();
+            }
+        }
+    }
+
+    public List<NetworkNode> GetAllDevices()
+    {
+        lock (SyncRoot)
+        {
+            try
+            {
+                return _db.GetCollection<NetworkNode>("devices").FindAll().ToList();
             }
             catch
             {

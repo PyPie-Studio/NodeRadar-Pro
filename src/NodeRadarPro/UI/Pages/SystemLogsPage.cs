@@ -36,7 +36,7 @@ public class SystemLogsPage : Border
         Background = ThemeTokens.Surface;
 
         // Header
-        var label = new TextBlock { Text = "SYSTEM TELEMETRY", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = new FontFamily("Inter"), LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
+        var label = new TextBlock { Text = "SYSTEM TELEMETRY", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = ThemeTokens.DefaultFont, LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
         var title = ThemeTokens.Headline("System Logs", 38);
         title.Margin = new Thickness(0, 0, 0, 6);
         var subtitle = ThemeTokens.Body("Event log viewer for scan events, device status changes, and alert triggers.", 16);
@@ -58,10 +58,9 @@ public class SystemLogsPage : Border
 
         // Quick Stats — TextBlocks are now class fields so they update on refresh (B5)
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 20, 0, 20) };
-
-        _infoStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
-        _warnStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Color.Parse("#FFCE50")), FontFamily = new FontFamily("Inter") };
-        _errorStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, FontFamily = new FontFamily("Inter") };
+        _infoStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
+        _warnStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Warning, FontFamily = ThemeTokens.DefaultFont };
+        _errorStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont };
 
         var infoCard = MakeLogStatCard("ℹ", "Info", _infoStatValue);
         var warnCard = MakeLogStatCard("⚠", "Warnings", _warnStatValue);
@@ -76,7 +75,9 @@ public class SystemLogsPage : Border
         var clearBtn = new Button
         {
             Content = "Reset All Filters",
-            FontSize = 12,
+            FontSize = 13,
+            FontFamily = ThemeTokens.DefaultFont,
+            FontWeight = FontWeight.Medium,
             Background = Brushes.Transparent,
             Foreground = ThemeTokens.Error,
             Padding = new Thickness(10, 4),
@@ -87,14 +88,31 @@ public class SystemLogsPage : Border
 
         var searchIcon = new TextBlock { Text = "🔍", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 8, 0) };
         _searchBox = ThemeTokens.Input("Search logs..."); _searchBox.Width = 200; _searchBox.FontSize = 14; _searchBox.Padding = new Thickness(10, 6); _searchBox.Background = Brushes.Transparent;
-        _searchBox.TextChanged += (s, e) => RefreshLogs();
-        ThemeTokens.SetToolTip(_searchBox, "Live search through message content, log sources, or device MAC addresses.");
-        var searchWrap = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 0), Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { searchIcon, _searchBox } } };
 
-        _autoScrollToggle = new CheckBox { Content = "Auto-scroll", Foreground = ThemeTokens.OnSurfaceVariant, FontSize = 13, FontFamily = new FontFamily("Inter"), IsChecked = true, Margin = new Thickness(12, 0, 0, 0) };
+        var clearSearchBtn = new Button
+        {
+            Content = "✖",
+            FontSize = 11,
+            Background = Brushes.Transparent,
+            Foreground = ThemeTokens.OnSurfaceVariant,
+            Padding = new Thickness(6, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            IsVisible = false,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; RefreshLogs(); };
+        _searchBox.TextChanged += (s, e) =>
+        {
+            clearSearchBtn.IsVisible = !string.IsNullOrEmpty(_searchBox.Text);
+            RefreshLogs();
+        };
+        ThemeTokens.SetToolTip(_searchBox, "Live search through message content, log sources, or device MAC addresses.");
+        var searchWrap = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 0), Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { searchIcon, _searchBox, clearSearchBtn } } };
+
+        _autoScrollToggle = new CheckBox { Content = "Auto-scroll", Foreground = ThemeTokens.OnSurfaceVariant, FontSize = 13, FontFamily = ThemeTokens.DefaultFont, IsChecked = true, Margin = new Thickness(12, 0, 0, 0) };
         ThemeTokens.SetToolTip(_autoScrollToggle, "Automatically jump to the newest log entry when a system event occurs.");
 
-        _entryCount = new TextBlock { Text = "(0 entries)", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+        _entryCount = new TextBlock { Text = "(0 entries)", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
 
         var filterBarGrid = new Grid();
         filterBarGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -188,14 +206,14 @@ public class SystemLogsPage : Border
     private Border BuildLogRow(LogEntry log)
     {
         string icon = log.Level switch { LogLevel.Info => "ℹ", LogLevel.Warning => "⚠", LogLevel.Error => "❌", _ => "•" };
-        IBrush levelColor = log.Level switch { LogLevel.Info => ThemeTokens.Tertiary, LogLevel.Warning => new SolidColorBrush(Color.Parse("#FFCE50")), LogLevel.Error => ThemeTokens.Error, _ => ThemeTokens.OnSurfaceVariant };
+        IBrush levelColor = log.Level switch { LogLevel.Info => ThemeTokens.Tertiary, LogLevel.Warning => ThemeTokens.Warning, LogLevel.Error => ThemeTokens.Error, _ => ThemeTokens.OnSurfaceVariant };
 
         var iconTb = new TextBlock { Text = icon, FontSize = 14, Foreground = levelColor, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Width = 20 };
 
-        var timeTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("HH:mm:ss"), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, Width = 80, Margin = new Thickness(0, 0, 10, 0) };
-        var srcTb = new Border { Background = ThemeTokens.SurfaceContainerHigh, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = new TextBlock { Text = log.Source, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
-        var msgTb = new TextBlock { Text = log.Message, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
-        var dateTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("MMM dd"), FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center };
+        var timeTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("hh:mm:ss tt"), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Width = 105, Margin = new Thickness(0, 0, 10, 0) };
+        var srcTb = new Border { Background = ThemeTokens.SurfaceContainerHigh, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = new TextBlock { Text = log.Source, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
+        var msgTb = new TextBlock { Text = log.Message, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+        var dateTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("MMM dd"), FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center };
 
         var row = new Grid();
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
@@ -212,7 +230,7 @@ public class SystemLogsPage : Border
     private Border MakeLevelChip(string text, LogLevel? level)
     {
         bool active = _levelFilter == level;
-        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium } };
+        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
         chip.PointerPressed += (s, e) => { _levelFilter = level; RefreshLogs(); };
         return chip;
     }
@@ -220,7 +238,7 @@ public class SystemLogsPage : Border
     private static Border MakeLogStatCard(string icon, string label, TextBlock valueText)
     {
         var iconTb = new TextBlock { Text = icon, FontSize = 20, VerticalAlignment = VerticalAlignment.Top };
-        var lblTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 0) };
+        var lblTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 0) };
         return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconTb, valueText, lblTb } }, 20);
     }
 

@@ -145,7 +145,7 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
             int result = SendARP(destIp, 0, macAddr, ref macAddrLen);
             if (result == 0)
             {
-                return string.Join(":", macAddr.Select(b => b.ToString("X2")));
+                return ArpResolver.FormatMacAddress(macAddr);
             }
         }
         catch { }

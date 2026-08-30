@@ -16,7 +16,7 @@ public class TopNavBar : Border
     public TopNavBar()
     {
         Height = ThemeTokens.TopBarHeight;
-        Background = new SolidColorBrush(Color.Parse("#0C1322"), 0.9);
+        Background = ThemeTokens.SurfaceDim;
         BoxShadow = new BoxShadows(new BoxShadow
         {
             OffsetY = 1,
@@ -30,9 +30,9 @@ public class TopNavBar : Border
             Text = "NODE RADAR PRO",
             FontSize = 13,
             FontWeight = FontWeight.Bold,
-            Foreground = SolidColorBrush.Parse("#A855F7"),
+            Foreground = ThemeTokens.NavAccentBorder,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             LetterSpacing = 3
         };
 
@@ -47,7 +47,7 @@ public class TopNavBar : Border
             FontSize = 12,
             Foreground = ThemeTokens.Tertiary,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Inter")
+            FontFamily = ThemeTokens.DefaultFont
         };
         ThemeTokens.SetToolTip(_healthText, "Overall network stability based on active device heartbeat and alert count.");
 
@@ -67,7 +67,7 @@ public class TopNavBar : Border
             FontSize = 12,
             Foreground = ThemeTokens.SlateText,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Inter")
+            FontFamily = ThemeTokens.DefaultFont
         };
         ThemeTokens.SetToolTip(_latencyText, "Average round-trip time (RTT) across all monitored network nodes.");
 
@@ -81,14 +81,14 @@ public class TopNavBar : Border
         // Right: Version badge
         var versionBadge = new TextBlock
         {
-            Text = "v1.0.0",
+            Text = $"v{ThemeTokens.AppVersion}",
             FontSize = 11,
             Foreground = ThemeTokens.SlateText,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             Opacity = 0.7
         };
-        ThemeTokens.SetToolTip(versionBadge, "Production Build v1.0.0 - PyPie Studio");
+        ThemeTokens.SetToolTip(versionBadge, $"Production Build v{ThemeTokens.AppVersion} - PyPie Studio");
         var rightGroup = new StackPanel
         {
             Orientation = Orientation.Horizontal,

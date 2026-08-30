@@ -44,7 +44,7 @@ public class TraceroutePage : Border
         _stopBtn.Width = 100;
         _stopBtn.Height = 44;
         _stopBtn.Foreground = ThemeTokens.Error;
-        _stopBtn.BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.3);
+        _stopBtn.BorderBrush = ThemeTokens.ErrorBorderSubtle;
         _stopBtn.Click += OnStopTrace;
         _stopBtn.IsEnabled = false;
 
@@ -164,13 +164,13 @@ public class TraceroutePage : Border
         // Visual Connector (Vertical line)
         var connector = new Border { Width = 2, Background = ThemeTokens.GhostBorder30, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Stretch };
         var dot = new Border { Width = 10, Height = 10, CornerRadius = new CornerRadius(5), Background = hop.Status ? (hop.IsDestination ? ThemeTokens.Tertiary : ThemeTokens.Primary) : ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        if (hop.Status) dot.BoxShadow = new BoxShadows(new BoxShadow { Blur = 8, Color = hop.IsDestination ? Color.Parse("#4CD7F6") : Color.Parse("#7C3AED") });
+        if (hop.Status) dot.BoxShadow = new BoxShadows(new BoxShadow { Blur = 8, Color = hop.IsDestination ? ThemeTokens.ColorTertiary : ThemeTokens.ColorPrimaryPurple });
 
         var visualStack = new Panel { Children = { connector, dot }, Margin = new Thickness(16, 0) };
 
         var hopNum = new TextBlock { Text = hop.HopNumber.ToString(), FontSize = 16, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
-        var ipText = new TextBlock { Text = hop.IpAddress, FontSize = 14, Foreground = hop.Status ? ThemeTokens.OnSurface : ThemeTokens.Error, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center };
-        var hostText = new TextBlock { Text = hop.Hostname, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+        var ipText = new TextBlock { Text = hop.IpAddress, FontSize = 14, Foreground = hop.Status ? ThemeTokens.OnSurface : ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center };
+        var hostText = new TextBlock { Text = hop.Hostname, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
         var latText = new TextBlock { Text = hop.LatencyMs >= 0 ? $"{hop.LatencyMs}ms" : "*", FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 20, 0) };
 
         ThemeTokens.AddCopyAction(ipText);

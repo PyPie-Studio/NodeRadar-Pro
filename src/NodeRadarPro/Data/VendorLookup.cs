@@ -3813,6 +3813,5 @@ public static class VendorLookup
         return "Unknown Vendor";
     }
 
-
 }
 

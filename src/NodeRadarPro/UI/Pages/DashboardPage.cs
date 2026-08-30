@@ -56,7 +56,7 @@ public class DashboardPage : Border
             CornerRadius = new CornerRadius(50),
             BorderThickness = new Thickness(6),
             BorderBrush = ThemeTokens.Tertiary,
-            Background = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.02),
+            Background = ThemeTokens.GlassSurface,
             Child = gaugeContent
         };
 
@@ -101,7 +101,7 @@ public class DashboardPage : Border
         Grid.SetColumn(alertTitle, 0); Grid.SetColumn(logBtn, 1);
         alertHeader.Children.Add(alertTitle); alertHeader.Children.Add(logBtn);
         var alertCard = ThemeTokens.Card(new StackPanel { Children = { alertHeader, _alertCount } }, ThemeTokens.SurfaceContainerHigh, 20);
-        alertCard.BorderBrush = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.15);
+        alertCard.BorderBrush = ThemeTokens.ErrorBorderFaint;
 
         // ── Real-time Pings ──
         var pingHeader = new Border { Padding = new Thickness(0, 0, 0, 12), BorderBrush = ThemeTokens.GhostBorder, BorderThickness = new Thickness(0, 0, 0, 1), Child = ThemeTokens.Label("REAL-TIME TRAFFIC", 10) };
@@ -183,8 +183,8 @@ public class DashboardPage : Border
     {
         var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(GridLength.Auto), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
         var dot = ThemeTokens.StatusDot(node.IsOnline, 6); dot.VerticalAlignment = VerticalAlignment.Center; dot.Margin = new Thickness(0, 0, 10, 0);
-        var name = new TextBlock { Text = node.IpAddress, FontSize = 12, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
-        var lat = new TextBlock { Text = node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}ms" : (node.IsOnline ? "ARP" : "—"), FontSize = 11, Foreground = node.PingLatencyMs > 100 ? ThemeTokens.Error : ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), HorizontalAlignment = HorizontalAlignment.Right };
+        var name = new TextBlock { Text = node.IpAddress, FontSize = 12, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont };
+        var lat = new TextBlock { Text = node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}ms" : (node.IsOnline ? "ARP" : "—"), FontSize = 11, Foreground = node.PingLatencyMs > 100 ? ThemeTokens.Error : ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, HorizontalAlignment = HorizontalAlignment.Right };
 
         Grid.SetColumn(dot, 0); Grid.SetColumn(name, 1); Grid.SetColumn(lat, 2);
         grid.Children.Add(dot); grid.Children.Add(name); grid.Children.Add(lat);

@@ -5,10 +5,13 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using NodeRadarPro.Core;
+using NodeRadarPro.Data;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace NodeRadarPro.UI;
@@ -27,7 +30,7 @@ public class SupportPage : Border
         // ═══════════════════════
         // HEADER
         // ═══════════════════════
-        var label = new TextBlock { Text = "SUPPORT & ABOUT", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = new FontFamily("Inter"), LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
+        var label = new TextBlock { Text = "SUPPORT & ABOUT", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.NavAccentBorder, FontFamily = ThemeTokens.DefaultFont, LetterSpacing = 2.5, Margin = new Thickness(0, 0, 0, 8) };
         var title = ThemeTokens.Headline("NodeRadar Pro", 38);
         title.Margin = new Thickness(0, 0, 0, 4);
         var subtitle = ThemeTokens.Body("Advanced network reconnaissance toolkit by PyPie Studio.", 16);
@@ -61,8 +64,8 @@ public class SupportPage : Border
         };
 
         var appName = ThemeTokens.Headline("NodeRadar Pro", 26);
-        var appCompany = new TextBlock { Text = "by PyPie Studio", FontSize = 16, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, Margin = new Thickness(0, 2, 0, 4) };
-        var versionBadge = new Border { Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.3), CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 4), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = $"Version {ThemeTokens.AppVersion} • {BuildDate}", FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } };
+        var appCompany = new TextBlock { Text = "by PyPie Studio", FontSize = 16, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium, Margin = new Thickness(0, 2, 0, 4) };
+        var versionBadge = new Border { Background = ThemeTokens.PrimaryContainerSubtle, CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 4), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = $"Version {ThemeTokens.AppVersion} • {BuildDate}", FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold } };
 
         var infoTextCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { appName, appCompany, versionBadge } };
         var infoHeader = new StackPanel { Orientation = Orientation.Horizontal, Children = { logoIcon, infoTextCol } };
@@ -99,11 +102,11 @@ public class SupportPage : Border
         var updatesTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 16), Children = { updatesIcon, updatesTitle } };
 
         var currentVerLabel = ThemeTokens.Label("CURRENT VERSION", 12); currentVerLabel.LetterSpacing = 1.5; currentVerLabel.Margin = new Thickness(0, 0, 0, 4);
-        var currentVer = new TextBlock { Text = $"v{ThemeTokens.AppVersion}", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
+        var currentVer = new TextBlock { Text = $"v{ThemeTokens.AppVersion}", FontSize = 22, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
 
         var statusRow = new Border
         {
-            Background = new SolidColorBrush(Color.Parse("#005362"), 0.2),
+            Background = ThemeTokens.TertiaryContainerFaint,
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(14, 10),
             Margin = new Thickness(0, 12, 0, 0),
@@ -114,7 +117,7 @@ public class SupportPage : Border
                 Children =
                 {
                     ThemeTokens.StatusDot(true, 10),
-                    new TextBlock { Text = "You are running the latest version.", FontSize = 15, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter"), VerticalAlignment = VerticalAlignment.Center }
+                    new TextBlock { Text = "You are running the latest version.", FontSize = 15, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center }
                 }
             }
         };
@@ -200,7 +203,7 @@ public class SupportPage : Border
                     {
                         if (checkUpdateBtn.Tag is not string)
                         {
-                            checkUpdateBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 16, Brushes.White), new TextBlock { Text = "Check for Updates", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } } };
+                            checkUpdateBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 16, Brushes.White), new TextBlock { Text = "Check for Updates", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold } } };
                         }
                         timer.Stop();
                     };
@@ -247,12 +250,12 @@ public class SupportPage : Border
         var reportTitle = ThemeTokens.Headline("Security Reporting", 20);
         var reportTitleRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 16), Children = { reportIcon, reportTitle } };
 
-        var reportDesc = ThemeTokens.Body("Generate a PDF audit of your current network state, including vulnerability assessments and device inventory.", 14);
+        var reportDesc = ThemeTokens.Body("Generate a comprehensive security audit of your network state and device inventory exported to your Desktop.", 14);
         reportDesc.Margin = new Thickness(0, 0, 0, 20);
         reportDesc.TextWrapping = TextWrapping.Wrap;
 
         var generateBtn = ThemeTokens.PrimaryButton("🛡  Generate Security Audit");
-        ThemeTokens.SetToolTip(generateBtn, "Export a comprehensive PDF security report to your Desktop.");
+        ThemeTokens.SetToolTip(generateBtn, "Export a comprehensive Markdown security audit report to your Desktop.");
         generateBtn.Height = 50;
 
         var progressIndicator = new ProgressBar
@@ -270,12 +273,101 @@ public class SupportPage : Border
             generateBtn.IsEnabled = false;
             progressIndicator.IsVisible = true;
             generateBtn.Content = "⚙  Analyzing Network...";
-            await Task.Delay(2500);
-            generateBtn.Content = "✅  Audit Exported to Desktop";
-            progressIndicator.IsVisible = false;
-            var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-            timer.Tick += (s2, e2) => { generateBtn.Content = "🛡  Generate Security Audit"; generateBtn.IsEnabled = true; timer.Stop(); };
-            timer.Start();
+
+            try
+            {
+                var (path, content) = await Task.Run<(string, string)>(() =>
+                {
+                    var db = LocalDatabase.Instance;
+                    var devices = db.GetAllDevices();
+                    var alerts = db.GetAlerts(500);
+                    var logs = db.GetLogs(100);
+
+                    var sb = new StringBuilder();
+                    sb.AppendLine("# NodeRadar Pro — Security & Reconnaissance Audit");
+                    sb.AppendLine($"**Generated:** {DateTime.Now:yyyy-MM-dd hh:mm:ss tt}");
+                    sb.AppendLine($"**Application Version:** v{ThemeTokens.AppVersion}");
+                    sb.AppendLine($"**Environment:** {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
+                    sb.AppendLine();
+
+                    int total = devices.Count;
+                    int online = devices.Count(d => d.IsOnline);
+                    int threats = devices.Count(d => d.ThreatLevel != ThreatLevel.Safe);
+                    int critical = devices.Count(d => d.ThreatLevel == ThreatLevel.Critical);
+                    int warning = devices.Count(d => d.ThreatLevel == ThreatLevel.Warning);
+                    int registered = devices.Count(d => d.IsRegistered);
+                    int activeAlerts = alerts.Count(a => !a.IsResolved);
+
+                    sb.AppendLine("## 1. Executive Summary");
+                    sb.AppendLine($"- **Total Tracked Devices:** {total}");
+                    sb.AppendLine($"- **Online Devices:** {online} ({(total > 0 ? (online * 100 / total) : 0)}%)");
+                    sb.AppendLine($"- **Registered Assets:** {registered}");
+                    sb.AppendLine($"- **Security Threat Devices:** {threats} ({critical} Critical, {warning} Warning)");
+                    sb.AppendLine($"- **Active / Unresolved Alerts:** {activeAlerts}");
+                    sb.AppendLine();
+
+                    if (threats > 0)
+                    {
+                        sb.AppendLine("## 2. Threat Vector Summary");
+                        sb.AppendLine("| IP Address | MAC Address | Identity / Vendor | Threat Level | Open Ports |");
+                        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- |");
+                        foreach (var d in devices.Where(x => x.ThreatLevel != ThreatLevel.Safe))
+                        {
+                            string ports = (d.OpenPorts != null && d.OpenPorts.Count > 0) ? string.Join(", ", d.OpenPorts) : "None";
+                            sb.AppendLine($"| {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | **{d.ThreatLevel}** | {ports} |");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    sb.AppendLine("## 3. Discovered Network Assets");
+                    sb.AppendLine("| Status | IP Address | MAC Address | Device Name | Vendor / Model | OS Guess |");
+                    sb.AppendLine("| :---: | :--- | :--- | :--- | :--- | :--- |");
+                    foreach (var d in devices)
+                    {
+                        string status = d.IsOnline ? "ONLINE" : "OFFLINE";
+                        string model = !string.IsNullOrEmpty(d.ExactModel) ? d.ExactModel : (!string.IsNullOrEmpty(d.DeviceModel) ? d.DeviceModel : "—");
+                        string os = !string.IsNullOrEmpty(d.OsGuess) ? d.OsGuess : "—";
+                        sb.AppendLine($"| {status} | {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | {model} | {os} |");
+                    }
+                    sb.AppendLine();
+
+                    if (alerts.Count > 0)
+                    {
+                        sb.AppendLine("## 4. Recent Security Alerts");
+                        sb.AppendLine("| Timestamp | State | Event Type | Target | Message |");
+                        sb.AppendLine("| :--- | :---: | :--- | :--- | :--- |");
+                        foreach (var a in alerts.Take(25))
+                        {
+                            string state = a.IsResolved ? "Resolved" : "**ACTIVE**";
+                            sb.AppendLine($"| {a.Timestamp:yyyy-MM-dd hh:mm:ss tt} | {state} | {a.AlertType.GetDisplayName()} | {a.DeviceName} | {a.Message} |");
+                        }
+                        sb.AppendLine();
+                    }
+
+                    string exportPath = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
+                        $"NodeRadar_Security_Audit_{DateTime.Now:yyyyMMdd_HHmmss}.md");
+
+                    return (exportPath, sb.ToString());
+                });
+
+                await File.WriteAllTextAsync(path, content);
+                LocalDatabase.Instance.Log(LogLevel.Info, "Audit", $"Security audit exported to {path}");
+
+                generateBtn.Content = "✅  Audit Exported to Desktop";
+            }
+            catch (Exception ex)
+            {
+                LocalDatabase.Instance.Log(LogLevel.Error, "Audit", $"Security audit failed: {ex.Message}");
+                generateBtn.Content = "❌  Export Failed";
+            }
+            finally
+            {
+                progressIndicator.IsVisible = false;
+                var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
+                timer.Tick += (s2, e2) => { generateBtn.Content = "🛡  Generate Security Audit"; generateBtn.IsEnabled = true; timer.Stop(); };
+                timer.Start();
+            }
         };
 
         var reportContent = new StackPanel { Children = { reportTitleRow, reportDesc, generateBtn, progressIndicator } };
@@ -375,8 +467,8 @@ public class SupportPage : Border
         row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(180)));
         row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
 
-        var labelTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") };
-        var valueTb = new TextBlock { Text = value, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis };
+        var labelTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont };
+        var valueTb = new TextBlock { Text = value, FontSize = 14, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis };
         Grid.SetColumn(labelTb, 0); Grid.SetColumn(valueTb, 1);
         row.Children.Add(labelTb); row.Children.Add(valueTb);
 
@@ -414,8 +506,8 @@ public class SupportPage : Border
                         VerticalAlignment = VerticalAlignment.Center,
                         Children =
                         {
-                            new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                            new TextBlock { Text = desc, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) }
+                            new TextBlock { Text = title, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont },
+                            new TextBlock { Text = desc, FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 2, 0, 0) }
                         }
                     }
                 }
@@ -430,7 +522,7 @@ public class SupportPage : Border
 
     private static Border MakeLinkRow(Control icon, string label, string value, string? url = null, string? tip = null)
     {
-        var valueTb = new TextBlock { Text = value, FontSize = 15, Foreground = url != null ? ThemeTokens.Tertiary : ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.Medium };
+        var valueTb = new TextBlock { Text = value, FontSize = 15, Foreground = url != null ? ThemeTokens.Tertiary : ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium };
 
         var row = new Border
         {
@@ -452,7 +544,7 @@ public class SupportPage : Border
                         VerticalAlignment = VerticalAlignment.Center,
                         Children =
                         {
-                            new TextBlock { Text = label, FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter") },
+                            new TextBlock { Text = label, FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont },
                             valueTb
                         }
                     }
@@ -489,8 +581,8 @@ public class SupportPage : Border
                 Spacing = 6,
                 Children =
                 {
-                    new TextBlock { Text = question, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                    new TextBlock { Text = answer, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), TextWrapping = TextWrapping.Wrap }
+                    new TextBlock { Text = question, FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont },
+                    new TextBlock { Text = answer, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextWrapping = TextWrapping.Wrap }
                 }
             }
         };
@@ -511,8 +603,8 @@ public class SupportPage : Border
             Spacing = 4,
             Children =
             {
-                new Border { Background = new SolidColorBrush(Color.Parse("#6B21A8"), 0.3), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = version, FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter"), FontWeight = FontWeight.SemiBold } },
-                new TextBlock { Text = description, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) }
+                new Border { Background = ThemeTokens.PrimaryContainerSubtle, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = version, FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold } },
+                new TextBlock { Text = description, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) }
             }
         }
     };

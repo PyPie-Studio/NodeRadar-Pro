@@ -174,7 +174,7 @@ public class SubnetScanner
 
     public virtual async Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
     {
-        await DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token);
+        _ = Task.Run(() => DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token), token);
         ResolveBindingIp();
         var activeNodes = new ConcurrentBag<NetworkNode>();
         var registeredDevicesCache = Data.LocalDatabase.Instance.GetRegisteredDevices();
@@ -346,7 +346,7 @@ public class SubnetScanner
 
         try
         {
-            mac = await Task.Run(() => _arpResolver.ResolveMacAddress(ip, _localBindingIp));
+            mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
 
             // Fallback: If direct SendARP failed, check the full system ARP table
             if (mac == "Unknown")
@@ -367,32 +367,39 @@ public class SubnetScanner
         if (!isReachable && !token.IsCancellationRequested)
         {
             int[] stealthPorts = { 135, 137, 139, 445, 80, 443, 5357 }; // Windows WSD, SMB, NetBIOS
-            foreach (int port in stealthPorts)
+            int stealthTimeout = Math.Min(TimeoutMs, 200);
+            using var stealthCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+            stealthCts.CancelAfter(stealthTimeout);
+
+            var probeTasks = stealthPorts.Select(async port =>
             {
                 try
                 {
                     using var tcp = new TcpClient();
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    cts.CancelAfter(Math.Min(TimeoutMs, 200));
-
-                    var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
-                    await connectTask;
+                    await tcp.ConnectAsync(ip, port, stealthCts.Token);
                     if (tcp.Connected)
                     {
-                        isReachable = true;
-                        if (mac == "Unknown")
-                        {
-                            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, _localBindingIp));
-                            if (mac == "Unknown")
-                            {
-                                var table = ArpResolver.GetFullArpTableAsDictionary();
-                                if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
-                            }
-                        }
-                        break;
+                        stealthCts.Cancel();
+                        return true;
                     }
                 }
                 catch { }
+                return false;
+            }).ToList();
+
+            var probeResults = await Task.WhenAll(probeTasks);
+            if (probeResults.Any(r => r))
+            {
+                isReachable = true;
+                if (mac == "Unknown")
+                {
+                    mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
+                    if (mac == "Unknown")
+                    {
+                        var table = ArpResolver.GetFullArpTableAsDictionary();
+                        if (table.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac)) mac = foundMac;
+                    }
+                }
             }
         }
 

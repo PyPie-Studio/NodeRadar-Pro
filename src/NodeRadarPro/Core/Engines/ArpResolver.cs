@@ -112,6 +112,25 @@ public static class ArpResolver
 
     // ── Windows: Single IP resolution via SendARP API ──
 
+    public static string FormatMacAddress(ReadOnlySpan<byte> macAddr)
+    {
+        if (macAddr.Length < 6) return "Unknown";
+        return string.Create(17, (macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]), (span, bytes) =>
+        {
+            bytes.Item1.TryFormat(span.Slice(0, 2), out _, "X2");
+            span[2] = ':';
+            bytes.Item2.TryFormat(span.Slice(3, 2), out _, "X2");
+            span[5] = ':';
+            bytes.Item3.TryFormat(span.Slice(6, 2), out _, "X2");
+            span[8] = ':';
+            bytes.Item4.TryFormat(span.Slice(9, 2), out _, "X2");
+            span[11] = ':';
+            bytes.Item5.TryFormat(span.Slice(12, 2), out _, "X2");
+            span[14] = ':';
+            bytes.Item6.TryFormat(span.Slice(15, 2), out _, "X2");
+        });
+    }
+
     private static string ResolveWindows(string ipAddress, string sourceIp, SendArpDelegate? sendArp)
     {
         try
@@ -131,7 +150,7 @@ public static class ArpResolver
 
             if (result != 0) return "Unknown";
 
-            return string.Join(":", macAddr.Select(b => b.ToString("X2")));
+            return FormatMacAddress(macAddr);
         }
         catch
         {

@@ -34,16 +34,28 @@ public class BannerGrabProbe : IFingerprintProbe
         }
         else
         {
-            foreach (int port in node.OpenPorts)
+            using var throttle = new SemaphoreSlim(8);
+            var tasks = node.OpenPorts.Select(async port =>
             {
-                if (ct.IsCancellationRequested) break;
-
-                string banner = await GrabBannerAsync(node.IpAddress, port, ct);
-                if (!string.IsNullOrEmpty(banner))
+                if (ct.IsCancellationRequested) return;
+                await throttle.WaitAsync(ct);
+                try
                 {
-                    result.RawData[$"Port_{port}_Banner"] = banner;
+                    string banner = await GrabBannerAsync(node.IpAddress, port, ct);
+                    if (!string.IsNullOrEmpty(banner))
+                    {
+                        lock (result.RawData)
+                        {
+                            result.RawData[$"Port_{port}_Banner"] = banner;
+                        }
+                    }
                 }
-            }
+                finally
+                {
+                    throttle.Release();
+                }
+            });
+            await Task.WhenAll(tasks);
         }
 
         // Additional HTTP Probes (Apple touch icon, UPnP descriptors not caught by SSDP)

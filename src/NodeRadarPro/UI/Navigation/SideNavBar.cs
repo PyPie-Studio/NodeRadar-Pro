@@ -65,14 +65,14 @@ public class SideNavBar : Border
                     FontSize = 18,
                     FontWeight = FontWeight.Bold,
                     Foreground = ThemeTokens.PurpleLight,
-                    FontFamily = new FontFamily("Inter")
+                    FontFamily = ThemeTokens.DefaultFont
                 },
                 new TextBlock
                 {
                     Text = "by PyPie Studio",
                     FontSize = 10,
                     Foreground = ThemeTokens.SlateText,
-                    FontFamily = new FontFamily("Inter"),
+                    FontFamily = ThemeTokens.DefaultFont,
                     LetterSpacing = 0.8
                 }
             }
@@ -202,7 +202,7 @@ public class SideNavBar : Border
             Foreground = ThemeTokens.NavTextInactive,
             FontWeight = FontWeight.Medium,
             VerticalAlignment = VerticalAlignment.Center,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             LetterSpacing = 0.3,
             Tag = "label"
         };
