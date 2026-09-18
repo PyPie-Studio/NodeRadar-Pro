@@ -1,3 +1,4 @@
+using System.Net.Sockets;
 using LiteDB;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
@@ -21,6 +22,21 @@ public class IntrusionDetectorTests : IDisposable
     {
         _liteDb.Dispose();
         _ms.Dispose();
+    }
+
+    private class ThrowingSubnetScanner : SubnetScanner
+    {
+        private readonly Exception _exceptionToThrow;
+
+        public ThrowingSubnetScanner(Exception exceptionToThrow)
+        {
+            _exceptionToThrow = exceptionToThrow;
+        }
+
+        public override Task<List<NetworkNode>> ScanSubnetAsync(string baseIp, CancellationToken token = default)
+        {
+            return Task.FromException<List<NetworkNode>>(_exceptionToThrow);
+        }
     }
 
     [Fact]
@@ -71,5 +87,43 @@ public class IntrusionDetectorTests : IDisposable
         await task;
 
         Assert.True(task.IsCompletedSuccessfully);
+    }
+
+    [Fact]
+    public async Task SweepOnceAsync_SocketException_LogsErrorToDatabase()
+    {
+        // Arrange
+        var socketException = new SocketException((int)SocketError.NetworkDown);
+        var throwingScanner = new ThrowingSubnetScanner(socketException);
+        var detector = new IntrusionDetector(throwingScanner, _db);
+
+        // Act
+        await detector.SweepOnceAsync();
+
+        // Assert
+        var logs = _db.GetLogs(levelFilter: LogLevel.Error);
+        var log = Assert.Single(logs);
+        Assert.Equal("IntrusionDetector", log.Source);
+        Assert.Equal(LogLevel.Error, log.Level);
+        Assert.Contains($"Sweep failed: {socketException.Message}", log.Message);
+    }
+
+    [Fact]
+    public async Task SweepOnceAsync_TimeoutException_LogsErrorToDatabase()
+    {
+        // Arrange
+        var timeoutException = new TimeoutException("Scan timeout exceeded");
+        var throwingScanner = new ThrowingSubnetScanner(timeoutException);
+        var detector = new IntrusionDetector(throwingScanner, _db);
+
+        // Act
+        await detector.SweepOnceAsync();
+
+        // Assert
+        var logs = _db.GetLogs(levelFilter: LogLevel.Error);
+        var log = Assert.Single(logs);
+        Assert.Equal("IntrusionDetector", log.Source);
+        Assert.Equal(LogLevel.Error, log.Level);
+        Assert.Contains("Sweep failed: Scan timeout exceeded", log.Message);
     }
 }
