@@ -22,7 +22,7 @@ Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter
 </div>
 
 <details>
-<summary>Click to view more screenshots (Scanner, Inventory, Port Auditing, Traceroute)</summary>
+<summary>Click to view more screenshots (Subnet Scanner, Port Scanner, Traceroute, Settings, Logs)</summary>
 
 <br>
 
@@ -32,23 +32,23 @@ Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter
 </p>
 
 <p align="center">
-  <em>Device Inventory with 24-hour uptime pulse and heuristic classification</em><br>
-  <img width="1200" alt="Device Inventory" src="https://github.com/user-attachments/assets/6f848a9d-5ad3-4ec0-a6e2-f89808ea904f" />
+  <em>Service Port Scanner with concurrent socket probes and OS fingerprinting</em><br>
+  <img width="1200" alt="Port Scanner" src="https://github.com/user-attachments/assets/91941e18-3eb6-44ea-af28-128cd359a103" />
 </p>
 
 <p align="center">
-  <em>Service Port Scanner with concurrent socket probes</em><br>
-  <img width="1200" alt="Port Scanner" src="https://github.com/user-attachments/assets/95c7fdb5-aace-4706-aaca-449f71043f84" />
+  <em>Visual Traceroute engine with hop-by-hop latency mapping</em><br>
+  <img width="1200" alt="Visual Traceroute" src="https://github.com/user-attachments/assets/6f848a9d-5ad3-4ec0-a6e2-f89808ea904f" />
 </p>
 
 <p align="center">
-  <em>Multi-hop ICMP Traceroute engine with per-hop latency graphing</em><br>
-  <img width="1200" alt="Traceroute Engine" src="https://github.com/user-attachments/assets/9aaec90c-0028-4975-8ef3-2d3284780b85" />
+  <em>System Configurations for scan parameters, notification routing and thresholds</em><br>
+  <img width="1200" alt="System Configurations" src="https://github.com/user-attachments/assets/95c7fdb5-aace-4706-aaca-449f71043f84" />
 </p>
 
 <p align="center">
-  <em>System Telemetry and Forensic Event Logs</em><br>
-  <img width="1200" alt="System Logs" src="https://github.com/user-attachments/assets/91941e18-3eb6-44ea-af28-128cd359a103" />
+  <em>System Telemetry with event logs, integrity verification and exportable audit trails</em><br>
+  <img width="1200" alt="System Logs" src="https://github.com/user-attachments/assets/9aaec90c-0028-4975-8ef3-2d3284780b85" />
 </p>
 
 </details>
