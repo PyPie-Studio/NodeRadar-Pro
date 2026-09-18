@@ -1271,7 +1271,12 @@ public class InventoryPage : Border
             _portResult.Text = openPorts.Count > 0 ? "Open: " + string.Join(", ", openPorts) : "No common ports open.";
             _portResult.Foreground = ThemeTokens.Tertiary;
         }
-        catch { _portResult.Text = "Port scan failed."; _portResult.Foreground = ThemeTokens.Error; }
+        catch (Exception ex)
+        {
+            _db.Log(LogLevel.Error, "InventoryPage", $"Port scan failed for {ip}: {ex.Message}", _currentNode?.MacAddress);
+            _portResult.Text = "Port scan failed.";
+            _portResult.Foreground = ThemeTokens.Error;
+        }
         finally { _portScanBtn.IsEnabled = true; }
     }
 
