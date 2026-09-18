@@ -647,11 +647,11 @@ public class SubnetScanner
             {
                 if (ip.Address.AddressFamily != AddressFamily.InterNetwork) continue;
 
-                string[] parts = ip.Address.ToString().Split('.');
-                if (parts.Length != 4) continue;
+                byte[] bytes = ip.Address.GetAddressBytes();
+                if (bytes.Length != 4) continue;
+                if (bytes[0] == 169 && bytes[1] == 254) continue;
 
-                string subnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
-                if (subnet.StartsWith("169.254")) continue;
+                string subnet = $"{bytes[0]}.{bytes[1]}.{bytes[2]}";
                 if (subnets.Contains(subnet)) continue;
 
                 subnets.Add(subnet);
