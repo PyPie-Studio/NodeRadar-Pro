@@ -503,7 +503,6 @@ public class ScannerPage : Border
                     if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
 
                     _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
-                    DataChanged?.Invoke();
                 }
             });
         }
