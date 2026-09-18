@@ -15,6 +15,27 @@ public class SsdpProbeTests : IDisposable
         SsdpProbe.ClearCacheForTesting();
     }
 
+
+    [Theory]
+    [InlineData("http://192.168.1.50/description.xml", "192.168.1.50", true)]
+    [InlineData("https://192.168.1.50:8080/description.xml", "192.168.1.50", true)]
+    [InlineData("http://192.168.1.50:1900/rootDesc.xml", "192.168.1.50", true)]
+    [InlineData("http://192.168.1.100/description.xml", "192.168.1.50", false)]
+    [InlineData("http://127.0.0.1/description.xml", "192.168.1.50", false)]
+    [InlineData("http://169.254.169.254/latest/meta-data/", "192.168.1.50", false)]
+    [InlineData("ftp://192.168.1.50/description.xml", "192.168.1.50", false)]
+    [InlineData("file:///etc/passwd", "192.168.1.50", false)]
+    [InlineData("gopher://192.168.1.50/", "192.168.1.50", false)]
+    [InlineData("http://example.com/description.xml", "192.168.1.50", false)]
+    [InlineData("invalid-url", "192.168.1.50", false)]
+    [InlineData("", "192.168.1.50", false)]
+    [InlineData("http://192.168.1.50/description.xml", "", false)]
+    public void IsValidSsdpLocationUrl_ValidationScenarios(string url, string senderIp, bool expected)
+    {
+        bool result = SsdpProbe.IsValidSsdpLocationUrl(url, senderIp);
+        Assert.Equal(expected, result);
+    }
+
     [Fact]
     public void ExtractXmlValue_ValidTag_ReturnsTrimmedValue()
     {

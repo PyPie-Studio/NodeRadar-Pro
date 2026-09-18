@@ -66,7 +66,10 @@ public class SsdpProbe : IFingerprintProbe
                     if (locationLine != null)
                     {
                         string url = locationLine.Substring(9).Trim();
-                        _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
+                        if (IsValidSsdpLocationUrl(url, senderIp))
+                        {
+                            _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
+                        }
                     }
                 }
             }
@@ -121,6 +124,29 @@ public class SsdpProbe : IFingerprintProbe
     internal static void ClearCacheForTesting()
     {
         _cache.Clear();
+    }
+
+
+    internal static bool IsValidSsdpLocationUrl(string url, string senderIp)
+    {
+        if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(senderIp))
+            return false;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            return false;
+
+        if (!IPAddress.TryParse(senderIp, out var expectedSenderIp))
+            return false;
+
+        if (IPAddress.TryParse(uri.Host, out var hostIp))
+        {
+            return hostIp.Equals(expectedSenderIp);
+        }
+
+        return false;
     }
 
     internal static string ExtractXmlValue(string xml, string tag)
