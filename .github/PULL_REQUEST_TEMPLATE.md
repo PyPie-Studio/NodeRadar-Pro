@@ -19,5 +19,5 @@ All PRs must adhere to the engineering standards outlined in `CONTRIBUTING.md`:
 - [ ] **Cancellation Resilient**: Asynchronous network operations accept and observe a `CancellationToken`.
 - [ ] **Structured Disposal**: Sockets, clients, ping engines and tokens are wrapped in `using` scopes or explicit disposal.
 - [ ] **12-Hour AM/PM Standard**: Any user-facing time representations follow 12-hour AM/PM format (`yyyy-MM-dd hh:mm:ss tt` or `hh:mm:ss tt`).
-- [ ] **Local-Only Mandate**: Zero telemetry phone-home, zero tracking beacons and zero external cloud service calls.
+- [ ] **Local-Only Mandate**: Zero telemetry, zero tracking beacons and zero external cloud service calls.
 - [ ] **No Leakage**: No database files (`*.db`), temporary logs, scratch files or personal credentials committed.
