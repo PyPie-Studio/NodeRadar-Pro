@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (Windows / .NET 10)
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          include-prerelease: true
+
+      - name: Restore dependencies
+        run: dotnet restore NodeRadarPro.slnx
+
+      - name: Build solution (Release)
+        run: dotnet build NodeRadarPro.slnx --configuration Release --no-restore --nologo
+
+      - name: Run test suite (xUnit v3)
+        run: dotnet test NodeRadarPro.slnx --configuration Release --no-build --nologo
+
+      - name: Verify code formatting
+        run: dotnet format NodeRadarPro.slnx --verify-no-changes --no-restore

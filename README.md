@@ -1,63 +1,168 @@
-# NodeRadar Pro by PyPie Studio
-### Enterprise-Grade Network Observability & Asset Discovery
+<div align="center">
 
-**NodeRadar Pro** is a high-performance, low-latency network monitoring utility designed for Senior IT Administrators and System Engineers. Engineered for speed and precision, it provides an instantaneous "radar" view of enterprise-scale LAN environments, capable of mapping and fingerprinting hundreds of assets in seconds.
+# NodeRadar Pro
 
----
+Desktop network observability, host discovery and latency monitoring for Windows.  
+Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter and alerts on unregistered MAC addresses — local-only, zero kernel drivers.
 
-## 🛰️ Core Capabilities
+[![GitHub release](https://img.shields.io/github/v/release/PyPie-Studio/NodeRadar-Pro?style=for-the-badge&logo=github&color=6B21A8)](https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest)
+[![CI](https://img.shields.io/github/actions/workflow/status/PyPie-Studio/NodeRadar-Pro/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/PyPie-Studio/NodeRadar-Pro/actions)
+[![Windows 10/11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6?style=for-the-badge&logo=windows11&logoColor=white)](https://github.com/PyPie-Studio/NodeRadar-Pro)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?style=for-the-badge&logo=.net&logoColor=white)](https://dotnet.microsoft.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE.md)
 
-- **Deep Network Discovery:** High-speed subnet sweeping utilizing multi-threaded ARP and ICMP probes to identify all active assets.
-- **Intrusion Sentinel:** Real-time background detection that triggers alerts the moment an unauthorized or unknown MAC address appears on the network.
-- **Precision Telemetry:** Millisecond-accurate ICMP engine with dynamic jitter analysis and live packet loss tracking.
-- **Dynamic Uptime Intelligence:** A sliding-window uptime history that provides a 24-hour visual "pulse" of every registered device.
-- **Deep Intelligence Engine:** High-accuracy heuristic OS fingerprinting utilizing weighted signals (MAC, Ports, mDNS, SSDP) to identify specific device types (iPhones, Windows PCs, Printers, IoT) and hardware vendors.
-- **Proactive Port Auditing:** Integrated service scanner for identifying open vectors like SSH, RDP, HTTP/S, and database ports.
+[Download](https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [Contributing](CONTRIBUTING.md)
 
----
-
-## 🏗️ Architecture & Performance
-
-NodeRadar Pro was engineered from the ground up to satisfy the rigorous requirements of high-density infrastructure.
-
-- **Production-Ready Architecture:** Built on **C# 14** and **.NET 10**, the core utilizes an Event Aggregator pattern and Concurrent Collections for thread safety. Socket leak fixes and CancellationToken support ensure infinite 100% fluid uptime even during massive sweeps.
-- **Native Performance:** Compiled via **.NET NativeAOT**, producing a zero-dependency, machine-code binary with near-instant startup and a specialized low-memory footprint.
-- **DPI-Aware UI:** Fully optimized for **4K/5K displays** with razor-sharp high-resolution assets and support for Windows 11 **Mica and Acrylic** effects.
-- **Mobile-First Resilience:** Heuristic monitoring logic that accounts for WiFi power-save modes on mobile devices, preventing false-positive disconnection alerts.
+</div>
 
 ---
 
-## 🔒 Security-First Engineering
+<div align="center">
+  <img width="1200" alt="NodeRadar Pro Dashboard" src="https://github.com/user-attachments/assets/28b22b37-af3d-4995-a71f-d2579a6027d9" />
+</div>
 
-As a professional security and monitoring tool, NodeRadar Pro includes multiple layers of hardening:
+<details>
+<summary>Click to view more screenshots (Scanner, Inventory, Port Auditing, Traceroute)</summary>
 
-- **AES-256 Data Encryption:** All local device inventories, logs, and telemetry are stored in an encrypted **LiteDB** instance.
-- **SHA256 Integrity Shield:** Performs an automated self-audit on every startup, verifying binary and database signatures to detect tampering.
-- **Zero-Trust Privacy:** **Local-Only Mandate.** No network data, MAC addresses, or infrastructure details ever leave your machine.
-- **Automated Updates:** Seamless background downloading and silent installation of new versions, keeping the system continuously protected.
-- **Automated Maintenance:** Scheduled auto-backup timers and database restoration capabilities.
-- **Forensic Logs:** Comprehensive system telemetry with searchable and exportable audit trails.
+<br>
+
+<p align="center">
+  <em>Subnet Scanner with multi-threaded sweeps and real-time host discovery</em><br>
+  <img width="1200" alt="Subnet Scanner" src="https://github.com/user-attachments/assets/d8bd0a99-c86e-4b71-9df7-0c2889c709c4" />
+</p>
+
+<p align="center">
+  <em>Device Inventory with 24-hour uptime pulse and heuristic classification</em><br>
+  <img width="1200" alt="Device Inventory" src="https://github.com/user-attachments/assets/6f848a9d-5ad3-4ec0-a6e2-f89808ea904f" />
+</p>
+
+<p align="center">
+  <em>Service Port Scanner with concurrent socket probes</em><br>
+  <img width="1200" alt="Port Scanner" src="https://github.com/user-attachments/assets/95c7fdb5-aace-4706-aaca-449f71043f84" />
+</p>
+
+<p align="center">
+  <em>Multi-hop ICMP Traceroute engine with per-hop latency graphing</em><br>
+  <img width="1200" alt="Traceroute Engine" src="https://github.com/user-attachments/assets/9aaec90c-0028-4975-8ef3-2d3284780b85" />
+</p>
+
+<p align="center">
+  <em>System Telemetry and Forensic Event Logs</em><br>
+  <img width="1200" alt="System Logs" src="https://github.com/user-attachments/assets/91941e18-3eb6-44ea-af28-128cd359a103" />
+</p>
+
+</details>
 
 ---
 
-## 📦 Installation & Deployment
+## Download and Quickstart
 
-NodeRadar Pro is distributed as a compiled, hardened binary. 
+NodeRadar Pro is available as an installer package or can be compiled directly from source.
 
-### Getting Started
-1. Navigate to the [Releases](https://github.com/PyPie-Studio/NodeRadar-Pro/releases) tab.
-2. Download the **Setup.exe** for a professional installation experience to Program Files.
-3. For portable use, the **Single-File EXE** is available for zero-install deployment.
+### Option 1: Installer Package
 
-### "Pro" Interactions
-- **Click-to-Copy:** Instantly copy IP or MAC addresses to your clipboard with a single click.
-- **🌐 Open Web UI:** Jump directly to a router or IP camera's web interface from the device detail panel.
-- **SMTP Alerts:** Configure encrypted email notifications in Settings for real-world alerting.
+1. Go to the [Latest Release](https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest) page.
+2. Download `NodeRadar_Pro_Setup.exe`.
+3. Run the installer. Choose between two deployment modes:
+   - **Current User (Recommended)**: Installs to `%LOCALAPPDATA%\Programs\PyPie Studio\NodeRadar Pro\`. Requires no administrator privileges or UAC elevation.
+   - **All Users**: Installs to `C:\Program Files\PyPie Studio\NodeRadar Pro\`. Requires administrator elevation and creates system-wide start menu shortcuts.
+
+### Option 2: Build from Source
+
+Requirements: Windows 10/11 and [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
+
+```powershell
+# Clone repository
+git clone https://github.com/PyPie-Studio/NodeRadar-Pro.git
+cd NodeRadar-Pro
+
+# Build in Release mode
+dotnet build NodeRadarPro.slnx --configuration Release
+
+# Run test suite (320+ unit and integration tests)
+dotnet test NodeRadarPro.slnx --configuration Release --nologo
+
+# Launch application
+dotnet run --project src/NodeRadarPro/NodeRadarPro.csproj --configuration Release
+```
 
 ---
 
-## 🥧 About PyPie Studio
+## What It Does
 
-**PyPie Studio** specializes in high-performance desktop tools for systems engineers. We focus on modern .NET paradigms, hardened security, and premium UI/UX to build software that IT professionals trust.
+NodeRadar Pro provides a unified console for local network monitoring and device diagnostics:
 
-*Interested in our tech stack or looking to collaborate? Reach out via our GitHub profile.*
+- **Subnet Sweep and Host Discovery**: Scans IPv4 ranges using multi-threaded ICMP ping sweeps and direct Win32 `SendARP` table queries. Probing is throttled via `SemaphoreSlim` (64 in-flight sockets) to prevent ephemeral port exhaustion (`WSAENOBUFS 10055`).
+- **Service Port Scanner**: Probes common service ports (SSH, RDP, SMB, HTTP/S, databases) on target hosts. Uses parallel connection probes with short-circuit timeout cancellation so unresponsive ports complete concurrently (~200ms) rather than blocking sequentially.
+- **Intrusion Sentinel**: Background monitoring engine that compares discovered MAC addresses against your authorized device inventory. Triggers visual alerts, local audio indicators and opt-in SMTP notifications the moment an unregistered device connects to the subnet.
+- **Continuous Latency and 24h Uptime Pulse**: Tracks millisecond-level round-trip latency, jitter and packet loss over time. Displays a visual 24-hour sliding-window uptime bar for every monitored node.
+- **Heuristic Device Classification**: Identifies device models and operating systems through combined heuristics: IEEE MAC OUI manufacturer database, mDNS Bonjour records (`_http._tcp.local`, `_ipp._tcp.local`), SSDP/UPnP XML descriptors, NetBIOS Name Service (NBNS) queries and open port fingerprints.
+- **Multi-Hop Traceroute**: Interactive ICMP traceroute showing intermediate hops, per-hop round-trip times and host resolution.
+- **Encrypted Local Storage**: Device inventories, alert histories and diagnostic logs are persisted locally in an embedded LiteDB database encrypted with AES-256. Database encryption keys and SMTP credentials are encrypted via Windows DPAPI (`DataProtectionScope.CurrentUser`).
+
+---
+
+## Privacy and Local-Only Mandate
+
+NodeRadar Pro is built on strict data sovereignty rules:
+
+| Invariant | Implementation |
+| :--- | :--- |
+| **Zero External Telemetry** | No usage data, scan results, IP addresses or MAC tables are transmitted to PyPie Studio or third-party servers. |
+| **No Kernel Drivers** | Uses user-mode Win32 networking primitives and standard socket APIs. Does not require Npcap, WinPcap or driver installation. |
+| **Encrypted at Rest** | All local inventories, credentials and logs are stored in `%Documents%\PyPie Studio\NodeRadar Pro\noderadar.db` using AES-256 encryption. |
+| **DPAPI Key Storage** | Encryption master keys are protected using the Windows Data Protection API tied to the active Windows user account. |
+| **Opt-In Updates** | Update checks query the official GitHub Releases API (`api.github.com/repos/PyPie-Studio/NodeRadar-Pro/releases/latest`) solely to compare version strings. |
+
+---
+
+## Why I Built This
+
+Most network scanners on Windows fall into two categories:
+
+- **Command-line packet sniffers (like Nmap)**: Extremely capable, but they rely on kernel-level packet filter drivers (Npcap/WinPcap), require elevation for basic sweeps and do not provide continuous background telemetry or uptime history in a lightweight desktop UI.
+- **Freeware GUI scanners (like Advanced IP Scanner or Angry IP)**: Fast for a one-time sweep, but they are closed-source, lack continuous background intrusion monitoring, offer no automated encrypted storage and frequently come bundled with promotional software.
+
+NodeRadar Pro was built to bridge this gap for systems administrators, homelab maintainers and network engineers:
+- **Pure C# and Avalonia UI**: Native desktop interface with dark-purple glassmorphic styling, responsive layout and SkiaSharp radar visualization.
+- **User-mode discovery**: Sub-second subnet sweeping via native Win32 `SendARP` without requiring kernel driver installation or administrator rights.
+- **Continuous monitoring**: Runs in the background, tracks jitter and latency over 24 hours and alerts when unfamiliar hardware connects.
+- **100% Local**: No accounts, no cloud dashboards and no telemetry leakage.
+
+---
+
+## Supported Environments
+
+| OS Version | Build Range | Status |
+| :--- | :--- | :--- |
+| **Windows 11 25H2** | Build 26200+ | Supported |
+| **Windows 11 24H2** | Build 26100–26120 | Supported |
+| **Windows 11 23H2 / 22H2** | Build 22631 / 22621 | Supported |
+| **Windows 10 22H2** | Build 19045 | Supported |
+| **Windows 10 Enterprise LTSC** | Build 19044 / 17763 | Supported |
+
+---
+
+## Cryptographic Verification
+
+Official release installers published on GitHub Releases include SHA-256 checksums in `SHA256SUMS.txt`. You can verify installer integrity locally in PowerShell:
+
+```powershell
+Get-FileHash NodeRadar_Pro_Setup.exe -Algorithm SHA256
+```
+
+---
+
+## Contributing
+
+Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, local development guidelines and Master Quality Gate requirements before opening a pull request.
+
+- **Bug Reports**: Open an issue describing the steps to reproduce, Windows version and network topology.
+- **Feature Proposals**: Submit an issue detailing the technical use case.
+- **Pull Requests**: Ensure all changes pass `scripts/Test-MasterGate.ps1 -WithTests` with zero compiler warnings and clean formatting.
+
+---
+
+## License
+
+MIT License. Copyright (c) 2026 PyPie Studio. See [LICENSE.md](LICENSE.md) for full terms.

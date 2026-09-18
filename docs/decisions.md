@@ -4,14 +4,10 @@ This document logs significant architectural, security, and quality decisions fo
 
 ---
 
-## ADR-001: AI Agent Framework & Governance Migration (2026-08-17)
+## ADR-001: Solution Hierarchy & Central Package Management (2026-08-17)
 - **Status:** Accepted
-- **Context:** NodeRadar Pro needed a structured AI agent framework, domain-specialized skills, strict quality guardrails, and persistent change journaling to accelerate engineering velocity and prevent regressions.
-- **Decision:** Migrated proven AI governance patterns from A3MALI:
-  - Initialized `AGENTS.md`, `SKILLS.md`, and `SUPERPOWERS.md`.
-  - Added 10 auto-discovered enforcement rules in `.agents/rules/`.
-  - Configured 14 domain and workflow skills in `.agents/skills/`.
-  - Initialized the 4-pillar Jules change journals in `.jules/` (`bolt.md`, `palette.md`, `sentinel.md`, `sweeper.md`).
+- **Context:** Managing dependencies and project boundaries across the desktop client and test suites requires centralized versioning and strict separation of concerns.
+- **Decision:** Configured `Directory.Build.props` and `Directory.Packages.props` for Central Package Management (CPM) with unified dependency resolution, deterministic compilation and automated analyzer enforcement across `src/NodeRadarPro` and `tests/NodeRadarPro.Tests`.
 
 ---
 

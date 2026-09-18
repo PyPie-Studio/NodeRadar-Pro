@@ -374,13 +374,6 @@ FodyWeavers.xsd
 noderadar*.db
 db_key.bin
 
-# Codebase Knowledge Graphs & Agent Caches
-graphify-out/
-.graphify*/
-.gemini/
-.claude/
-.windsurf/
-
 # Modern IDEs & Editors
 .vscode/
 .cursor/
@@ -400,31 +393,12 @@ coverage/
 *.opencover.xml
 
 # Scratch, Dump & Backup Files
-deploy-logs/
-scratch/
 *.bak
 *.orig
 *.dump.txt
 conflicts_*.txt
-pr_description.md
-submit.py
-mcp_request.json
-
-# Local AI Agent Workspace & Privacy Scaffolding
-.agents/
-.jules/
-.superpowers/
-.githooks/
-opencode.json
-mcp.json
-AGENTS.md
-SKILLS.md
-SUPERPOWERS.md
-
-# Ephemeral Reports
-docs/analyzer-report.txt
 
 # Windows OS Files
 Thumbs.db
 desktop.ini
-$RECYCLE.BIN/
+$RECYCLE.BIN/

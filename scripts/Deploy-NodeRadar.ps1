@@ -411,5 +411,5 @@ Write-Host $resultsTable
 $resultsTable | Out-File -Append -FilePath $LogPath
 
 Write-Host "== RELEASE v$appVersion COMPLETED in $([math]::Round($sw.Elapsed.TotalSeconds, 1))s ==" -ForegroundColor Green
-Write-Host "GitHub Releases: https://github.com/Ahmed-Yaseen99/NodeRadar-Pro/releases`n" -ForegroundColor Cyan
+Write-Host "GitHub Releases: https://github.com/PyPie-Studio/NodeRadar-Pro/releases`n" -ForegroundColor Cyan
 exit 0

@@ -1,60 +1,43 @@
-# Security Policy: NodeRadar Pro
+# Security Policy
 
-**PyPie Studio** is committed to providing a secure, reliable, and privacy-focused network reconnaissance toolkit. This document outlines our security posture, supported versions, and the protocols for reporting vulnerabilities.
-
----
-
-## 🛡️ Supported Versions
-
-We only provide security updates for the latest stable release of NodeRadar Pro. Users are encouraged to check for updates manually via the **Settings** page or monitor our GitHub Releases page to ensure they are always running the latest protected binary.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.0.x   | ✅ Yes              |
-| < 1.0   | ❌ No               |
+PyPie Studio is committed to providing a secure, reliable and privacy-focused network observation toolkit. This document outlines our security posture, supported versions and the protocol for reporting vulnerabilities.
 
 ---
 
-## 🔒 Privacy & Data Sovereignty
+## Supported Versions
+
+We provide security updates for the latest stable release of NodeRadar Pro.
+
+| Version | Supported |
+| :--- | :--- |
+| 1.6.x | Yes |
+| 1.5.x | Critical fixes only |
+| < 1.5 | No |
+
+---
+
+## Privacy and Data Sovereignty
 
 NodeRadar Pro is engineered with a **Local-Only Mandate**:
-- **Zero Data Transmission:** No network discovery data, MAC addresses, IP logs, or device telemetry is ever transmitted to PyPie Studio or any third-party servers.
-- **Local Storage:** All discovered data is stored exclusively on your local machine in an encrypted database.
-- **Opt-In Alerts:** Email notifications (SMTP) only transmit data to the user-configured server.
+- **Zero Remote Data Transmission:** No network discovery data, MAC addresses, IP logs or device telemetry is transmitted to PyPie Studio or any third-party telemetry services.
+- **Local Storage:** Discovered nodes, port profiles and alert events are stored locally in an embedded LiteDB database.
+- **Opt-In Alerting:** Email notifications (SMTP) only communicate directly with your configured mail server over SSL/TLS.
+- **Update Checks:** If enabled, version checking queries the official GitHub Releases API (`api.github.com/repos/PyPie-Studio/NodeRadar-Pro/releases/latest`) solely to compare semantic versions.
 
 ---
 
-## 🏗️ Technical Protections
+## Technical Safeguards
 
-Our architecture includes several enterprise-grade security layers to protect both your data and the integrity of the application.
-
-### 1. Database Encryption (AES-256)
-All local data (Device Inventory, Logs, and Alerts) is stored in a **LiteDB** instance protected by **AES-256 encryption**. This prevents unauthorized access to the database file even if the host machine is compromised.
-
-### 2. SHA256 Integrity Shield
-NodeRadar Pro performs a self-audit on every startup (`DarkPurpleTheme.cs`):
-- It calculates a **SHA256 hash** of the core logic DLL (`NodeRadar Pro.dll`) and configuration files.
-- It verifies these hashes against "Last Known Good" signatures to detect unauthorized tampering or file corruption.
-- Discrepancies are logged in the **System Telemetry** for immediate audit by the administrator.
-
-### 3. Native Binary Protection
-The application is compiled using **.NET 10 NativeAOT (Ahead-of-Time)**:
-- This produces a self-contained, machine-code binary rather than intermediate IL.
-- It significantly reduces the attack surface and makes traditional .NET decompilation and reverse-engineering nearly impossible.
+1. **AES-256 Encrypted Database**: Local database storage is encrypted at rest using AES-256. Database encryption keys and SMTP credentials are protected using Windows DPAPI (`DataProtectionScope.CurrentUser`).
+2. **SHA-256 Integrity Audit**: The application runs an automated self-audit on startup to verify binary signature integrity against expected checksums.
+3. **No Kernel Drivers Required**: All host discovery and port probing run strictly through standard user-mode Win32 socket primitives (`SendARP`, ICMP echo, TCP connect). No kernel filter drivers or packet-sniffing drivers (such as WinPcap or Npcap) are required or installed.
 
 ---
 
-## 🐛 Reporting a Vulnerability
+## Reporting a Vulnerability
 
-If you discover a security vulnerability in NodeRadar Pro, please do **not** open a public GitHub Issue. Instead, follow our responsible disclosure process:
+If you discover a security vulnerability, please do not open a public GitHub issue. Instead, report it via responsible disclosure:
 
-1. **Email:** Send a detailed report to **security@pypiestudio.com**.
-2. **Details:** Include the version of NodeRadar Pro, your OS, and a reproducible Proof of Concept (PoC).
-3. **Response:** We will acknowledge your report within 48 hours and provide a timeline for the fix.
-
-We kindly ask that you refrain from public disclosure until we have had the opportunity to verify and patch the issue.
-
----
-
-**PyPie Studio**
-*High-Performance Systems. Hardened Security.*
+1. **Email:** Send details to **security@pypiestudio.com**.
+2. **Details:** Include the version of NodeRadar Pro, your Windows build number and reproduction steps or proof-of-concept.
+3. **Response:** We will acknowledge receipt within 48 hours and coordinate a patch release.

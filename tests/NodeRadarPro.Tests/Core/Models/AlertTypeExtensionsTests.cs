@@ -1,7 +1,6 @@
 using NodeRadarPro.Core;
-using Xunit;
 
-namespace Core.Tests;
+namespace NodeRadarPro.Tests.Core.Models;
 
 public class AlertTypeExtensionsTests
 {
