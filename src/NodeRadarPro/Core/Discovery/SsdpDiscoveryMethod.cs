@@ -143,8 +143,13 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         catch (OperationCanceledException) { }
     }
 
-    public static string ParseVendorFromServerHeader(string serverHeader)
+    public static string ParseVendorFromServerHeader(string? serverHeader)
     {
+        if (string.IsNullOrWhiteSpace(serverHeader))
+        {
+            return "Generic Vendor";
+        }
+
         string[] knownVendors = { "Huawei", "TP-Link", "MikroTik", "Cisco", "Netgear", "Linksys", "D-Link", "ASUS", "Xiaomi" };
         foreach (var vendor in knownVendors)
         {
