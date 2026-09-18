@@ -763,12 +763,11 @@ public class InventoryPage : Border
 
     private void DoActualBulkDelete(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var macsToDelete = _selectedMacs.ToList();
-        var nodesToDelete = _activeNodes.Where(n => macsToDelete.Contains(n.MacAddress)).ToList();
+        var nodesToDelete = _activeNodes.Where(n => _selectedMacs.Contains(n.MacAddress)).ToList();
 
-        _db.DeleteDevices(macsToDelete);
-        foreach (var mac in macsToDelete) _monitor.RemoveDevice(mac);
-        _activeNodes.RemoveAll(n => macsToDelete.Contains(n.MacAddress));
+        _db.DeleteDevices(_selectedMacs);
+        foreach (var mac in _selectedMacs) _monitor.RemoveDevice(mac);
+        _activeNodes.RemoveAll(n => _selectedMacs.Contains(n.MacAddress));
 
         DevicesDeleted?.Invoke(nodesToDelete);
 
