@@ -72,7 +72,10 @@ public class SubnetScanner
                 if (addr != null) _localBindingIp = addr.Address.ToString();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Failed to resolve binding IP address: {ex.Message}");
+        }
     }
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)

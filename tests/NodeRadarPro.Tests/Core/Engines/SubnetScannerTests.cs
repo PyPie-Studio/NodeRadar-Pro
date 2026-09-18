@@ -7,6 +7,16 @@ namespace NodeRadarPro.Tests;
 public class SubnetScannerTests
 {
     [Fact]
+    public void PreferredInterfaceName_CanBeSetWithoutThrowing()
+    {
+        var scanner = new SubnetScanner
+        {
+            PreferredInterfaceName = "NonExistentInterface_12345"
+        };
+        Assert.Equal("NonExistentInterface_12345", scanner.PreferredInterfaceName);
+    }
+
+    [Fact]
     public void GetLocalBaseIp_ReturnsValidBaseIp()
     {
         string baseIp = SubnetScanner.GetLocalBaseIp();
