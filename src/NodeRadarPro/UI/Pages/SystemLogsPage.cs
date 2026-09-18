@@ -262,6 +262,9 @@ public class SystemLogsPage : Border
             _db.Log(LogLevel.Info, "Export", $"Logs exported to {path}");
             RefreshLogs();
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "Export", $"Failed to export logs: {ex.Message}");
+        }
     }
 }
