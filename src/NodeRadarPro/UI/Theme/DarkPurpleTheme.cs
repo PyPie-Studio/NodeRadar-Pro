@@ -201,7 +201,10 @@ public class DarkPurpleTheme
                 monitor.AddDevice(node);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            db.Log(LogLevel.Error, "Database", $"Failed to load registered devices: {ex.Message}");
+        }
 
         var cts = new CancellationTokenSource();
 
