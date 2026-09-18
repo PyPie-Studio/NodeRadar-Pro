@@ -67,7 +67,7 @@ Fix formatting violations automatically with:
 dotnet format NodeRadarPro.slnx
 ```
 
-### 5. Git Pre-Push Hook (Optional)
+### 5. Git Pre-Push Hook & Master Commit Workflow
 
 You can automatically enforce the Master Gate on every `git push`:
 
@@ -75,22 +75,31 @@ You can automatically enforce the Master Gate on every `git push`:
 powershell -ExecutionPolicy Bypass -File scripts/Install-GitHooks.ps1 -Test
 ```
 
+Alternatively, use the automated commit workflow script which validates your commit message against conventional commits, verifies the Master Gate, updates the knowledge graph, stages changes and creates the commit:
+
+```powershell
+powershell -File scripts/Invoke-MasterCommit.ps1 -Message "feat(core): add subnet CIDR mask parser"
+```
+
 ---
 
 ## Submitting a Pull Request
 
-1. **Fork the Repository** to your personal GitHub account.
-2. **Create a Feature Branch**:
+1. **Review the Code of Conduct**: All contributors must adhere to [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+2. **Fork the Repository** to your personal GitHub account.
+3. **Create a Feature Branch**:
    ```bash
    git checkout -b feature/your-feature-name
    ```
-3. **Commit with Conventional Messages**:
-   Use standard commit format: `feat(scope): description` or `fix(scope): description`.
+4. **Commit with Conventional Messages**:
+   Use standard commit format: `<type>(<scope>): <subject>` or `<type>: <subject>`.
+   Types: `feat`, `fix`, `perf`, `sec`, `refactor`, `style`, `docs`, `test`, `chore`.
+   Scopes: `core`, `ui`, `data`, `scanner`, `radar`, `updater`, `inno`, `scripts`.
    Examples:
-   - `feat(discovery): add custom subnet CIDR mask parser`
+   - `feat(scanner): add custom subnet CIDR mask parser`
    - `fix(scanner): release socket semaphore on probe timeout`
-   - `test(engines): add unit tests for packet loss calculations`
-4. **Verify Quality Gate**:
+   - `test(core): add unit tests for packet loss calculations`
+5. **Verify Quality Gate**:
    Ensure `powershell -ExecutionPolicy Bypass -File scripts/Test-MasterGate.ps1 -WithTests` passes cleanly.
-5. **Open a Pull Request**:
+6. **Open a Pull Request**:
    Fill out the PR template with a description of the change, tested network environments and test outcomes.

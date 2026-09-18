@@ -38,3 +38,29 @@ This document logs significant architectural, security, and quality decisions fo
 - **Context:** Prevent version mismatch between compiled `.exe` metadata and installer packages, and ensure graceful process termination during in-place upgrades.
 - **Decision:** Configured `GetFileVersion` in `Inno/installer.iss` to extract version automatically from the compiled binary. Synchronized named single-instance mutex `NodeRadarPro_App_Mutex_Active` in `Program.cs` and `Inno/installer.iss` alongside `CloseApplications=yes` and embedded `VersionInfo*` metadata.
 
+---
+
+## ADR-006: Win32 SendARP & Native IP Helper API vs Kernel Drivers (2026-08-23)
+- **Status:** Accepted
+- **Context:** Layer 2 MAC address discovery without requiring administrator privileges, third-party kernel driver installation (such as Npcap or WinPcap) or system reboots.
+- **Decision:** P/Invoke Win32 `SendARP` from `iphlpapi.dll` and `GetIpNetTable` for microsecond MAC resolution and ARP cache inspection directly in user space. If ICMP echo requests are dropped by client firewalls, `SendARP` succeeds at the link layer as long as the host is online on the local broadcast domain.
+
+---
+
+## ADR-007: SemaphoreSlim Socket Throttling & Ephemeral Port Exhaustion (2026-08-25)
+- **Status:** Accepted
+- **Context:** Subnet sweeps across `/24` or larger address spaces and concurrent TCP port probes can rapidly exhaust Windows ephemeral ports (`WSAENOBUFS 10055`) and trigger host-based IDS/IPS rate limits or packet drops.
+- **Decision:** Enforced strict `SemaphoreSlim(32..64)` bounding across all parallel probe tasks (`SubnetScanner`, `PortScanner`, `TracerouteEngine`). Combined with `CancellationToken` propagation and parallel short-circuit timeouts (`Task.WhenAny`) so unreachable targets drop out concurrently in 200 ms without starving the socket pool.
+
+---
+
+## ADR-008: Heuristic Multi-Layer Device Classification (2026-08-28)
+- **Status:** Accepted
+- **Context:** Accurate asset categorization without intrusive credentialed scans or heavy vulnerability engines.
+- **Decision:** Multi-tier heuristic evaluation cascade prioritizing data sources by confidence:
+  1. Passive and active protocol signatures: mDNS device records, SSDP UPnP XML descriptors and WS-Discovery endpoints.
+  2. Transport layer signatures: Open port combinations (SSH, RDP, SMB, HTTP/S, RTSP, MySQL, Postgres, MSSQL).
+  3. Hardware identity: IEEE MAC OUI manufacturer mapping via embedded SQLite/binary database.
+  Results merge into a categorized device profile (`Router`, `Server`, `Workstation`, `Printer`, `IoT`, `Camera`) with confidence scoring.
+
+

@@ -153,9 +153,18 @@ Get-FileHash NodeRadar_Pro_Setup.exe -Algorithm SHA256
 
 ---
 
+## Documentation
+
+- [Architecture Decision Records (ADRs)](docs/decisions.md) - Architectural history, design decisions and protocol standards.
+- [Benchmark Report](docs/benchmarks.md) - Empirical scan throughput, memory footprint, persistence and SkiaSharp UI latency.
+- [Troubleshooting Guide](docs/troubleshooting.md) - Multi-NIC precedence, Windows Firewall rules, multicast discovery and VPN split-tunneling.
+- [Code Coverage Report](docs/coverage-report.md) - Layer-by-layer test coverage metrics.
+
+---
+
 ## Contributing
 
-Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, local development guidelines and Master Quality Gate requirements before opening a pull request.
+Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for build instructions, local development guidelines and Master Quality Gate requirements before opening a pull request. All participants are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 - **Bug Reports**: Open an issue describing the steps to reproduce, Windows version and network topology.
 - **Feature Proposals**: Submit an issue detailing the technical use case.
@@ -166,3 +175,4 @@ Contributions are welcome. Please review [CONTRIBUTING.md](CONTRIBUTING.md) for 
 ## License
 
 MIT License. Copyright (c) 2026 PyPie Studio. See [LICENSE.md](LICENSE.md) for full terms.
+

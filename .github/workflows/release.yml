@@ -1,0 +1,116 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build, Package & Publish Release
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+          include-prerelease: true
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+
+      - name: Verify Master Quality Gate (with Tests)
+        shell: pwsh
+        run: |
+          ./scripts/Test-MasterGate.ps1 -WithTests
+
+      - name: Build and Package Release Installer
+        shell: pwsh
+        run: |
+          ./scripts/Build-ReleasePackage.ps1
+
+      - name: Package Portable Zip Bundle
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $publishDir = "src\NodeRadarPro\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
+          $zipName = "releases\NodeRadarPro-$tag-win-x64-portable.zip"
+          Compress-Archive -Path "$publishDir\*" -DestinationPath $zipName -Force
+          Write-Host "Created portable archive: $zipName"
+
+      - name: Generate Cryptographic SHA-256 Checksums
+        shell: pwsh
+        run: |
+          $releaseFiles = Get-ChildItem -Path releases -Include "*.exe", "*.zip" -Recurse
+          $checksums = foreach ($file in $releaseFiles) {
+              $hash = (Get-FileHash -Path $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $($file.Name)"
+          }
+          $checksumPath = "releases\SHA256SUMS.txt"
+          $checksums | Set-Content -Path $checksumPath -Encoding utf8
+          Write-Host "Generated SHA256SUMS.txt:"
+          Get-Content $checksumPath
+
+      - name: Extract Release Notes from CHANGELOG
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $version = $tag -replace '^v', ''
+          $notesFile = "RELEASE_NOTES.md"
+
+          if (Test-Path "CHANGELOG.md") {
+              $changelog = Get-Content "CHANGELOG.md" -Raw
+              $pattern = "(?s)## \[$version\].*?(?=(?:\r?\n## \[|\Z))"
+              if ($changelog -match $pattern) {
+                  $extracted = $matches[0].Trim()
+                  $notesBody = ($extracted -replace "^##\s+\[.*?\]\s*-\s*\d{4}-\d{2}-\d{2}", "" -replace "\r?\n---\s*$", "").Trim()
+                  $header = "# NodeRadar Pro $tag`n`n$notesBody`n`n---`n`n"
+                  $footer = @(
+                      "## Verification & Integrity",
+                      "Verify downloaded binaries using the SHA-256 checksums in ``SHA256SUMS.txt``:",
+                      "``````powershell",
+                      "Get-FileHash .\<filename> -Algorithm SHA256",
+                      "``````"
+                  ) -join "`n"
+                  Set-Content -Path $notesFile -Value ($header + $footer) -Encoding utf8
+                  Write-Host "Successfully extracted release notes for $version"
+                  Get-Content $notesFile
+                  exit 0
+              }
+          }
+
+          Set-Content -Path $notesFile -Value "# NodeRadar Pro $tag`n`nRelease bundle for $tag." -Encoding utf8
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $notesFile = "RELEASE_NOTES.md"
+          $assets = Get-ChildItem -Path releases -Include "*.exe", "*.zip", "*.txt" -Recurse | Select-Object -ExpandProperty FullName
+
+          if (gh release view $tag 2>$null) {
+              Write-Host "Updating existing release $tag with assets..."
+              if (Test-Path $notesFile) {
+                  gh release edit $tag --notes-file $notesFile
+              }
+              gh release upload $tag $assets --clobber
+          } else {
+              Write-Host "Creating new release $tag..."
+              gh release create $tag $assets --title "$tag" --notes-file $notesFile
+          }
