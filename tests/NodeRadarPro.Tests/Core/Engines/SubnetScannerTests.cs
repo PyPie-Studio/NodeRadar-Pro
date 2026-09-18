@@ -78,4 +78,19 @@ public class SubnetScannerTests
         var results = await scanner.ScanRangeAsync("192.168.1", 1, 254, cts.Token);
         Assert.NotNull(results);
     }
+
+    [Fact]
+    public async Task ScanRangeAsync_WithPreferredInterfaceName_ExecutesWithoutError()
+    {
+        var scanner = new SubnetScanner
+        {
+            PreferredInterfaceName = "NonExistentInterface12345",
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        var results = await scanner.ScanRangeAsync("192.168.1", 5, 2, CancellationToken.None);
+        Assert.Empty(results);
+    }
 }

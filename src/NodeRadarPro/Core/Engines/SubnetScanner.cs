@@ -45,7 +45,9 @@ public class SubnetScanner
 
         try
         {
-            var ni = NetworkInterface.GetAllNetworkInterfaces()
+            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            var ni = interfaces
                 .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
 
             if (ni != null)
@@ -60,7 +62,7 @@ public class SubnetScanner
             }
 
             // Fallback: Bind to first active IPv4 address from any operational non-loopback interface
-            var activeInterface = NetworkInterface.GetAllNetworkInterfaces()
+            var activeInterface = interfaces
                 .FirstOrDefault(n => n.OperationalStatus == OperationalStatus.Up &&
                                      n.NetworkInterfaceType != NetworkInterfaceType.Loopback);
             if (activeInterface != null)
