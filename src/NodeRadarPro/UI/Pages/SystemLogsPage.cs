@@ -56,7 +56,7 @@ public class SystemLogsPage : Border
         Grid.SetColumn(titleGroup, 0); Grid.SetColumn(exportBtn, 1);
         headerGrid.Children.Add(titleGroup); headerGrid.Children.Add(exportBtn);
 
-        // Quick Stats — TextBlocks are now class fields so they update on refresh (B5)
+        // Quick Stats — TextBlocks are now class fields so they update on refresh
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 20, 0, 20) };
         _infoStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
         _warnStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Warning, FontFamily = ThemeTokens.DefaultFont };
@@ -69,7 +69,7 @@ public class SystemLogsPage : Border
         infoCard.Margin = new Thickness(0, 0, 8, 0); warnCard.Margin = new Thickness(4, 0, 4, 0); errCard.Margin = new Thickness(8, 0, 0, 0);
         statsGrid.Children.Add(infoCard); statsGrid.Children.Add(warnCard); statsGrid.Children.Add(errCard);
 
-        // Filter Row — chips are rebuilt in RefreshLogs() (B4)
+        // Filter Row — chips are rebuilt in RefreshLogs()
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 12) };
 
         var clearBtn = new Button
@@ -149,7 +149,7 @@ public class SystemLogsPage : Border
     {
         _logBody.Children.Clear();
 
-        // Rebuild filter chips with current active state (B4 fix)
+        // Rebuild filter chips with current active state
         _filterRow.Children.Clear();
         _filterRow.Children.Add(MakeLevelChip("All", null));
         _filterRow.Children.Add(MakeLevelChip("Info", LogLevel.Info));
@@ -164,7 +164,7 @@ public class SystemLogsPage : Border
 
         _entryCount.Text = $"({logs.Count} entries)";
 
-        // Update stat cards (B5 fix)
+        // Update stat cards
         var allLogs = _db.GetLogs(500, deviceMacFilter: _deviceFilter);
         _infoStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Info).ToString();
         _warnStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Warning).ToString();
@@ -175,7 +175,7 @@ public class SystemLogsPage : Border
 
         if (_autoScrollToggle.IsChecked == true && _logBody.Children.Count > 0)
         {
-            // Delay scroll until after Avalonia has rendered the new rows (Issue 4 fix)
+            // Delay scroll until after Avalonia has rendered the new rows
             Dispatcher.UIThread.Post(() =>
             {
                 _logScroll.ScrollToEnd();
