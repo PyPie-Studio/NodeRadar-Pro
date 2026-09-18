@@ -83,4 +83,12 @@ public class ArpResolverTests
         // Assert
         Assert.Equal("Unknown", result);
     }
+
+    [Fact]
+    public void GetWindowsArpTable_DoesNotUseExternalProcess()
+    {
+        var dictionary = ArpResolver.GetFullArpTableAsDictionary();
+        Assert.NotNull(dictionary);
+        Assert.DoesNotContain(Process.GetProcessesByName("arp"), p => !p.HasExited);
+    }
 }

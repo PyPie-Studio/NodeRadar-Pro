@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.ComponentModel;
 
 namespace NodeRadarPro.Core;
 
@@ -229,79 +227,13 @@ public static class ArpResolver
     {
         try
         {
-            var nativeResults = GetWindowsArpTableNative();
-            if (nativeResults.Count > 0) return nativeResults;
+            return GetWindowsArpTableNative();
         }
-        catch { }
-
-        var results = new List<(string, string)>();
-
-        try
-        {
-            var psi = new ProcessStartInfo
-            {
-                FileName = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "arp.exe"),
-                Arguments = "-a",
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var proc = Process.Start(psi);
-            if (proc == null)
-            {
-                Logger.Log(LogLevel.Error, "ArpResolver", "Failed to start 'arp -a' process.");
-                return results;
-            }
-
-            // Read output with timeout protection
-            string output = proc.StandardOutput.ReadToEnd();
-            if (proc.WaitForExit(5000))
-            {
-                // Parse lines like: "  192.168.1.100    aa-bb-cc-dd-ee-ff     dynamic"
-                foreach (var line in output.Split('\n'))
-                {
-                    string trimmed = line.Trim();
-                    if (string.IsNullOrEmpty(trimmed)) continue;
-
-                    string[] parts = trimmed.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length >= 3)
-                    {
-                        string ip = parts[0];
-                        string mac = parts[1];
-                        string type = parts[2].ToLower();
-
-                        // Validate IP format and skip broadcast/multicast
-                        if (!IPAddress.TryParse(ip, out var addr)) continue;
-                        if (addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork) continue;
-
-                        // Skip invalid MACs
-                        if (mac.Length < 11) continue; // "aa-bb-cc-dd-ee-ff" = 17 chars
-                        if (mac == "ff-ff-ff-ff-ff-ff") continue; // Broadcast
-                        if (mac.StartsWith("01-00-5e")) continue; // Multicast
-                        if (type == "static" && mac == "ff-ff-ff-ff-ff-ff") continue;
-
-                        // Normalize MAC format: aa-bb-cc → AA:BB:CC
-                        string normalizedMac = mac.Replace("-", ":").ToUpper();
-                        results.Add((ip, normalizedMac));
-                    }
-                }
-            }
-            else
-            {
-                Logger.Log(LogLevel.Warning, "ArpResolver", "The 'arp -a' process timed out after 5000ms.");
-            }
-        }
-        catch (Win32Exception ex)
+        catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
+            return new List<(string, string)>();
         }
-        catch (ObjectDisposedException ex)
-        {
-            Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
-        }
-
-        return results;
     }
 
     private static List<(string Ip, string Mac)> GetWindowsArpTableNative()
