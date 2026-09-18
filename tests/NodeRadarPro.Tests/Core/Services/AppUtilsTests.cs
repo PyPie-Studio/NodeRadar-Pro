@@ -158,4 +158,23 @@ public class AppUtilsTests
         var exception = Record.Exception(() => AppUtils.OpenSafeUrl("https://example.com"));
         Assert.Null(exception);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("C:\\NonExistentFolder_123456789")]
+    public void OpenFolder_InvalidOrNonExistentFolder_DoesNotThrow(string? folderPath)
+    {
+        var exception = Record.Exception(() => AppUtils.OpenFolder(folderPath!));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void OpenFolder_ValidExistingFolder_DoesNotThrow()
+    {
+        string tempDir = Path.GetTempPath();
+        var exception = Record.Exception(() => AppUtils.OpenFolder(tempDir));
+        Assert.Null(exception);
+    }
 }

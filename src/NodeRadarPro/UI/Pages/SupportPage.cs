@@ -7,7 +7,6 @@ using Avalonia.Platform;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -220,15 +219,7 @@ public class SupportPage : Border
             try
             {
                 string logDir = Logger.GetLogDirectory();
-                if (Directory.Exists(logDir))
-                {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = logDir,
-                        UseShellExecute = true,
-                        Verb = "open"
-                    });
-                }
+                AppUtils.OpenFolder(logDir);
             }
             catch (Exception ex)
             {

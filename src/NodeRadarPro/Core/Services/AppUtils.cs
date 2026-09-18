@@ -161,5 +161,48 @@ namespace NodeRadarPro.Core
                 Logger.Log(LogLevel.Error, "AppUtils", $"Failed to open safe URL {url}: {ex.Message}");
             }
         }
+
+        public static void OpenFolder(string folderPath)
+        {
+            if (string.IsNullOrWhiteSpace(folderPath) || !System.IO.Directory.Exists(folderPath)) return;
+
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{folderPath}\"",
+                        UseShellExecute = false
+                    };
+                    Process.Start(psi);
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "xdg-open",
+                        UseShellExecute = false
+                    };
+                    psi.ArgumentList.Add(folderPath);
+                    Process.Start(psi);
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "open",
+                        UseShellExecute = false
+                    };
+                    psi.ArgumentList.Add(folderPath);
+                    Process.Start(psi);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to open folder {folderPath}: {ex.Message}");
+            }
+        }
     }
 }
