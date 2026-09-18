@@ -430,4 +430,21 @@ public class LocalDatabaseTests : IDisposable
 
         Assert.Equal(1, _db.GetUnresolvedAlertCount());
     }
+
+    [Fact]
+    public void InsertAlerts_BulkInsertsMultipleAlertsSuccessfully()
+    {
+        var alerts = new List<AlertEvent>
+        {
+            new AlertEvent { MacAddress = "11:22:33:44:55:66", Message = "Alert 1" },
+            new AlertEvent { MacAddress = "11:22:33:44:55:67", Message = "Alert 2" }
+        };
+
+        _db.InsertAlerts(alerts);
+
+        var retrieved = _db.GetAlerts(10);
+        Assert.True(retrieved.Count >= 2);
+        Assert.Contains(retrieved, a => a.Message == "Alert 1");
+        Assert.Contains(retrieved, a => a.Message == "Alert 2");
+    }
 }

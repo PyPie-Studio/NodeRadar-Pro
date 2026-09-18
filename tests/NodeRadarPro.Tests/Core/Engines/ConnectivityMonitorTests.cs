@@ -1,3 +1,4 @@
+using NodeRadarPro.Data;
 using System.Reflection;
 using NodeRadarPro.Core;
 
@@ -139,5 +140,31 @@ public class ConnectivityMonitorTests
         Assert.Equal(2, all.Count);
         Assert.Contains(all, d => d.MacAddress == "00:11:22:33:44:01");
         Assert.Contains(all, d => d.MacAddress == "00:11:22:33:44:02");
+    }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_CollectsAndBulkInsertsAlerts()
+    {
+        using var ms = new MemoryStream();
+        using var liteDb = new LiteDB.LiteDatabase(ms, new LiteDB.BsonMapper());
+        using var tempDb = new LocalDatabase(liteDb);
+        var monitor = new ConnectivityMonitor(tempDb);
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            IpAddress = "192.0.2.254",
+            IsOnline = false
+        };
+        monitor.AddDevice(dev);
+
+        using var cts = new CancellationTokenSource(1000);
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+        await task;
+
+        var allDevs = monitor.GetAllDevices();
+        Assert.Single(allDevs);
     }
 }

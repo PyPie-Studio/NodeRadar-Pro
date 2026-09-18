@@ -110,6 +110,7 @@ public class ConnectivityMonitor
         if (devices.Count == 0) return;
 
         var uptimeSnapshots = new List<UptimeSnapshot>();
+        var alertsToInsert = new ConcurrentBag<AlertEvent>();
 
         var arpTableDict = await Task.Run(() => ArpResolver.GetFullArpTableAsDictionary());
 
@@ -217,7 +218,7 @@ public class ConnectivityMonitor
                         AlertType = AlertType.ConnectionLost,
                         Message = $"{device.DisplayName} ({device.IpAddress}) went offline"
                     };
-                    try { _db?.InsertAlert(alert); } catch { }
+                    alertsToInsert.Add(alert);
                     try { _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress); } catch { }
                     AlertTriggered?.Invoke(alert);
                 }
@@ -238,7 +239,7 @@ public class ConnectivityMonitor
                     IsResolved = true,
                     ResolvedAt = DateTime.UtcNow
                 };
-                try { _db?.InsertAlert(reconnectAlert); } catch { }
+                alertsToInsert.Add(reconnectAlert);
                 try { _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress); } catch { }
                 AlertTriggered?.Invoke(reconnectAlert);
             }
@@ -260,7 +261,7 @@ public class ConnectivityMonitor
                         AlertType = AlertType.HighLatency,
                         Message = $"{device.DisplayName} latency spike: {latency}ms (threshold: {LatencyThresholdMs}ms)"
                     };
-                    try { _db?.InsertAlert(alert); } catch { }
+                    alertsToInsert.Add(alert);
                     AlertTriggered?.Invoke(alert);
                 }
             }
@@ -282,13 +283,19 @@ public class ConnectivityMonitor
                         AlertType = AlertType.PacketLoss,
                         Message = $"{device.DisplayName} packet loss: {device.PacketLossPct:F1}% (threshold: {PacketLossThresholdPct}%)"
                     };
-                    try { _db?.InsertAlert(alert); } catch { }
+                    alertsToInsert.Add(alert);
                     AlertTriggered?.Invoke(alert);
                 }
             }
         });
 
         await Task.WhenAll(tasks);
+
+        // Bulk insert generated alerts
+        if (alertsToInsert.Count > 0)
+        {
+            try { _db?.InsertAlerts(alertsToInsert); } catch { }
+        }
 
         // Persist uptime snapshots
         try { _db?.InsertUptimeSnapshots(uptimeSnapshots); } catch { }

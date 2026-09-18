@@ -456,6 +456,17 @@ public class LocalDatabase : IDisposable
         }
     }
 
+    public void InsertAlerts(IEnumerable<AlertEvent> alerts)
+    {
+        var list = alerts as IList<AlertEvent> ?? alerts.ToList();
+        if (list.Count == 0) return;
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            col.InsertBulk(list);
+        }
+    }
+
     public List<AlertEvent> GetAlerts(int limit = 200)
     {
         lock (SyncRoot)
