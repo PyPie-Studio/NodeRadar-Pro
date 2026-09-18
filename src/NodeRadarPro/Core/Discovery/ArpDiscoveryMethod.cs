@@ -54,19 +54,32 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
         { "AC:F1:DF", "Xiaomi" }
     };
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
+    public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
+    {
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+    }
+
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<IPAddress, string>? resolveMac)
     {
         // Limit concurrency to avoid overloading the network stack
         using var semaphore = new SemaphoreSlim(16);
 
         var tasks = targetIps.Select(async ip =>
         {
-            await semaphore.WaitAsync(ct);
+            try
+            {
+                await semaphore.WaitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
             try
             {
                 if (ct.IsCancellationRequested) return;
 
-                string mac = await Task.Run(() => ResolveMac(ip), ct);
+                string mac = await Task.Run(() => resolveMac != null ? resolveMac(ip) : ResolveMac(ip), CancellationToken.None);
                 if (mac != "Unknown")
                 {
                     string vendor = GetMacVendor(mac);
