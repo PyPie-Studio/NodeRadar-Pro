@@ -157,6 +157,7 @@ public class LocalDatabase : IDisposable
             // alerts
             var alerts = _db.GetCollection<AlertEvent>("alerts");
             alerts.EnsureIndex("Timestamp", "$.Timestamp");
+            alerts.EnsureIndex("IsResolved", "$.IsResolved");
 
             // uptime
             var uptime = _db.GetCollection<UptimeSnapshot>("uptime");
@@ -491,15 +492,12 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
-            var unresolved = col.Find(x => !x.IsResolved).ToList();
+            var col = _db.GetCollection("alerts");
             var now = DateTime.UtcNow;
-            foreach (var a in unresolved)
-            {
-                a.IsResolved = true;
-                a.ResolvedAt = now;
-            }
-            if (unresolved.Count > 0) col.Update(unresolved);
+            col.UpdateMany(
+                BsonExpression.Create("{ IsResolved: true, ResolvedAt: @0 }", now),
+                BsonExpression.Create("IsResolved = false")
+            );
         }
     }
 

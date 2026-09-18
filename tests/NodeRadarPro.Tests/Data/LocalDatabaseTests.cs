@@ -127,6 +127,49 @@ public class LocalDatabaseTests : IDisposable
 
         _db.ResolveAllAlerts();
         Assert.Equal(0, _db.GetUnresolvedAlertCount());
+
+        var resolvedAlerts = _db.GetAlerts().Where(a => a.IsResolved).ToList();
+        Assert.Equal(2, resolvedAlerts.Count);
+        Assert.All(resolvedAlerts, a =>
+        {
+            Assert.True(a.IsResolved);
+            Assert.NotNull(a.ResolvedAt);
+        });
+    }
+
+    [Fact]
+    public void Alerts_ResolveAll_LargeDataset_PerformanceAndCorrectness()
+    {
+        var now = DateTime.UtcNow;
+        var alerts = new List<AlertEvent>();
+        for (int i = 0; i < 2000; i++)
+        {
+            alerts.Add(new AlertEvent
+            {
+                MacAddress = $"00:11:22:33:{(i % 256):X2}:{(i / 256):X2}",
+                Message = $"Alert {i}",
+                Timestamp = now.AddMinutes(-i),
+                IsResolved = i >= 1000,
+                ResolvedAt = i >= 1000 ? now.AddMinutes(-i) : null
+            });
+        }
+
+        foreach (var alert in alerts)
+        {
+            _db.InsertAlert(alert);
+        }
+
+        Assert.Equal(1000, _db.GetUnresolvedAlertCount());
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        _db.ResolveAllAlerts();
+        sw.Stop();
+
+        Assert.Equal(0, _db.GetUnresolvedAlertCount());
+        var allAlerts = _db.GetAlerts(2500);
+        Assert.Equal(2000, allAlerts.Count);
+        Assert.All(allAlerts, a => Assert.True(a.IsResolved));
+        Assert.True(sw.ElapsedMilliseconds < 500, $"ResolveAllAlerts took too long: {sw.ElapsedMilliseconds} ms");
     }
 
     // -- LOG TESTS --
