@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v6
