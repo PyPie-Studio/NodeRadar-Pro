@@ -1,5 +1,30 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.0 (2026-09-19)
+
+### Open-Source Transition & Licensing
+- Transitioned NodeRadar Pro to open-source software under the permissive MIT License (Copyright 2026 PyPie Studio).
+- Removed legacy closed-source EULA and established open development governance.
+- Adopted the Contributor Covenant v2.1 Code of Conduct (`CODE_OF_CONDUCT.md`).
+
+### Diagnostic & Automation Tooling
+- Added `Test-NetworkEnvironment.ps1`: Automated pre-flight network stack diagnostics checking Win32 `SendARP` API binding, user-mode ICMP echo sockets, network adapter precedence (physical LAN vs virtual/VPN adapters), Windows Defender Firewall UDP multicast rules (`5353` and `1900`) and storage permissions.
+- Added `Invoke-MasterCommit.ps1`: Automated developer workflow script enforcing conventional commits, running the Master Quality Gate, synchronizing AST knowledge graphs and staging changes.
+- Added `Get-CoverageRate.ps1` and ratcheted line test coverage threshold to `52.0%` in `coverage-threshold.txt`.
+
+### Technical Documentation & Architecture Records
+- Added `docs/benchmarks.md`: Empirical discovery sweep latency benchmarks (/24 subnet), memory utilization profiles (72 MB idle, 124 MB peak), SkiaSharp 144 Hz frame render budgets (1.85 ms/frame) and LiteDB batch transaction speeds.
+- Added `docs/decisions.md` records:
+  - **ADR-006**: Win32 `SendARP` & Native IP Helper API vs Kernel Drivers (user-mode Layer 2 discovery without Npcap or elevation).
+  - **ADR-007**: `SemaphoreSlim` Socket Throttling & Ephemeral Port Exhaustion (limiting concurrent in-flight sockets to prevent `WSAENOBUFS 10055`).
+  - **ADR-008**: Heuristic Multi-Layer Device Classification (prioritizing mDNS/SSDP/WS-Discovery over transport ports and MAC OUI database).
+- Added `docs/troubleshooting.md`: Field guide resolving virtual adapter route metric precedence (Hyper-V, WSL2, VMware), ICMP drops vs ARP visibility on host firewalls, Wi-Fi client isolation (AP isolation), 802.11 DTIM power-save jitter spikes and VPN split-tunneling route conflicts.
+
+### CI/CD Pipeline & Code Health
+- Added `.github/workflows/release.yml`: Automated tag-triggered release pipeline compiling Inno Setup installers, packaging portable zip archives, generating cryptographic `SHA256SUMS.txt` checksums and publishing GitHub Releases.
+- Added `.github/dependabot.yml`: Weekly automated dependency vulnerability scanning for NuGet and GitHub Actions.
+- Hardened Roslyn and Sonar analyzer rules across all projects, silenced IDE0130 folder namespace mismatches and verified 324/324 passing tests on xUnit v3.
+
 ## NodeRadar Pro v1.6.0 (2026-08-30)
 
 ### Security Enhancements
