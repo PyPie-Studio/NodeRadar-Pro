@@ -23,15 +23,13 @@ $isccCandidates = @(
     (Get-Command "ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
     (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 7\ISCC.exe"),
     "C:\Program Files\Inno Setup 7\ISCC.exe",
-    "C:\Program Files (x86)\Inno Setup 7\ISCC.exe",
-    (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe"),
-    "C:\Program Files\Inno Setup 6\ISCC.exe",
-    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+    "C:\Program Files (x86)\Inno Setup 7\ISCC.exe"
 )
 $isccPath = $isccCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 if (-not $isccPath) {
-    $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+    $isccPath = (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 7\ISCC.exe")
 }
+
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Host "============================================================" -ForegroundColor Cyan

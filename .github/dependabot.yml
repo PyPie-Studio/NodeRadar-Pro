@@ -14,13 +14,6 @@ updates:
       nuget-dependencies:
         patterns:
           - "*"
-    ignore:
-      - dependency-name: "xunit.runner.visualstudio"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "xunit.v3.core"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "xunit.v3.assert"
-        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"

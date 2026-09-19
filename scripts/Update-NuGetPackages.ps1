@@ -35,7 +35,6 @@ param(
     [switch]$Upgrade,
     [ValidateSet("Auto", "Minor", "Patch", "Always")]
     [string]$UpgradeType = "Auto",
-    [switch]$IncludePinned,
     [switch]$Verify
 )
 
@@ -83,17 +82,6 @@ try {
                 $curMajor = [int]($pkg.resolvedVersion.Split('.')[0])
                 $newMajor = [int]($pkg.latestVersion.Split('.')[0])
                 if ($curMajor -ne $newMajor) { $isMajor = $true }
-            }
-
-            # Pin protection: xUnit v4 drops VSTest runner support on .NET 10 SDK
-            $isPinned = $false
-            if ($pkg.id -like "xunit*" -and $pkg.latestVersion.StartsWith("4.")) {
-                $isPinned = $true
-            }
-
-            if ($isPinned -and -not $IncludePinned) {
-                Write-Host "  > $($pkg.id): $($pkg.resolvedVersion) -> $($pkg.latestVersion) [PINNED: xUnit v4 drops VSTest on .NET 10]" -ForegroundColor DarkYellow
-                continue
             }
 
             $outdatedCount++

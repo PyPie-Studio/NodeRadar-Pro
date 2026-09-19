@@ -33,9 +33,7 @@ jobs:
           choco install innosetup -y --no-progress
           $candidates = @(
             "C:\Program Files\Inno Setup 7",
-            "C:\Program Files (x86)\Inno Setup 7",
-            "C:\Program Files\Inno Setup 6",
-            "C:\Program Files (x86)\Inno Setup 6"
+            "C:\Program Files (x86)\Inno Setup 7"
           )
           foreach ($dir in $candidates) {
             if (Test-Path (Join-Path $dir "ISCC.exe")) {
