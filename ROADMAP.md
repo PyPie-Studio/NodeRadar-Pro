@@ -27,8 +27,8 @@ This roadmap tracks feature development, protocol expansions and hardening miles
 ---
 
 ## Milestone 3: Performance, Engine Optimization and Packaging
-- [x] Obfuscar IL code protection
-- [x] Inno Setup 6 installer with dual-mode installation (All-Users and Current-User)
+- [x] Open-source clean release packaging (Obfuscar retired for transparent OSS distribution)
+- [x] Inno Setup 7 installer with administrative install & frictionless upgrades
 - [x] Static analysis hardening via Roslynator and SonarAnalyzer (`TreatWarningsAsErrors=true`)
 - [x] Automated regression test suite on xUnit v3 (`tests/NodeRadarPro.Tests`)
 - [ ] Zero-allocation packet dissection using `System.Buffers.ArrayPool<byte>` and `Span<byte>`

@@ -15,7 +15,7 @@
     Skips test suite execution.
 
 .PARAMETER SkipInno
-    Skips Inno Setup installer compilation (produces obfuscated publish binaries only).
+    Skips Inno Setup installer compilation (produces published binaries only).
 
 .PARAMETER SkipRelease
     Skips pushing to git origin and creating/uploading the GitHub release (local packaging only).
@@ -152,8 +152,8 @@ if (-not $SkipTests) {
     Complete-Step "3" $true "skipped"
 }
 
-# Phase 4: Release Packaging & Obfuscation
-Write-Step "4" "Release Packaging: Self-contained publish + Obfuscar IL shield + Inno Setup installer"
+# Phase 4: Release Packaging
+Write-Step "4" "Release Packaging: Self-contained publish + Inno Setup installer"
 $pkgSw = [System.Diagnostics.Stopwatch]::StartNew()
 $innoArg = if ($SkipInno) { @("-SkipInno") } else { @() }
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "scripts\Build-ReleasePackage.ps1") @innoArg

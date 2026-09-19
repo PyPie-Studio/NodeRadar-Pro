@@ -1,7 +1,7 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-    Builds, obfuscates, and packages NodeRadar Pro into an Inno Setup installer.
+    Builds and packages NodeRadar Pro into an Inno Setup installer.
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File scripts/Build-ReleasePackage.ps1
@@ -16,7 +16,6 @@ $root = Split-Path -Parent $PSScriptRoot
 $projectName = "NodeRadarPro"
 $projectPath = Join-Path $root "src\NodeRadarPro\NodeRadarPro.csproj"
 $publishDir = Join-Path $root "src\NodeRadarPro\bin\Release\net10.0-windows10.0.19041.0\win-x64\publish"
-$obfuscatedDir = Join-Path $publishDir "Obfuscated"
 $releasesDir = Join-Path $root "releases"
 $innoScript = Join-Path $root "Inno\installer.iss"
 $isccCandidates = @(
@@ -33,11 +32,11 @@ if (-not $isccPath) {
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "   NodeRadar Pro: Release Packaging & Protection Pipeline   " -ForegroundColor Cyan
+Write-Host "   NodeRadar Pro: Release Packaging Pipeline   " -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
 
 # Step 1: Clean & Publish
-Write-Host "`n[1/3] Publishing .NET 10 (win-x64, Self-Contained, Trimmed)..." -ForegroundColor Yellow
+Write-Host "`n[1/2] Publishing .NET 10 (win-x64, Self-Contained)..." -ForegroundColor Yellow
 if (Test-Path $releasesDir) {
     Remove-Item -Path $releasesDir -Recurse -Force | Out-Null
 }
@@ -54,34 +53,9 @@ try {
     Pop-Location
 }
 
-# Step 2: Obfuscation with Obfuscar
-Write-Host "`n[2/3] Applying Obfuscar IL Protection..." -ForegroundColor Yellow
-$nugetPackages = Join-Path $env:USERPROFILE ".nuget\packages\obfuscar"
-$obfExe = (Get-ChildItem -Path $nugetPackages -Filter "Obfuscar.Console.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
-
-if (-not $obfExe -or -not (Test-Path $obfExe)) {
-    Write-Host "[WARNING] Obfuscar.Console.exe not found in NuGet cache. Skipping IL obfuscation." -ForegroundColor DarkYellow
-} else {
-    Write-Host "Using Obfuscar: $obfExe" -ForegroundColor DarkGray
-    Push-Location $root
-    try {
-        & "$obfExe" "obfuscar.xml"
-        if ($LASTEXITCODE -ne 0) {
-            throw "Obfuscar failed with exit code $LASTEXITCODE"
-        }
-        $obfDll = Join-Path $obfuscatedDir "$projectName.dll"
-        if (Test-Path $obfDll) {
-            Copy-Item -Path $obfDll -Destination (Join-Path $publishDir "$projectName.dll") -Force
-            Write-Host "Obfuscated binary successfully replaced in publish directory." -ForegroundColor Green
-        }
-    } finally {
-        Pop-Location
-    }
-}
-
-# Step 3: Compile Inno Setup Installer
+# Step 2: Compile Inno Setup Installer
 if (-not $SkipInno) {
-    Write-Host "`n[3/3] Compiling Inno Setup Installer..." -ForegroundColor Yellow
+    Write-Host "`n[2/2] Compiling Inno Setup Installer..." -ForegroundColor Yellow
     if (Test-Path $isccPath) {
         & "$isccPath" "$innoScript"
         if ($LASTEXITCODE -ne 0) {
@@ -92,7 +66,7 @@ if (-not $SkipInno) {
         Write-Host "[WARNING] Inno Setup compiler not found at $isccPath. Skipping installer compilation." -ForegroundColor DarkYellow
     }
 } else {
-    Write-Host "`n[3/3] Skipped Inno Setup (SkipInno switch)." -ForegroundColor DarkGray
+    Write-Host "`n[2/2] Skipped Inno Setup (SkipInno switch)." -ForegroundColor DarkGray
 }
 
 $sw.Stop()

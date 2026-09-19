@@ -383,7 +383,6 @@ db_key.bin
 # Inno Setup & Packaging Outputs
 Inno/Output/
 ReleasePackage/
-Obfuscator_Output/
 
 # Test Outputs & Code Coverage
 [Tt]est[Rr]esults/

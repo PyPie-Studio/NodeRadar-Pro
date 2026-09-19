@@ -47,7 +47,6 @@ public class AppSettings
     public string? SmtpPasswordEncrypted { get; set; }
 
     // ── Application Maintenance ──
-    public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool EnableAutoBackup { get; set; } = true;
     public int AutoBackupIntervalHours { get; set; } = 24;
 

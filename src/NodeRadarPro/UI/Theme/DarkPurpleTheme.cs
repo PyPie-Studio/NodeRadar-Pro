@@ -1,7 +1,5 @@
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using Avalonia.Layout;
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -29,112 +27,10 @@ public class DarkPurpleTheme
         var db = LocalDatabase.Instance;
         var settings = db.LoadSettings();
 
-        // 1. Update Check
-        if (settings.CheckUpdatesOnStartup)
-        {
-            _ = Task.Run(() => CheckForUpdatesOnStartupAsync(mainWindow));
-        }
-
-        // 2. Auto-Backup Timer
+        // Auto-Backup Timer
         InitializeAutoBackupTimer(settings);
     }
 
-    private static async Task CheckForUpdatesOnStartupAsync(Window mainWindow)
-    {
-        try
-        {
-            var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
-            if (hasUpdate)
-            {
-                await Dispatcher.UIThread.InvokeAsync(() =>
-                {
-                    ShowUpdatePrompt(mainWindow, version, downloadUrl);
-                });
-            }
-        }
-        catch { }
-    }
-
-    private static void ShowUpdatePrompt(Window mainWindow, string version, string downloadUrl)
-    {
-        if (mainWindow.Content is not Grid rootGrid) return;
-
-        var overlay = new Grid
-        {
-            Background = new SolidColorBrush(Colors.Black, 0.5),
-            ZIndex = 1000
-        };
-
-        var btnLater = ThemeTokens.SecondaryButton("Later");
-        btnLater.Click += (s, e) => rootGrid.Children.Remove(overlay);
-
-        var progressText = ThemeTokens.Body("");
-        progressText.IsVisible = false;
-        progressText.HorizontalAlignment = HorizontalAlignment.Center;
-        progressText.Margin = new Thickness(0, 5);
-
-        var btnUpdate = ThemeTokens.PrimaryButton("Download & Install");
-        btnUpdate.Click += async (s, e) =>
-        {
-            btnUpdate.IsEnabled = false;
-            btnLater.IsEnabled = false;
-            progressText.IsVisible = true;
-            progressText.Text = "Starting download...";
-
-            try
-            {
-                await Task.Run(async () =>
-                {
-                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress =>
-                    {
-                        Dispatcher.UIThread.Post(() =>
-                        {
-                            progressText.Text = $"Downloading: {progress:F0}%";
-                        });
-                    });
-                });
-            }
-            catch (Exception ex)
-            {
-                Dispatcher.UIThread.Post(() =>
-                {
-                    progressText.Text = $"Error: {ex.Message}";
-                    btnUpdate.IsEnabled = true;
-                    btnLater.IsEnabled = true;
-                });
-            }
-        };
-
-        var prompt = ThemeTokens.GlassCard(new StackPanel
-        {
-            Spacing = 15,
-            Width = 400,
-            Children =
-            {
-                ThemeTokens.Headline("Update Available", 20),
-                ThemeTokens.Body($"A new version ({version}) of NodeRadar Pro is available. Would you like to download and install it now?"),
-                progressText,
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    Spacing = 10,
-                    Children = { btnLater, btnUpdate }
-                }
-            }
-        });
-
-        prompt.HorizontalAlignment = HorizontalAlignment.Center;
-        prompt.VerticalAlignment = VerticalAlignment.Center;
-        overlay.Children.Add(prompt);
-
-        if (rootGrid.ColumnDefinitions.Count > 0)
-            Grid.SetColumnSpan(overlay, rootGrid.ColumnDefinitions.Count);
-        if (rootGrid.RowDefinitions.Count > 0)
-            Grid.SetRowSpan(overlay, rootGrid.RowDefinitions.Count);
-
-        rootGrid.Children.Add(overlay);
-    }
 
     public static void InitializeAutoBackupTimer(AppSettings settings)
     {

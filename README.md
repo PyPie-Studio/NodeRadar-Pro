@@ -112,7 +112,7 @@ NodeRadar Pro is built on strict data sovereignty rules:
 | **No Kernel Drivers** | Uses user-mode Win32 networking primitives and standard socket APIs. Does not require Npcap, WinPcap or driver installation. |
 | **Encrypted at Rest** | All local inventories, credentials and logs are stored in `%Documents%\PyPie Studio\NodeRadar Pro\noderadar.db` using AES-256 encryption. |
 | **DPAPI Key Storage** | Encryption master keys are protected using the Windows Data Protection API tied to the active Windows user account. |
-| **Opt-In Updates** | Update checks query the official GitHub Releases API (`api.github.com/repos/PyPie-Studio/NodeRadar-Pro/releases/latest`) solely to compare version strings. |
+| **No Background Network Calls** | The application never contacts external servers on startup or in the background. Update checks are initiated solely by the user visiting the GitHub Releases page. |
 
 ---
 

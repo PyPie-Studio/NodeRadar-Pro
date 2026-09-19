@@ -38,7 +38,6 @@ public class SettingsPage : Border
     private readonly NumericUpDown _monitorInterval;
 
     // Maintenance & Lifecycle
-    private readonly CheckBox _checkUpdatesOnStartupToggle;
     private readonly CheckBox _enableAutoBackupToggle;
     private readonly Slider _autoBackupIntervalSlider;
     private readonly TextBlock _autoBackupIntervalValue;
@@ -149,9 +148,6 @@ public class SettingsPage : Border
         _packetLossThresholdSlider = new Slider { Minimum = 1, Maximum = 50, Value = _settings.PacketLossThresholdPct };
         _packetLossThresholdValue = new TextBlock { Text = $"{_settings.PacketLossThresholdPct:F1}%", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, VerticalAlignment = VerticalAlignment.Center };
         _packetLossThresholdSlider.ValueChanged += (s, e) => _packetLossThresholdValue.Text = $"{_packetLossThresholdSlider.Value:F1}%";
-
-        _checkUpdatesOnStartupToggle = new CheckBox { IsChecked = true };
-        ThemeTokens.SetToolTip(_checkUpdatesOnStartupToggle, "Automatically check for new NodeRadar Pro releases when the application starts.");
 
         _enableAutoBackupToggle = new CheckBox { IsChecked = true };
         ThemeTokens.SetToolTip(_enableAutoBackupToggle, "Enable background database snapshots at regular intervals to prevent data loss.");
@@ -288,7 +284,6 @@ public class SettingsPage : Border
         var packetCard = MakeSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
 
         var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
-        var updateStartupRow = MakeCheckboxCard("Check Updates on Startup", "Validate version with PyPie Studio API.", _checkUpdatesOnStartupToggle);
         var autoBackupRow = MakeCheckboxCard("Auto-Backup Database", "Create periodic snapshots of local DB.", _enableAutoBackupToggle);
 
         var intervalCard = MakeSliderCard("Backup Interval", "Hours between automatic snapshots.", _autoBackupIntervalSlider, _autoBackupIntervalValue);
@@ -310,7 +305,7 @@ public class SettingsPage : Border
 
         var notifContent = new StackPanel
         {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, updateStartupRow, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, actionButtonsGrid }
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, actionButtonsGrid }
         };
         return ThemeTokens.GlassCard(notifContent, 28);
     }
@@ -363,7 +358,6 @@ public class SettingsPage : Border
         _soundToggle.IsChecked = _settings.EnableSoundAlerts;
         _emailToggle.IsChecked = _settings.EnableEmailAlerts;
 
-        _checkUpdatesOnStartupToggle.IsChecked = _settings.CheckUpdatesOnStartup;
         _enableAutoBackupToggle.IsChecked = _settings.EnableAutoBackup;
         _autoBackupIntervalSlider.Value = _settings.AutoBackupIntervalHours;
         _autoBackupIntervalValue.Text = $"{_settings.AutoBackupIntervalHours}h";
@@ -397,7 +391,6 @@ public class SettingsPage : Border
         _settings.EnableSoundAlerts = _soundToggle.IsChecked == true;
         _settings.EnableEmailAlerts = _emailToggle.IsChecked == true;
 
-        _settings.CheckUpdatesOnStartup = _checkUpdatesOnStartupToggle.IsChecked == true;
         _settings.EnableAutoBackup = _enableAutoBackupToggle.IsChecked == true;
         _settings.AutoBackupIntervalHours = (int)_autoBackupIntervalSlider.Value;
 

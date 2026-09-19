@@ -1,5 +1,19 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.1 (2026-09-20)
+
+### Packaging & Installation
+- Added upfront administrative elevation (`PrivilegesRequired=admin`) in Inno Setup installer.
+- Configured frictionless upgrades with automatic directory page bypassing (`DisableDirPage=auto`) and duplicate directory warning suppression (`DirExistsWarning=no`).
+- Registered application icon for Windows Installed Apps (`UninstallDisplayIcon`).
+- Purged bytecode obfuscation tooling to provide transparent open-source binaries.
+
+### Maintenance & Code Health
+- Switched Support Page updates to a direct 1-click link opening official GitHub releases in the default web browser.
+- Purged legacy client-side auto-update download routines, temporary script runners and Authenticode certificate chain checks.
+- Removed unused startup update checks and ghost settings from application configuration.
+- Linked UI version telemetry dynamically to assembly metadata to eliminate version drift.
+
 ## NodeRadar Pro v2.0.0 (2026-09-19)
 
 ### Open-Source Transition & Licensing

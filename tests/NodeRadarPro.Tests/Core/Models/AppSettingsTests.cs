@@ -40,7 +40,6 @@ public class AppSettingsTests
         Assert.Equal(originalSettings.SmtpEmail, deserializedSettings.SmtpEmail);
         Assert.Equal(originalSettings.SmtpUser, deserializedSettings.SmtpUser);
         Assert.Equal(originalSettings.SmtpPassword, deserializedSettings.SmtpPassword);
-        Assert.Equal(originalSettings.CheckUpdatesOnStartup, deserializedSettings.CheckUpdatesOnStartup);
         Assert.Equal(originalSettings.EnableAutoBackup, deserializedSettings.EnableAutoBackup);
         Assert.Equal(originalSettings.AutoBackupIntervalHours, deserializedSettings.AutoBackupIntervalHours);
         Assert.Equal(originalSettings.LastKnownGoodHash, deserializedSettings.LastKnownGoodHash);
@@ -75,7 +74,6 @@ public class AppSettingsTests
             SmtpEmail = "alert@example.com",
             SmtpUser = "user1",
             SmtpPassword = "password123",
-            CheckUpdatesOnStartup = false,
             EnableAutoBackup = false,
             AutoBackupIntervalHours = 12,
             LastKnownGoodHash = "abcdef"
@@ -110,7 +108,6 @@ public class AppSettingsTests
         Assert.Equal(originalSettings.SmtpEmail, deserializedSettings.SmtpEmail);
         Assert.Equal(originalSettings.SmtpUser, deserializedSettings.SmtpUser);
         Assert.Equal(originalSettings.SmtpPassword, deserializedSettings.SmtpPassword);
-        Assert.Equal(originalSettings.CheckUpdatesOnStartup, deserializedSettings.CheckUpdatesOnStartup);
         Assert.Equal(originalSettings.EnableAutoBackup, deserializedSettings.EnableAutoBackup);
         Assert.Equal(originalSettings.AutoBackupIntervalHours, deserializedSettings.AutoBackupIntervalHours);
         Assert.Equal(originalSettings.LastKnownGoodHash, deserializedSettings.LastKnownGoodHash);

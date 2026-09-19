@@ -22,7 +22,7 @@ NodeRadar Pro is engineered with a **Local-Only Mandate**:
 - **Zero Remote Data Transmission:** No network discovery data, MAC addresses, IP logs or device telemetry is transmitted to PyPie Studio or any third-party telemetry services.
 - **Local Storage:** Discovered nodes, port profiles and alert events are stored locally in an embedded LiteDB database.
 - **Opt-In Alerting:** Email notifications (SMTP) only communicate directly with your configured mail server over SSL/TLS.
-- **Update Checks:** If enabled, version checking queries the official GitHub Releases API (`api.github.com/repos/PyPie-Studio/NodeRadar-Pro/releases/latest`) solely to compare semantic versions.
+- **Manual Updates:** The application performs no background network requests for version checks. Users download updates directly from the official GitHub Releases page.
 
 ---
 

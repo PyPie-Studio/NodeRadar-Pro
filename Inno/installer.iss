@@ -33,10 +33,14 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\PyPie Studio\NodeRadar Pro
 DefaultGroupName=PyPie Studio\NodeRadar Pro
 DisableProgramGroupPage=yes
+DisableDirPage=auto
+DirExistsWarning=no
+PrivilegesRequired=admin
 
 ; License and branding
 OutputBaseFilename=NodeRadar Pro_v{#MyAppVersion}_Setup
 SetupIconFile=..\src\NodeRadarPro\Resources\NodeRadar Pro Icon.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -69,7 +73,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#MySourceDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\LICENSE.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\SECURITY.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "{#MySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Obfuscated,*.pdb"
+Source: "{#MySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "*.pdb"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\{#MyAppExeName}"

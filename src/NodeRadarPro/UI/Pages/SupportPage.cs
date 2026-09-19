@@ -21,6 +21,7 @@ namespace NodeRadarPro.UI;
 public class SupportPage : Border
 {
     private const string BuildDate = "April 2026";
+    private const string LatestReleaseUrl = "https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest";
 
     public SupportPage()
     {
@@ -116,7 +117,7 @@ public class SupportPage : Border
                 Children =
                 {
                     ThemeTokens.StatusDot(true, 10),
-                    new TextBlock { Text = "You are running the latest version.", FontSize = 15, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center }
+                    new TextBlock { Text = "Official releases, changelogs, and installers are published on GitHub.", FontSize = 14, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center }
                 }
             }
         };
@@ -131,84 +132,12 @@ public class SupportPage : Border
             }
         };
 
-        var checkUpdateBtn = ThemeTokens.PrimaryButton("🔄  Check for Updates");
-        ThemeTokens.SetToolTip(checkUpdateBtn, "Contact PyPie Studio releases server to check for a newer version of NodeRadar Pro.");
+        var checkUpdateBtn = ThemeTokens.PrimaryButton("🌐  Check Releases on GitHub");
+        ThemeTokens.SetToolTip(checkUpdateBtn, "Open official GitHub Releases in your default browser to view changelogs and download the latest installer.");
         checkUpdateBtn.Margin = new Thickness(0, 16, 0, 0);
-        checkUpdateBtn.Click += async (s, e) =>
+        checkUpdateBtn.Click += (s, e) =>
         {
-            string currentContent = checkUpdateBtn.Content?.ToString() ?? "";
-
-            // If already in download state, start the download/install process
-            if (currentContent.StartsWith("⬇"))
-            {
-                string? downloadUrl = checkUpdateBtn.Tag as string;
-                if (string.IsNullOrEmpty(downloadUrl)) return;
-
-                checkUpdateBtn.IsEnabled = false;
-                try
-                {
-                    await UpdateService.DownloadAndInstallAsync(downloadUrl, progress =>
-                    {
-                        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-                        {
-                            checkUpdateBtn.Content = $"⏳ Downloading: {progress:F1}%";
-                        });
-                    });
-                }
-                catch
-                {
-                    checkUpdateBtn.Content = "⚠ Download Failed";
-                    checkUpdateBtn.IsEnabled = true;
-
-                    // Reset after 5 seconds
-                    var resetTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                    resetTimer.Tick += (s2, e2) => { checkUpdateBtn.Content = "🔄  Check for Updates"; resetTimer.Stop(); };
-                    resetTimer.Start();
-                }
-                return;
-            }
-
-            // Normal check state
-            checkUpdateBtn.IsEnabled = false;
-            checkUpdateBtn.Content = "⏳  Checking...";
-            try
-            {
-                var (hasUpdate, version, downloadUrl) = await UpdateService.CheckForUpdatesAsync(ThemeTokens.AppVersion);
-
-                if (hasUpdate)
-                {
-                    checkUpdateBtn.Content = $"⬇  Download & Install v{version}";
-                    checkUpdateBtn.Tag = downloadUrl;
-                }
-                else
-                {
-                    checkUpdateBtn.Content = "✅  Up to date!";
-                }
-            }
-            catch
-            {
-                checkUpdateBtn.Content = "⚠  Update check failed";
-            }
-            finally
-            {
-                checkUpdateBtn.IsEnabled = true;
-
-                // If we didn't find an update, reset the button after 5 seconds
-                // If we DID find an update (content starts with ⬇), don't reset it
-                if (checkUpdateBtn.Content?.ToString()?.StartsWith("⬇") != true)
-                {
-                    var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                    timer.Tick += (s2, e2) =>
-                    {
-                        if (checkUpdateBtn.Tag is not string)
-                        {
-                            checkUpdateBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 16, Brushes.White), new TextBlock { Text = "Check for Updates", VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold } } };
-                        }
-                        timer.Stop();
-                    };
-                    timer.Start();
-                }
-            }
+            AppUtils.OpenSafeUrl(LatestReleaseUrl);
         };
 
         var openLogsBtn = ThemeTokens.SecondaryButton("📂  Open Log Folder");
