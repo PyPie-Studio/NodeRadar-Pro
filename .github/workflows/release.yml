@@ -31,6 +31,19 @@ jobs:
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
+          $candidates = @(
+            "C:\Program Files\Inno Setup 7",
+            "C:\Program Files (x86)\Inno Setup 7",
+            "C:\Program Files\Inno Setup 6",
+            "C:\Program Files (x86)\Inno Setup 6"
+          )
+          foreach ($dir in $candidates) {
+            if (Test-Path (Join-Path $dir "ISCC.exe")) {
+              Write-Host "Found Inno Setup at $dir, adding to PATH"
+              $dir | Out-File -FilePath $env:GITHUB_PATH -Append
+              break
+            }
+          }
 
       - name: Verify Master Quality Gate (with Tests)
         shell: pwsh

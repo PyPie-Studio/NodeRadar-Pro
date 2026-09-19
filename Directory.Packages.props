@@ -5,28 +5,28 @@
   </PropertyGroup>
   <ItemGroup>
     <!-- Code Quality & Security Analyzers -->
-    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.33.0.1635" />
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.34.0.3385" />
     <PackageVersion Include="Roslynator.Analyzers" Version="5.0.0" />
 
     <!-- UI & Desktop Framework (Avalonia) -->
-    <PackageVersion Include="Avalonia" Version="12.1.1" />
-    <PackageVersion Include="Avalonia.Desktop" Version="12.1.1" />
-    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.1" />
-    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.1" />
+    <PackageVersion Include="Avalonia" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Desktop" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Themes.Fluent" Version="12.1.2" />
+    <PackageVersion Include="Avalonia.Fonts.Inter" Version="12.1.2" />
     <PackageVersion Include="AvaloniaUI.DiagnosticsSupport" Version="2.2.3" />
 
     <!-- Persistence, Communication & Security -->
     <PackageVersion Include="LiteDB" Version="5.0.21" />
-    <PackageVersion Include="MailKit" Version="4.17.0" />
+    <PackageVersion Include="MailKit" Version="4.18.0" />
     <PackageVersion Include="Obfuscar" Version="2.2.50" />
-    <PackageVersion Include="System.Management" Version="10.0.11" />
-    <PackageVersion Include="System.Windows.Extensions" Version="10.0.11" />
-    <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.0" />
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.11" />
+    <PackageVersion Include="System.Management" Version="10.0.12" />
+    <PackageVersion Include="System.Windows.Extensions" Version="10.0.12" />
+    <PackageVersion Include="Tmds.DBus.Protocol" Version="0.95.1" />
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
 
     <!-- Testing & Mocking Framework -->
     <PackageVersion Include="coverlet.collector" Version="10.0.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="xunit.v3.core" Version="2.0.0" />
     <PackageVersion Include="xunit.v3.assert" Version="2.0.0" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.0.2" />

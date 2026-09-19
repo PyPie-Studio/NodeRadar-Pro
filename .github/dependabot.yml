@@ -3,17 +3,36 @@ updates:
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "nuget"
+    groups:
+      nuget-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      - dependency-name: "xunit.runner.visualstudio"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "xunit.v3.core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "xunit.v3.assert"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"

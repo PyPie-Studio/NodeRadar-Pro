@@ -19,8 +19,19 @@ $publishDir = Join-Path $root "src\NodeRadarPro\bin\Release\net10.0-windows10.0.
 $obfuscatedDir = Join-Path $publishDir "Obfuscated"
 $releasesDir = Join-Path $root "releases"
 $innoScript = Join-Path $root "Inno\installer.iss"
-$isccCmd = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue
-$isccPath = if ($isccCmd) { $isccCmd.Source } elseif (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") { "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" } elseif (Test-Path "C:\Program Files\Inno Setup 6\ISCC.exe") { "C:\Program Files\Inno Setup 6\ISCC.exe" } else { "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" }
+$isccCandidates = @(
+    (Get-Command "ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -ErrorAction SilentlyContinue),
+    (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 7\ISCC.exe"),
+    "C:\Program Files\Inno Setup 7\ISCC.exe",
+    "C:\Program Files (x86)\Inno Setup 7\ISCC.exe",
+    (Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe"),
+    "C:\Program Files\Inno Setup 6\ISCC.exe",
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+)
+$isccPath = $isccCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+if (-not $isccPath) {
+    $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+}
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 Write-Host "============================================================" -ForegroundColor Cyan
