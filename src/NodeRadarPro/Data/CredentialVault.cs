@@ -11,6 +11,8 @@ namespace NodeRadarPro.Data;
 /// </summary>
 public static class CredentialVault
 {
+    private static readonly object SyncLock = new object();
+
     // ── Database Password Management ──
 
     public static string GetOrGenerateDbPassword(string folder)
@@ -143,11 +145,23 @@ public static class CredentialVault
 
                 byte[] key = DeriveKeyPbkdf2(salt);
                 byte[] plainBytes = new byte[cipherText.Length];
-                using (var aesGcm = new AesGcm(key, 16))
+                try
                 {
-                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    using (var aesGcm = new AesGcm(key, 16))
+                    {
+                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    }
+                    return Encoding.UTF8.GetString(plainBytes);
                 }
-                return Encoding.UTF8.GetString(plainBytes);
+                catch (CryptographicException)
+                {
+                    byte[] legacyKey = DeriveKeyPbkdf2Legacy(salt);
+                    using (var aesGcm = new AesGcm(legacyKey, 16))
+                    {
+                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    }
+                    return Encoding.UTF8.GetString(plainBytes);
+                }
             }
             if (data.Length >= 29 && data[0] == 0x01)
             {
@@ -173,7 +187,56 @@ public static class CredentialVault
 
     // ── Internal Key Derivation ──
 
+    internal static byte[] GetOrGenerateFallbackSecret()
+    {
+        lock (SyncLock)
+        {
+            string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
+            Directory.CreateDirectory(folder);
+            string secretPath = Path.Combine(folder, "vault_secret.bin");
+
+            if (File.Exists(secretPath))
+            {
+                try
+                {
+                    byte[] existing = File.ReadAllBytes(secretPath);
+                    if (existing.Length == 32)
+                        return existing;
+                }
+                catch
+                {
+                    // Fallback to regeneration if read fails
+                }
+            }
+
+            byte[] secret = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(secret);
+            }
+
+            try
+            {
+                File.WriteAllBytes(secretPath, secret);
+            }
+            catch
+            {
+                // Fallback ignore write error in restricted environment
+            }
+
+            return secret;
+        }
+    }
+
     private static byte[] DeriveKeyPbkdf2(byte[] salt)
+    {
+        byte[] secretBytes = GetOrGenerateFallbackSecret();
+        string baseSecret = Convert.ToBase64String(secretBytes);
+        string password = $"{baseSecret}_{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
+        return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
+    }
+
+    internal static byte[] DeriveKeyPbkdf2Legacy(byte[] salt)
     {
         string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
         return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
