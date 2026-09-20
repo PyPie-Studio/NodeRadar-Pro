@@ -80,7 +80,7 @@ public static class CredentialVault
             var encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
             return Convert.ToBase64String(encrypted);
         }
-        catch (PlatformNotSupportedException)
+        catch (Exception ex) when (ex is PlatformNotSupportedException || ex is CryptographicException)
         {
             byte[] salt = new byte[16];
             byte[] nonce = new byte[12];
@@ -129,7 +129,7 @@ public static class CredentialVault
             var decrypted = ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
             return Encoding.UTF8.GetString(decrypted);
         }
-        catch (PlatformNotSupportedException)
+        catch (Exception ex) when (ex is PlatformNotSupportedException || ex is CryptographicException)
         {
             if (data.Length >= 45 && data[0] == 0x02)
             {
