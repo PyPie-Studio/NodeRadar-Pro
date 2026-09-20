@@ -159,6 +159,13 @@ public class AppUtilsTests
         Assert.Null(exception);
     }
 
+    [Fact]
+    public void OpenSafeUrl_Windows_DoesNotThrow()
+    {
+        var exception = Record.Exception(() => AppUtils.OpenSafeUrl("https://example.com/test?param=1&other=2"));
+        Assert.Null(exception);
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]
