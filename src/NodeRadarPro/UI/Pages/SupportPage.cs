@@ -7,6 +7,7 @@ using Avalonia.Platform;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -201,74 +202,14 @@ public class SupportPage : Border
                     var db = LocalDatabase.Instance;
                     var devices = db.GetAllDevices();
                     var alerts = db.GetAlerts(500);
-                    var logs = db.GetLogs(100);
 
-                    var sb = new StringBuilder();
-                    sb.AppendLine("# NodeRadar Pro — Security & Reconnaissance Audit");
-                    sb.AppendLine($"**Generated:** {DateTime.Now:yyyy-MM-dd hh:mm:ss tt}");
-                    sb.AppendLine($"**Application Version:** v{ThemeTokens.AppVersion}");
-                    sb.AppendLine($"**Environment:** {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
-                    sb.AppendLine();
-
-                    int total = devices.Count;
-                    int online = devices.Count(d => d.IsOnline);
-                    int threats = devices.Count(d => d.ThreatLevel != ThreatLevel.Safe);
-                    int critical = devices.Count(d => d.ThreatLevel == ThreatLevel.Critical);
-                    int warning = devices.Count(d => d.ThreatLevel == ThreatLevel.Warning);
-                    int registered = devices.Count(d => d.IsRegistered);
-                    int activeAlerts = alerts.Count(a => !a.IsResolved);
-
-                    sb.AppendLine("## 1. Executive Summary");
-                    sb.AppendLine($"- **Total Tracked Devices:** {total}");
-                    sb.AppendLine($"- **Online Devices:** {online} ({(total > 0 ? (online * 100 / total) : 0)}%)");
-                    sb.AppendLine($"- **Registered Assets:** {registered}");
-                    sb.AppendLine($"- **Security Threat Devices:** {threats} ({critical} Critical, {warning} Warning)");
-                    sb.AppendLine($"- **Active / Unresolved Alerts:** {activeAlerts}");
-                    sb.AppendLine();
-
-                    if (threats > 0)
-                    {
-                        sb.AppendLine("## 2. Threat Vector Summary");
-                        sb.AppendLine("| IP Address | MAC Address | Identity / Vendor | Threat Level | Open Ports |");
-                        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- |");
-                        foreach (var d in devices.Where(x => x.ThreatLevel != ThreatLevel.Safe))
-                        {
-                            string ports = (d.OpenPorts != null && d.OpenPorts.Count > 0) ? string.Join(", ", d.OpenPorts) : "None";
-                            sb.AppendLine($"| {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | **{d.ThreatLevel}** | {ports} |");
-                        }
-                        sb.AppendLine();
-                    }
-
-                    sb.AppendLine("## 3. Discovered Network Assets");
-                    sb.AppendLine("| Status | IP Address | MAC Address | Device Name | Vendor / Model | OS Guess |");
-                    sb.AppendLine("| :---: | :--- | :--- | :--- | :--- | :--- |");
-                    foreach (var d in devices)
-                    {
-                        string status = d.IsOnline ? "ONLINE" : "OFFLINE";
-                        string model = !string.IsNullOrEmpty(d.ExactModel) ? d.ExactModel : (!string.IsNullOrEmpty(d.DeviceModel) ? d.DeviceModel : "—");
-                        string os = !string.IsNullOrEmpty(d.OsGuess) ? d.OsGuess : "—";
-                        sb.AppendLine($"| {status} | {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | {model} | {os} |");
-                    }
-                    sb.AppendLine();
-
-                    if (alerts.Count > 0)
-                    {
-                        sb.AppendLine("## 4. Recent Security Alerts");
-                        sb.AppendLine("| Timestamp | State | Event Type | Target | Message |");
-                        sb.AppendLine("| :--- | :---: | :--- | :--- | :--- |");
-                        foreach (var a in alerts.Take(25))
-                        {
-                            string state = a.IsResolved ? "Resolved" : "**ACTIVE**";
-                            sb.AppendLine($"| {a.Timestamp:yyyy-MM-dd hh:mm:ss tt} | {state} | {a.AlertType.GetDisplayName()} | {a.DeviceName} | {a.Message} |");
-                        }
-                        sb.AppendLine();
-                    }
+                    string reportMarkdown = BuildSecurityAuditReport(devices, alerts);
 
                     string exportPath = Path.Combine(
                         Environment.GetFolderPath(Environment.SpecialFolder.Desktop),
                         $"NodeRadar_Security_Audit_{DateTime.Now:yyyyMMdd_HHmmss}.md");
 
-                    return (exportPath, sb.ToString());
+                    return (exportPath, reportMarkdown);
                 });
 
                 await File.WriteAllTextAsync(path, content);
@@ -528,4 +469,86 @@ public class SupportPage : Border
             }
         }
     };
+
+    public static string BuildSecurityAuditReport(List<NetworkNode> devices, List<AlertEvent> alerts)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("# NodeRadar Pro — Security & Reconnaissance Audit");
+        sb.AppendLine($"**Generated:** {DateTime.Now:yyyy-MM-dd hh:mm:ss tt}");
+        sb.AppendLine($"**Application Version:** v{ThemeTokens.AppVersion}");
+        sb.AppendLine($"**Environment:** {RuntimeInformation.OSDescription} ({RuntimeInformation.OSArchitecture})");
+        sb.AppendLine();
+
+        AppendExecutiveSummary(sb, devices, alerts);
+        AppendThreatVectorSummary(sb, devices);
+        AppendDiscoveredAssets(sb, devices);
+        AppendRecentAlerts(sb, alerts);
+
+        return sb.ToString();
+    }
+
+    private static void AppendExecutiveSummary(StringBuilder sb, List<NetworkNode> devices, List<AlertEvent> alerts)
+    {
+        int total = devices.Count;
+        int online = devices.Count(d => d.IsOnline);
+        int threats = devices.Count(d => d.ThreatLevel != ThreatLevel.Safe);
+        int critical = devices.Count(d => d.ThreatLevel == ThreatLevel.Critical);
+        int warning = devices.Count(d => d.ThreatLevel == ThreatLevel.Warning);
+        int registered = devices.Count(d => d.IsRegistered);
+        int activeAlerts = alerts.Count(a => !a.IsResolved);
+
+        sb.AppendLine("## 1. Executive Summary");
+        sb.AppendLine($"- **Total Tracked Devices:** {total}");
+        sb.AppendLine($"- **Online Devices:** {online} ({(total > 0 ? (online * 100 / total) : 0)}%)");
+        sb.AppendLine($"- **Registered Assets:** {registered}");
+        sb.AppendLine($"- **Security Threat Devices:** {threats} ({critical} Critical, {warning} Warning)");
+        sb.AppendLine($"- **Active / Unresolved Alerts:** {activeAlerts}");
+        sb.AppendLine();
+    }
+
+    private static void AppendThreatVectorSummary(StringBuilder sb, List<NetworkNode> devices)
+    {
+        var threatDevices = devices.Where(x => x.ThreatLevel != ThreatLevel.Safe).ToList();
+        if (threatDevices.Count == 0) return;
+
+        sb.AppendLine("## 2. Threat Vector Summary");
+        sb.AppendLine("| IP Address | MAC Address | Identity / Vendor | Threat Level | Open Ports |");
+        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- |");
+        foreach (var d in threatDevices)
+        {
+            string ports = (d.OpenPorts != null && d.OpenPorts.Count > 0) ? string.Join(", ", d.OpenPorts) : "None";
+            sb.AppendLine($"| {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | **{d.ThreatLevel}** | {ports} |");
+        }
+        sb.AppendLine();
+    }
+
+    private static void AppendDiscoveredAssets(StringBuilder sb, List<NetworkNode> devices)
+    {
+        sb.AppendLine("## 3. Discovered Network Assets");
+        sb.AppendLine("| Status | IP Address | MAC Address | Device Name | Vendor / Model | OS Guess |");
+        sb.AppendLine("| :---: | :--- | :--- | :--- | :--- | :--- |");
+        foreach (var d in devices)
+        {
+            string status = d.IsOnline ? "ONLINE" : "OFFLINE";
+            string model = !string.IsNullOrEmpty(d.ExactModel) ? d.ExactModel : (!string.IsNullOrEmpty(d.DeviceModel) ? d.DeviceModel : "—");
+            string os = !string.IsNullOrEmpty(d.OsGuess) ? d.OsGuess : "—";
+            sb.AppendLine($"| {status} | {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | {model} | {os} |");
+        }
+        sb.AppendLine();
+    }
+
+    private static void AppendRecentAlerts(StringBuilder sb, List<AlertEvent> alerts)
+    {
+        if (alerts.Count == 0) return;
+
+        sb.AppendLine("## 4. Recent Security Alerts");
+        sb.AppendLine("| Timestamp | State | Event Type | Target | Message |");
+        sb.AppendLine("| :--- | :---: | :--- | :--- | :--- |");
+        foreach (var a in alerts.Take(25))
+        {
+            string state = a.IsResolved ? "Resolved" : "**ACTIVE**";
+            sb.AppendLine($"| {a.Timestamp:yyyy-MM-dd hh:mm:ss tt} | {state} | {a.AlertType.GetDisplayName()} | {a.DeviceName} | {a.Message} |");
+        }
+        sb.AppendLine();
+    }
 }
