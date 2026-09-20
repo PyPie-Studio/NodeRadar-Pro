@@ -154,8 +154,14 @@ public class SubnetScanner
                         {
                             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
+                        catch (OperationCanceledException)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                        }
                         return node;
                     }, token));
                 }
@@ -170,7 +176,10 @@ public class SubnetScanner
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Post-sweep ARP table sweep failed: {ex.Message}");
+            }
         }
 
         ProgressUpdated?.Invoke(100.0);
@@ -209,8 +218,14 @@ public class SubnetScanner
                             {
                                 await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                             }
-                            catch (OperationCanceledException) { }
-                            catch { }
+                            catch (OperationCanceledException)
+                            {
+                                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                            }
                             return node;
                         }, token));
                     }
@@ -227,7 +242,10 @@ public class SubnetScanner
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Pre-sweep ARP check failed: {ex.Message}");
+        }
 
         var allSubnets = GetAllLocalBaseIps();
         if (!allSubnets.Contains(baseIp))
@@ -304,8 +322,14 @@ public class SubnetScanner
                         {
                             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
+                        catch (OperationCanceledException)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                        }
                         return node;
                     }, token));
                 }
@@ -320,7 +344,10 @@ public class SubnetScanner
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Post-sweep ARP table sweep failed: {ex.Message}");
+            }
         }
 
         if (!token.IsCancellationRequested)
