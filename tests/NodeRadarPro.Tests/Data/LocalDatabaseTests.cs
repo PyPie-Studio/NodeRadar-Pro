@@ -206,6 +206,27 @@ public class LocalDatabaseTests : IDisposable
         Assert.Equal(15, history[0].LatencyMs);
     }
 
+    [Fact]
+    public void GetUptimeHistory_WhenDeviceSelected_ReturnsRecentSnapshots()
+    {
+        var now = DateTime.UtcNow;
+        var snapshots = new List<UptimeSnapshot>
+        {
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 10, Timestamp = now.AddHours(-1) },
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = false, LatencyMs = -1, Timestamp = now.AddHours(-12) },
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 12, Timestamp = now.AddHours(-30) },
+            new UptimeSnapshot { MacAddress = "AA:BB:CC:DD:EE:FF", IsOnline = true, LatencyMs = 5, Timestamp = now.AddHours(-2) }
+        };
+
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var history24h = _db.GetUptimeHistory("11:22:33:44:55:66", 24);
+
+        Assert.Equal(2, history24h.Count);
+        Assert.All(history24h, s => Assert.Equal("11:22:33:44:55:66", s.MacAddress));
+        Assert.DoesNotContain(history24h, s => s.Timestamp < now.AddHours(-24));
+    }
+
     // -- SETTINGS TESTS --
 
     [Fact]
