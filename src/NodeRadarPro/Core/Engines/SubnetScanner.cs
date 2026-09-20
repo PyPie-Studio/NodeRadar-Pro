@@ -78,6 +78,50 @@ public class SubnetScanner
         }
     }
 
+    public static bool IsIpInSubnetAndRange(ReadOnlySpan<char> ipSpan, string baseIp, int startIp, int endIp)
+    {
+        int lastDotIndex = ipSpan.LastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
+
+        ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
+        if (!ipSubnet.Equals(baseIp.AsSpan(), StringComparison.Ordinal)) return false;
+
+        ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
+        if (!int.TryParse(lastOctetSpan, out int lastOctet)) return false;
+
+        return lastOctet >= startIp && lastOctet <= endIp;
+    }
+
+    public static bool IsIpInSubnet(ReadOnlySpan<char> ipSpan, string baseIp)
+    {
+        int lastDotIndex = ipSpan.LastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
+
+        ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
+        if (!ipSubnet.Equals(baseIp.AsSpan(), StringComparison.Ordinal)) return false;
+
+        ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
+        return int.TryParse(lastOctetSpan, out int lastOctet) && lastOctet >= 0 && lastOctet <= 255;
+    }
+
+    public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, List<string> subnets)
+    {
+        int lastDotIndex = ipSpan.LastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
+
+        ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
+        ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
+        if (!int.TryParse(lastOctetSpan, out int lastOctet) || lastOctet < 0 || lastOctet > 255) return false;
+
+        foreach (var subnet in subnets)
+        {
+            if (ipSubnet.Equals(subnet.AsSpan(), StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
     {
         _ = DeepFingerprintEngine.Instance.StartDiscoverySweepAsync(token);
@@ -139,11 +183,7 @@ public class SubnetScanner
                     if (token.IsCancellationRequested) break;
                     if (discoveredMacs.ContainsKey(mac)) continue;
 
-                    string[] parts = ip.Split('.');
-                    if (parts.Length != 4) continue;
-                    string ipSubnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
-                    if (ipSubnet != baseIp) continue;
-                    if (!int.TryParse(parts[3], out int lastOctet) || lastOctet < startIp || lastOctet > endIp) continue;
+                    if (!IsIpInSubnetAndRange(ip.AsSpan(), baseIp, startIp, endIp)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
@@ -195,8 +235,7 @@ public class SubnetScanner
                 if (token.IsCancellationRequested) break;
                 if (ip == "127.0.0.1" || mac == "00:00:00:00:00:00") continue;
 
-                string[] parts = ip.Split('.');
-                if (parts.Length == 4 && $"{parts[0]}.{parts[1]}.{parts[2]}" == baseIp)
+                if (IsIpInSubnet(ip.AsSpan(), baseIp))
                 {
                     if (discoveredMacs.TryAdd(mac, true))
                     {
@@ -290,10 +329,7 @@ public class SubnetScanner
                     if (token.IsCancellationRequested) break;
                     if (discoveredMacs.ContainsKey(mac)) continue;
 
-                    string[] parts = ip.Split('.');
-                    if (parts.Length != 4) continue;
-                    string ipSubnet = $"{parts[0]}.{parts[1]}.{parts[2]}";
-                    if (!allSubnets.Contains(ipSubnet)) continue;
+                    if (!IsIpInAnySubnet(ip.AsSpan(), allSubnets)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
