@@ -1,5 +1,3 @@
-using System.Reflection;
-using LiteDB;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 
@@ -48,7 +46,7 @@ public class DatabaseBackupServiceTests : IDisposable
     public void BackupDatabase_SourceFileDoesNotExist_ReturnsEmptyStringAndLogsInfo()
     {
         var nonExistentDbPath = Path.Combine(_tempDir, "non_existent_" + Guid.NewGuid().ToString("N") + ".db");
-        var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
+        var pathField = typeof(LocalDatabase).GetField("_dbPath", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         pathField!.SetValue(_db, nonExistentDbPath);
 
         var result = _db.Backup.BackupDatabase();
