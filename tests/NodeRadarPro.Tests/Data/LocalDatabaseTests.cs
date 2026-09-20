@@ -57,6 +57,68 @@ public class LocalDatabaseTests : IDisposable
     }
 
     [Fact]
+    public void MergeWithHistory_PortBanners_WhenScannedEmpty_PreservesExistingBanners()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:77",
+            IpAddress = "10.0.0.1",
+            PortBanners = new Dictionary<int, string> { { 80, "HTTP/1.1 200 OK" } }
+        };
+        _db.MergeWithHistory(initialNode);
+
+        var updatedNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:77",
+            IpAddress = "10.0.0.1",
+            PortBanners = new Dictionary<int, string>()
+        };
+        _db.MergeWithHistory(updatedNode);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Single(devices);
+        Assert.NotNull(devices[0].PortBanners);
+        Assert.True(devices[0].PortBanners.ContainsKey(80));
+        Assert.Equal("HTTP/1.1 200 OK", devices[0].PortBanners[80]);
+    }
+
+    [Fact]
+    public void MergeWithHistory_PortBanners_WhenBothHaveBanners_MergesWithoutOverwritingScanned()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:88",
+            IpAddress = "10.0.0.1",
+            PortBanners = new Dictionary<int, string>
+            {
+                { 80, "Old HTTP" },
+                { 22, "SSH-2.0-OpenSSH" }
+            }
+        };
+        _db.MergeWithHistory(initialNode);
+
+        var updatedNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:88",
+            IpAddress = "10.0.0.1",
+            PortBanners = new Dictionary<int, string>
+            {
+                { 80, "New HTTP" },
+                { 443, "HTTPS Server" }
+            }
+        };
+        _db.MergeWithHistory(updatedNode);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Single(devices);
+        Assert.NotNull(devices[0].PortBanners);
+        Assert.Equal(3, devices[0].PortBanners.Count);
+        Assert.Equal("New HTTP", devices[0].PortBanners[80]);
+        Assert.Equal("SSH-2.0-OpenSSH", devices[0].PortBanners[22]);
+        Assert.Equal("HTTPS Server", devices[0].PortBanners[443]);
+    }
+
+    [Fact]
     public void UpdateRegistration_CreatesOrUpdatesDevice()
     {
         _db.UpdateRegistration("00:11:22:33:44:55", "Test TV", "Living Room", "Loc1", "Smart TV", "ModelX", "icon_tv");
