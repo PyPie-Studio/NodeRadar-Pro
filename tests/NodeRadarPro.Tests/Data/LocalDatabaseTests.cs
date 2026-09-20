@@ -447,4 +447,253 @@ public class LocalDatabaseTests : IDisposable
         Assert.Contains(retrieved, a => a.Message == "Alert 1");
         Assert.Contains(retrieved, a => a.Message == "Alert 2");
     }
+
+    // -- RESTORE DATABASE TESTS --
+
+    [Fact]
+    public void RestoreDatabase_FileDoesNotExist_ReturnsFalse()
+    {
+        var nonExistentPath = Path.Combine(Path.GetTempPath(), "non_existent_restore_" + Guid.NewGuid() + ".db");
+
+        var result = _db.Backup.RestoreDatabase(nonExistentPath);
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void RestoreDatabase_SuccessfulRestore_ReturnsTrueAndRestoresData()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var backupDbPath = Path.Combine(dbFolder, "backup.db");
+
+        try
+        {
+            using (var db = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                db.MergeWithHistory(new NetworkNode { MacAddress = "AA:AA:AA:AA:AA:AA", CustomName = "Original Device" });
+            }
+
+            using (var backupDb = new LocalDatabase(backupDbPath, "password123"))
+            {
+                backupDb.MergeWithHistory(new NetworkNode { MacAddress = "BB:BB:BB:BB:BB:BB", CustomName = "Restored Device" });
+            }
+
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                var result = localDb.Backup.RestoreDatabase(backupDbPath);
+
+                Assert.True(result);
+                var devices = localDb.GetAllDevices();
+                Assert.Single(devices);
+                Assert.Equal("BB:BB:BB:BB:BB:BB", devices[0].MacAddress);
+                Assert.Equal("Restored Device", devices[0].CustomName);
+
+                var logs = localDb.GetLogs();
+                Assert.Contains(logs, l => l.Message.Contains($"Database restored from: {backupDbPath}"));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreDatabase_IOException_ReopensDatabaseAndLogsError()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_io_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var backupDbPath = Path.Combine(dbFolder, "backup.db");
+
+        var invalidDirFile = Path.Combine(dbFolder, "invalid_dir_file");
+        File.WriteAllText(invalidDirFile, "not a directory");
+        var invalidDbPath = Path.Combine(invalidDirFile, "subfolder", "db.db");
+
+        try
+        {
+            using (var backupDb = new LocalDatabase(backupDbPath, "password123"))
+            {
+                backupDb.MergeWithHistory(new NetworkNode { MacAddress = "CC:CC:CC:CC:CC:CC" });
+            }
+
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
+                pathField!.SetValue(localDb, invalidDbPath);
+
+                var result = localDb.Backup.RestoreDatabase(backupDbPath);
+
+                Assert.False(result);
+
+                var logs = localDb.GetLogs(levelFilter: LogLevel.Error);
+                Assert.Contains(logs, l => l.Source == "Database" && l.Message.StartsWith("Database restore failed: File in use or I/O error."));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreDatabase_UnauthorizedAccessException_ReopensDatabaseAndLogsError()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_unauth_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var backupDbPath = Path.Combine(dbFolder, "backup.db");
+
+        try
+        {
+            using (var backupDb = new LocalDatabase(backupDbPath, "password123"))
+            {
+                backupDb.MergeWithHistory(new NetworkNode { MacAddress = "DD:DD:DD:DD:DD:DD" });
+            }
+
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                File.SetAttributes(sourceDbPath, FileAttributes.ReadOnly);
+
+                var result = localDb.Backup.RestoreDatabase(backupDbPath);
+
+                Assert.False(result);
+
+                var logs = localDb.GetLogs(levelFilter: LogLevel.Error);
+                Assert.Contains(logs, l => l.Source == "Database" && l.Message.StartsWith("Database restore failed: Permission denied when accessing file."));
+            }
+        }
+        finally
+        {
+            if (File.Exists(sourceDbPath))
+            {
+                try { File.SetAttributes(sourceDbPath, FileAttributes.Normal); } catch { }
+            }
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreDatabase_LiteException_CorruptBackupFile_ReopensDatabaseAndLogsError()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_lite_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var corruptBackupPath = Path.Combine(dbFolder, "corrupt_backup.db");
+
+        // Write 8192 random garbage bytes so LiteDB reads a full corrupt page header
+        byte[] garbage = new byte[8192];
+        new Random(42).NextBytes(garbage);
+        File.WriteAllBytes(corruptBackupPath, garbage);
+
+        try
+        {
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                var result = localDb.Backup.RestoreDatabase(corruptBackupPath);
+
+                Assert.False(result);
+
+                var logs = localDb.GetLogs(levelFilter: LogLevel.Error);
+                Assert.Contains(logs, l => l.Source == "Database" && l.Message.StartsWith("Database restore failed: Database structure invalid/corrupted."));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreDatabase_GeneralException_ReopensDatabaseAndLogsError()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_general_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var backupDbPath = Path.Combine(dbFolder, "backup.db");
+
+        try
+        {
+            using (var backupDb = new LocalDatabase(backupDbPath, "password123"))
+            {
+                backupDb.MergeWithHistory(new NetworkNode { MacAddress = "FF:FF:FF:FF:FF:FF" });
+            }
+
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                // Set password to invalid characters that throw FormatException/ArgumentException when parsing ConnectionString
+                var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
+                pathField!.SetValue(localDb, "invalid_path_\0_null_byte.db");
+
+                var result = localDb.Backup.RestoreDatabase(backupDbPath);
+
+                Assert.False(result);
+
+                var logs = localDb.GetLogs(levelFilter: LogLevel.Error);
+                Assert.Contains(logs, l => l.Source == "Database" && l.Message.StartsWith("Restore failed:"));
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void RestoreDatabase_EmptyDbPath_FallbackToDefaultPath()
+    {
+        var dbFolder = Path.Combine(Path.GetTempPath(), "restore_fallback_test_" + Guid.NewGuid());
+        Directory.CreateDirectory(dbFolder);
+        var sourceDbPath = Path.Combine(dbFolder, "noderadar.db");
+        var backupPath = Path.Combine(dbFolder, "backup.db");
+
+        try
+        {
+            using (var backupDb = new LocalDatabase(backupPath, "password123"))
+            {
+                backupDb.MergeWithHistory(new NetworkNode { MacAddress = "EE:EE:EE:EE:EE:EE" });
+            }
+
+            using (var localDb = new LocalDatabase(sourceDbPath, "password123"))
+            {
+                var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
+                pathField!.SetValue(localDb, "");
+
+                var result = localDb.Backup.RestoreDatabase(backupPath);
+
+                Assert.True(result);
+                var logs = localDb.GetLogs();
+                Assert.Contains(logs, l => l.Message.Contains($"Database restored from: {backupPath}"));
+            }
+        }
+        finally
+        {
+            var fallbackPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+            if (File.Exists(fallbackPath))
+            {
+                try { File.Delete(fallbackPath); } catch { }
+            }
+            if (Directory.Exists(dbFolder))
+            {
+                try { Directory.Delete(dbFolder, true); } catch { }
+            }
+        }
+    }
 }
