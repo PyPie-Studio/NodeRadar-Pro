@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
