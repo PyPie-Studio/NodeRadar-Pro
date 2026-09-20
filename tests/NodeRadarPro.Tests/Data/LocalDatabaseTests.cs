@@ -447,4 +447,32 @@ public class LocalDatabaseTests : IDisposable
         Assert.Contains(retrieved, a => a.Message == "Alert 1");
         Assert.Contains(retrieved, a => a.Message == "Alert 2");
     }
+
+    [Fact]
+    public void MergeWithHistory_PortBanners_MergedCorrectly()
+    {
+        // Existing node with banner for port 80
+        var existingNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:FF",
+            IpAddress = "192.168.1.10",
+            PortBanners = new Dictionary<int, string> { { 80, "Apache/2.4.41" } }
+        };
+        _db.MergeWithHistory(existingNode);
+
+        // Scanned node with banner for port 443 and new banner for port 80 (should preserve existing port 80 if not present, but scanned key wins if present? wait, let us test behavior)
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:FF",
+            IpAddress = "192.168.1.10",
+            PortBanners = new Dictionary<int, string> { { 443, "nginx/1.18.0" } }
+        };
+        _db.MergeWithHistory(scannedNode);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Single(devices);
+        Assert.Equal(2, devices[0].PortBanners.Count);
+        Assert.Equal("Apache/2.4.41", devices[0].PortBanners[80]);
+        Assert.Equal("nginx/1.18.0", devices[0].PortBanners[443]);
+    }
 }

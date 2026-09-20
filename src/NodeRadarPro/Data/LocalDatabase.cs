@@ -247,16 +247,7 @@ public class LocalDatabase : IDisposable
                     if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
                         scannedNode.OpenPorts = existing.OpenPorts;
 
-                    if (existing.PortBanners?.Count > 0 && (scannedNode.PortBanners == null || scannedNode.PortBanners.Count == 0))
-                        scannedNode.PortBanners = existing.PortBanners;
-                    else if (scannedNode.PortBanners != null && existing.PortBanners != null)
-                    {
-                        foreach (var kvp in existing.PortBanners)
-                        {
-                            if (!scannedNode.PortBanners.ContainsKey(kvp.Key))
-                                scannedNode.PortBanners[kvp.Key] = kvp.Value;
-                        }
-                    }
+                    scannedNode.PortBanners = MergePortBanners(scannedNode.PortBanners, existing.PortBanners);
 
                     if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
                         scannedNode.OsGuess = existing.OsGuess;
@@ -693,5 +684,21 @@ public class LocalDatabase : IDisposable
 
             return deleted;
         }
+    }
+
+    private static Dictionary<int, string> MergePortBanners(Dictionary<int, string>? target, Dictionary<int, string>? source)
+    {
+        if (target == null || target.Count == 0)
+            return source != null ? new Dictionary<int, string>(source) : new Dictionary<int, string>();
+
+        if (source != null && source.Count > 0)
+        {
+            foreach (var kvp in source)
+            {
+                target.TryAdd(kvp.Key, kvp.Value);
+            }
+        }
+
+        return target;
     }
 }
