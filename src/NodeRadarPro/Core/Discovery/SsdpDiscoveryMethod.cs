@@ -140,7 +140,10 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         {
             await Task.Delay(3000, ct);
         }
-        catch (OperationCanceledException) { }
+        catch (OperationCanceledException)
+        {
+            Logger.Log(LogLevel.Info, Name, "SSDP listening wait cancelled.");
+        }
     }
 
     public static string ParseVendorFromServerHeader(string? serverHeader)
