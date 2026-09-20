@@ -201,16 +201,18 @@ public static class ArpResolver
     {
         try
         {
-            string arpTable = System.IO.File.ReadAllText("/proc/net/arp");
+            using var reader = new System.IO.StreamReader("/proc/net/arp");
+            string? line = reader.ReadLine(); // Skip header
+            if (line == null) return "Unknown";
 
-            string[] lines = arpTable.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (string line in lines.Skip(1)) // Skip header
+            while ((line = reader.ReadLine()) != null)
             {
-                string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 4 && parts[0] == ipAddress)
+                if (TryParseProcNetArpLine(line, out ReadOnlySpan<char> ipSpan, out ReadOnlySpan<char> macSpan))
                 {
-                    return parts[3].ToUpper().Replace("-", ":");
+                    if (ipSpan.Equals(ipAddress, StringComparison.Ordinal))
+                    {
+                        return FormatMacSpan(macSpan);
+                    }
                 }
             }
             return "Unknown";
@@ -297,19 +299,19 @@ public static class ArpResolver
 
         try
         {
-            string arpTable = System.IO.File.ReadAllText("/proc/net/arp");
-            string[] lines = arpTable.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            using var reader = new System.IO.StreamReader("/proc/net/arp");
+            string? line = reader.ReadLine(); // Skip header
+            if (line == null) return results;
 
-            foreach (string line in lines.Skip(1)) // Skip header
+            while ((line = reader.ReadLine()) != null)
             {
-                string[] parts = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 4)
+                if (TryParseProcNetArpLine(line, out ReadOnlySpan<char> ipSpan, out ReadOnlySpan<char> macSpan))
                 {
-                    string ip = parts[0];
-                    string mac = parts[3].ToUpper().Replace("-", ":");
+                    if (macSpan.Equals("00:00:00:00:00:00", StringComparison.Ordinal)) continue;
+                    if (!IPAddress.TryParse(ipSpan, out _)) continue;
 
-                    if (mac == "00:00:00:00:00:00") continue;
-                    if (!IPAddress.TryParse(ip, out _)) continue;
+                    string ip = ipSpan.ToString();
+                    string mac = FormatMacSpan(macSpan);
 
                     results.Add((ip, mac));
                 }
@@ -318,5 +320,49 @@ public static class ArpResolver
         catch { }
 
         return results;
+    }
+
+    internal static bool TryParseProcNetArpLine(string line, out ReadOnlySpan<char> ipSpan, out ReadOnlySpan<char> macSpan)
+    {
+        ipSpan = default;
+        macSpan = default;
+
+        ReadOnlySpan<char> span = line.AsSpan().Trim();
+        if (span.IsEmpty) return false;
+
+        // Part 0: IP address
+        int ipEnd = span.IndexOf(' ');
+        if (ipEnd < 0) return false;
+        ipSpan = span.Slice(0, ipEnd);
+
+        // Part 1: HW type
+        span = span.Slice(ipEnd).TrimStart();
+        int p1End = span.IndexOf(' ');
+        if (p1End < 0) return false;
+
+        // Part 2: Flags
+        span = span.Slice(p1End).TrimStart();
+        int p2End = span.IndexOf(' ');
+        if (p2End < 0) return false;
+
+        // Part 3: HW address
+        span = span.Slice(p2End).TrimStart();
+        int macEnd = span.IndexOf(' ');
+        macSpan = macEnd < 0 ? span : span.Slice(0, macEnd);
+
+        return !macSpan.IsEmpty;
+    }
+
+    internal static string FormatMacSpan(ReadOnlySpan<char> macSpan)
+    {
+        return string.Create(macSpan.Length, macSpan, (span, state) =>
+        {
+            for (int i = 0; i < state.Length; i++)
+            {
+                char c = state[i];
+                if (c == '-') span[i] = ':';
+                else span[i] = char.ToUpperInvariant(c);
+            }
+        });
     }
 }
