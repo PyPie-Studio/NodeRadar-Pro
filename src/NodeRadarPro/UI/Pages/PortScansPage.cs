@@ -223,10 +223,21 @@ public class PortScansPage : Border
                     }
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception) { }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "PortScansPage", $"Port scan connection failed for {ip}:{port}: {ex.Message}");
+                }
                 finally
                 {
-                    try { throttle.Release(); } catch (ObjectDisposedException) { }
+                    try
+                    {
+                        throttle.Release();
+                    }
+                    catch (ObjectDisposedException) { }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Warning, "PortScansPage", $"Failed to release throttle semaphore: {ex.Message}");
+                    }
                 }
 
                 int c = Interlocked.Increment(ref scanned);
