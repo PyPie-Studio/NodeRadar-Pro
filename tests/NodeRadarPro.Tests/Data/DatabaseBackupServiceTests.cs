@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using LiteDB;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
@@ -49,15 +50,14 @@ public class DatabaseBackupServiceTests : IDisposable
     [Fact]
     public void BackupDatabase_SourceFileDoesNotExist_ReturnsEmptyStringAndLogsInfo()
     {
-        var nonExistentDbPath = Path.Combine(_tempDir, "non_existent.db");
-        var db = new LocalDatabase(nonExistentDbPath, "pass");
-        db.DisposeConnection();
-        if (File.Exists(nonExistentDbPath)) File.Delete(nonExistentDbPath);
+        var nonExistentDbPath = Path.Combine(_tempDir, "non_existent_" + Guid.NewGuid().ToString("N") + ".db");
+        var pathField = typeof(LocalDatabase).GetField("_dbPath", BindingFlags.NonPublic | BindingFlags.Instance);
+        pathField!.SetValue(_db, nonExistentDbPath);
 
-        var result = db.Backup.BackupDatabase();
+        var result = _db.Backup.BackupDatabase();
 
         Assert.Equal("", result);
-        var logs = db.GetLogs(levelFilter: LogLevel.Info);
+        var logs = _db.GetLogs(levelFilter: LogLevel.Info);
         Assert.Contains(logs, l => l.Message.Contains("Backup skipped: Database file not found"));
     }
 
@@ -185,7 +185,10 @@ public class DatabaseBackupServiceTests : IDisposable
     public void RestoreDatabase_CorruptBackup_ReturnsFalseAndReopensDatabase()
     {
         string corruptBackupPath = Path.Combine(_tempDir, "corrupt_backup.db");
-        File.WriteAllText(corruptBackupPath, "Not a LiteDB file!");
+        // Create a full page (8192 bytes) of invalid garbage bytes so LiteDB page header parsing fails
+        byte[] garbage = new byte[16384];
+        Array.Fill(garbage, (byte)0xFF);
+        File.WriteAllBytes(corruptBackupPath, garbage);
 
         bool result = _db.Backup.RestoreDatabase(corruptBackupPath);
 
@@ -204,7 +207,6 @@ public class DatabaseBackupServiceTests : IDisposable
     [Fact]
     public void RestoreDatabase_IOException_ReturnsFalseAndReopensDatabase()
     {
-        string lockedBackupPath = Path.Combine(_tempDir, "locked_backup.db");
         // Create valid backup first
         string validBackup = _db.Backup.BackupDatabase();
 
