@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 
@@ -18,6 +19,7 @@ public static class Logger
     private static readonly object _fileLock = new();
     private static readonly ConcurrentQueue<string> _logQueue = new();
     private static bool _isProcessing = false;
+    private static readonly ManualResetEventSlim _flushEvent = new(true);
 
     private static string LogDir => _customLogDir ?? _defaultLogDir;
     private static string CurrentLogFile => Path.Combine(LogDir, "noderadar_system.log");
@@ -35,7 +37,7 @@ public static class Logger
     {
         while (!_logQueue.IsEmpty || _isProcessing)
         {
-            System.Threading.Thread.Sleep(10);
+            _flushEvent.Wait(100);
         }
     }
 
@@ -58,6 +60,7 @@ public static class Logger
         {
             if (_isProcessing) return;
             _isProcessing = true;
+            _flushEvent.Reset();
         }
 
         Task.Run(() =>
@@ -83,7 +86,18 @@ public static class Logger
             catch { }
             finally
             {
-                lock (_fileLock) { _isProcessing = false; }
+                lock (_fileLock)
+                {
+                    _isProcessing = false;
+                    if (!_logQueue.IsEmpty)
+                    {
+                        ProcessQueue();
+                    }
+                    else
+                    {
+                        _flushEvent.Set();
+                    }
+                }
             }
         });
     }

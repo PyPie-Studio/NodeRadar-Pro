@@ -67,4 +67,25 @@ public class LoggerTests : IDisposable
         Assert.Contains(source, content);
         Assert.Contains("ERROR", content);
     }
+
+    [Fact]
+    public void FlushForTesting_PerformanceTest()
+    {
+        // Warmup
+        Logger.Log(LogLevel.Info, "Bench", "Warmup");
+        Logger.FlushForTesting();
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        int iterations = 100;
+
+        for (int i = 0; i < iterations; i++)
+        {
+            Logger.Log(LogLevel.Info, "Bench", $"Message {i}");
+            Logger.FlushForTesting();
+        }
+
+        sw.Stop();
+        Assert.True(File.Exists(_testLogFilePath));
+        Console.WriteLine($"[BASELINE BENCHMARK] {iterations} iterations took: {sw.ElapsedMilliseconds} ms (avg {sw.Elapsed.TotalMilliseconds / iterations:F2} ms/op)");
+    }
 }
