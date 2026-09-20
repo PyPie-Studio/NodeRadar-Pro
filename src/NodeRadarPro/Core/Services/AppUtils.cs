@@ -130,9 +130,11 @@ namespace NodeRadarPro.Core
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = safeUrl,
-                        UseShellExecute = true
+                        FileName = "rundll32.exe",
+                        UseShellExecute = false
                     };
+                    psi.ArgumentList.Add("url.dll,FileProtocolHandler");
+                    psi.ArgumentList.Add(safeUrl);
                     Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
