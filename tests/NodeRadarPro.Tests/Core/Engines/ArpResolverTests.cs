@@ -91,4 +91,33 @@ public class ArpResolverTests
         Assert.NotNull(dictionary);
         Assert.DoesNotContain(Process.GetProcessesByName("arp"), p => !p.HasExited);
     }
+
+    [Fact]
+    public void TryParseProcNetArpLine_ValidLine_ParsesIpAndMac()
+    {
+        string line = "192.168.1.50     0x1         0x2         00-11-22-33-44-55     *        eth0";
+        bool parsed = ArpResolver.TryParseProcNetArpLine(line, out ReadOnlySpan<char> ipSpan, out ReadOnlySpan<char> macSpan);
+
+        Assert.True(parsed);
+        Assert.Equal("192.168.1.50", ipSpan.ToString());
+        Assert.Equal("00-11-22-33-44-55", macSpan.ToString());
+    }
+
+    [Fact]
+    public void TryParseProcNetArpLine_InvalidLine_ReturnsFalse()
+    {
+        string line = "InvalidLineWithoutSpaces";
+        bool parsed = ArpResolver.TryParseProcNetArpLine(line, out _, out _);
+
+        Assert.False(parsed);
+    }
+
+    [Fact]
+    public void FormatMacSpan_FormatsDashesToColonsAndUppercase()
+    {
+        ReadOnlySpan<char> rawMac = "0e-6f-31-e3-e5-dc".AsSpan();
+        string formatted = ArpResolver.FormatMacSpan(rawMac);
+
+        Assert.Equal("0E:6F:31:E3:E5:DC", formatted);
+    }
 }
