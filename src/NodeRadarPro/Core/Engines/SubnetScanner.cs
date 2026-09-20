@@ -80,6 +80,8 @@ public class SubnetScanner
 
     public static bool IsIpInSubnetAndRange(ReadOnlySpan<char> ipSpan, string baseIp, int startIp, int endIp)
     {
+        if (CountDots(ipSpan) != 3) return false;
+
         int lastDotIndex = ipSpan.LastIndexOf('.');
         if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
 
@@ -94,6 +96,8 @@ public class SubnetScanner
 
     public static bool IsIpInSubnet(ReadOnlySpan<char> ipSpan, string baseIp)
     {
+        if (CountDots(ipSpan) != 3) return false;
+
         int lastDotIndex = ipSpan.LastIndexOf('.');
         if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
 
@@ -106,6 +110,52 @@ public class SubnetScanner
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, List<string> subnets)
     {
+        if (CountDots(ipSpan) != 3) return false;
+
+        int lastDotIndex = ipSpan.LastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
+
+        ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
+        ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
+        if (!int.TryParse(lastOctetSpan, out int lastOctet) || lastOctet < 0 || lastOctet > 255) return false;
+
+        for (int i = 0; i < subnets.Count; i++)
+        {
+            if (ipSubnet.Equals(subnets[i].AsSpan(), StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, HashSet<string> subnets)
+    {
+        if (CountDots(ipSpan) != 3) return false;
+
+        int lastDotIndex = ipSpan.LastIndexOf('.');
+        if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
+
+        ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
+        ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
+        if (!int.TryParse(lastOctetSpan, out int lastOctet) || lastOctet < 0 || lastOctet > 255) return false;
+
+        if (subnets.TryGetAlternateLookup<ReadOnlySpan<char>>(out var lookup))
+        {
+            return lookup.Contains(ipSubnet);
+        }
+
+        return subnets.Contains(ipSubnet.ToString());
+    }
+
+    public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, IEnumerable<string> subnets)
+    {
+        if (subnets is List<string> list)
+            return IsIpInAnySubnet(ipSpan, list);
+        if (subnets is HashSet<string> hashSet)
+            return IsIpInAnySubnet(ipSpan, hashSet);
+
+        if (CountDots(ipSpan) != 3) return false;
+
         int lastDotIndex = ipSpan.LastIndexOf('.');
         if (lastDotIndex <= 0 || lastDotIndex == ipSpan.Length - 1) return false;
 
@@ -120,6 +170,16 @@ public class SubnetScanner
         }
 
         return false;
+    }
+
+    private static int CountDots(ReadOnlySpan<char> span)
+    {
+        int count = 0;
+        foreach (char c in span)
+        {
+            if (c == '.') count++;
+        }
+        return count;
     }
 
     public async Task<List<NetworkNode>> ScanRangeAsync(string baseIp, int startIp, int endIp, CancellationToken token = default)
