@@ -416,40 +416,7 @@ public class DarkPurpleTheme
             settings = db.LoadSettings();
 
             // Task 2: System Integrity Shield (Verify Binaries)
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    // We verify the core logic DLL/executable instead of the dynamic database
-                    string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadar Pro.dll");
-
-                    if (System.IO.File.Exists(mainFile))
-                    {
-                        string? currentHash = SecurityService.ComputeFileHash(mainFile);
-                        if (!string.IsNullOrEmpty(currentHash))
-                        {
-                            if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
-                            {
-                                settings.LastKnownGoodHash = currentHash;
-                                db.SaveSettings(settings);
-                                db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
-                            }
-                            else if (!SecurityService.VerifyHash(settings.LastKnownGoodHash, currentHash))
-                            {
-                                db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
-                            }
-                            else
-                            {
-                                db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
-                            }
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
-                }
-            });
+            _ = Task.Run(() => VerifySystemIntegrity(settings, db));
 
             // Apply settings to services (Non-UI)
             ApplySettings(settings, monitor, scanner, detector);
@@ -522,5 +489,47 @@ public class DarkPurpleTheme
         scanner.EnableOsDetection = settings.EnableOsDetection;
 
         detector.Configure(settings);
+    }
+
+    /// <summary>
+    /// Verifies application binary integrity and logs status or saves initial signature hash.
+    /// </summary>
+    private static void VerifySystemIntegrity(AppSettings settings, LocalDatabase db)
+    {
+        try
+        {
+            // We verify the core logic DLL/executable instead of the dynamic database
+            string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadar Pro.dll");
+
+            if (!System.IO.File.Exists(mainFile))
+            {
+                return;
+            }
+
+            string? currentHash = SecurityService.ComputeFileHash(mainFile);
+            if (string.IsNullOrEmpty(currentHash))
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
+            {
+                settings.LastKnownGoodHash = currentHash;
+                db.SaveSettings(settings);
+                db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
+            }
+            else if (!SecurityService.VerifyHash(settings.LastKnownGoodHash, currentHash))
+            {
+                db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
+            }
+            else
+            {
+                db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
+            }
+        }
+        catch (Exception ex)
+        {
+            db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
+        }
     }
 }
