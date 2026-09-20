@@ -223,7 +223,10 @@ public class PortScansPage : Border
                     }
                 }
                 catch (OperationCanceledException) { }
-                catch (Exception) { }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "PortScansPage", $"Port probe failed for {ip}:{port}: {ex.Message}");
+                }
                 finally
                 {
                     try { throttle.Release(); } catch (ObjectDisposedException) { }
