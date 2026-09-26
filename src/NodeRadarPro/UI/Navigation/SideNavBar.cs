@@ -35,12 +35,20 @@ public class SideNavBar : Border
 
         var logoImage = new Image
         {
-            Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
             Width = 32,
             Height = 32,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        try
+        {
+            using var logoStream = AssetLoader.Open(new Uri("avares://NodeRadarPro/Resources/NodeRadar Pro Icon.png"));
+            logoImage.Source = new Bitmap(logoStream);
+        }
+        catch (Exception ex)
+        {
+            NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Warning, "UI", $"Failed to load navbar logo: {ex.Message}");
+        }
         RenderOptions.SetBitmapInterpolationMode(logoImage, BitmapInterpolationMode.HighQuality);
 
         // ── Header: Icon + Title ──

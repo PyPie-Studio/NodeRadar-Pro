@@ -24,6 +24,12 @@ namespace NodeRadarPro
                 Environment.Exit(exitCode);
             }
 
+            if (args.Contains("--smoke-test"))
+            {
+                int exitCode = RunSmokeTest();
+                Environment.Exit(exitCode);
+            }
+
             _mutex = new Mutex(true, AppMutexName, out bool createdNew);
             if (!createdNew)
             {
@@ -75,6 +81,46 @@ namespace NodeRadarPro
             finally
             {
                 GC.KeepAlive(_mutex);
+            }
+        }
+
+        private static int RunSmokeTest()
+        {
+            try
+            {
+                Console.WriteLine("Running NodeRadar Pro startup smoke test...");
+                var loader = new Avalonia.Platform.StandardAssetLoader(typeof(Program).Assembly);
+                string[] criticalAssets =
+                [
+                    "avares://NodeRadarPro/Resources/NodeRadar Pro Icon.ico",
+                    "avares://NodeRadarPro/Resources/NodeRadar Pro Icon.png",
+                    "avares://NodeRadarPro/Resources/NodeRadar Pro.png"
+                ];
+
+                foreach (var asset in criticalAssets)
+                {
+                    var uri = new Uri(asset);
+                    if (!loader.Exists(uri))
+                    {
+                        Console.Error.WriteLine($"[CRITICAL] Missing embedded asset: {asset}");
+                        return 1;
+                    }
+
+                    using var stream = loader.Open(uri);
+                    if (stream.Length == 0)
+                    {
+                        Console.Error.WriteLine($"[CRITICAL] Asset stream empty: {asset}");
+                        return 1;
+                    }
+                }
+
+                Console.WriteLine("All embedded UI assets verified successfully.");
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[CRITICAL] Smoke test failed: {ex}");
+                return 1;
             }
         }
 

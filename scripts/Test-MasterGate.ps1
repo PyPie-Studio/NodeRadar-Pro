@@ -27,7 +27,7 @@ if ($CheckCoverage) {
 }
 
 $step = 1
-$totalSteps = 3
+$totalSteps = 4
 if ($WithTests) { $totalSteps++ }
 if ($CheckCoverage) { $totalSteps++ }
 
@@ -43,6 +43,14 @@ if (-not $SkipBuild) {
 } else {
     Write-Host "[$step/$totalSteps] Skipped (SkipBuild)" -ForegroundColor DarkGray
 }
+$step++
+
+Write-Host "[$step/$totalSteps] Application startup smoke verification..." -ForegroundColor Yellow
+Push-Location $root
+try {
+    & dotnet run --project "src\NodeRadarPro\NodeRadarPro.csproj" --no-build -c Release -- --smoke-test
+    if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$step/$totalSteps] STARTUP SMOKE TEST FAILED" -ForegroundColor Red }
+} finally { Pop-Location }
 $step++
 
 $coverageDir = Join-Path $root "TestResults"

@@ -56,6 +56,17 @@ public class DarkPurpleTheme
 
     public static Window BuildMainWindow()
     {
+        WindowIcon? windowIcon = null;
+        try
+        {
+            using var iconStream = AssetLoader.Open(new Uri("avares://NodeRadarPro/Resources/NodeRadar Pro Icon.ico"));
+            windowIcon = new WindowIcon(iconStream);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "UI", $"Failed to load window icon: {ex.Message}");
+        }
+
         var window = new Window
         {
             Title = "NodeRadar Pro — Network Monitor",
@@ -71,7 +82,7 @@ public class DarkPurpleTheme
                 WindowTransparencyLevel.Blur
             },
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.ico"))),
+            Icon = windowIcon,
         };
 
         // ═══════════════════════════════════════════
@@ -499,7 +510,7 @@ public class DarkPurpleTheme
         try
         {
             // We verify the core logic DLL/executable instead of the dynamic database
-            string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadar Pro.dll");
+            string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadarPro.dll");
 
             if (!System.IO.File.Exists(mainFile))
             {

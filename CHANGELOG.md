@@ -1,5 +1,14 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.3 (2026-09-27)
+
+### 🧪 Test Coverage & Diagnostics
+- ratchet coverage threshold to 55% and deduplicate VSTest telemetry
+
+### 🧹 Maintenance and Refactoring
+- docs: relocate showcase video and poster to docs/media
+- docs: add video showcase demo to README and align changelog formatting
+
 ## NodeRadar Pro v2.0.2 (2026-09-27)
 
 ### Performance and Zero-Allocation Networking

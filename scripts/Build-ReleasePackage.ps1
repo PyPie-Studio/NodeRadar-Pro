@@ -36,7 +36,7 @@ Write-Host "   NodeRadar Pro: Release Packaging Pipeline   " -ForegroundColor Cy
 Write-Host "============================================================" -ForegroundColor Cyan
 
 # Step 1: Clean & Publish
-Write-Host "`n[1/2] Publishing .NET 10 (win-x64, Self-Contained)..." -ForegroundColor Yellow
+Write-Host "`n[1/3] Publishing .NET 10 (win-x64, Self-Contained)..." -ForegroundColor Yellow
 if (Test-Path $releasesDir) {
     Remove-Item -Path $releasesDir -Recurse -Force | Out-Null
 }
@@ -53,9 +53,21 @@ try {
     Pop-Location
 }
 
-# Step 2: Compile Inno Setup Installer
+# Step 2: Application Startup Smoke Test
+Write-Host "`n[2/3] Verifying Published Binary Startup Smoke Test..." -ForegroundColor Yellow
+$publishedExe = Join-Path $publishDir "NodeRadarPro.exe"
+if (-not (Test-Path $publishedExe)) {
+    throw "Published executable not found at $publishedExe"
+}
+& "$publishedExe" --smoke-test
+if ($LASTEXITCODE -ne 0) {
+    throw "Published binary failed startup smoke test with exit code $LASTEXITCODE"
+}
+Write-Host "Startup smoke test passed." -ForegroundColor Green
+
+# Step 3: Compile Inno Setup Installer
 if (-not $SkipInno) {
-    Write-Host "`n[2/2] Compiling Inno Setup Installer..." -ForegroundColor Yellow
+    Write-Host "`n[3/3] Compiling Inno Setup Installer..." -ForegroundColor Yellow
     if (Test-Path $isccPath) {
         & "$isccPath" "$innoScript"
         if ($LASTEXITCODE -ne 0) {

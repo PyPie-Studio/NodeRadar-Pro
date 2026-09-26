@@ -44,12 +44,20 @@ public class SupportPage : Border
         // App Info Card
         var logoImage = new Image
         {
-            Source = new Bitmap(AssetLoader.Open(new Uri("avares://NodeRadar Pro/Resources/NodeRadar Pro Icon.png"))),
             Width = 56,
             Height = 56,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };
+        try
+        {
+            using var logoStream = AssetLoader.Open(new Uri("avares://NodeRadarPro/Resources/NodeRadar Pro Icon.png"));
+            logoImage.Source = new Bitmap(logoStream);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "UI", $"Failed to load support page logo: {ex.Message}");
+        }
         RenderOptions.SetBitmapInterpolationMode(logoImage, BitmapInterpolationMode.HighQuality);
 
         var logoIcon = new Border
