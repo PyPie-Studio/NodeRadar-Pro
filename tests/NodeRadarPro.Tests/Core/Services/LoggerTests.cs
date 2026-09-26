@@ -2,6 +2,7 @@ using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
 
+[Collection("LoggerStaticState")]
 public class LoggerTests : IDisposable
 {
     private readonly string _testLogDir;

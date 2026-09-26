@@ -33,19 +33,16 @@ public class SsdpDiscoveryMethodTests
         var targetIps = new List<IPAddress> { IPAddress.Parse("127.0.0.1") };
         using var cts = new CancellationTokenSource(2000);
 
-        UdpClient CustomUdpFactory()
+        static UdpClient CustomUdpFactory()
         {
-            var udp = new UdpClient();
-            Task.Run(async () =>
-            {
-                await Task.Delay(20);
-                udp.Client.Close();
-            });
+            var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+            udp.Client.Close();
             return udp;
         }
 
         var discoveredDevices = new List<NetworkDevice>();
-        await ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), cts.Token, CustomUdpFactory);
+        var ex = await Record.ExceptionAsync(() => ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), cts.Token, CustomUdpFactory));
+        Assert.Null(ex);
         Assert.Empty(discoveredDevices);
     }
 

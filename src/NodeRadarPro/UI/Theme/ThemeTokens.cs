@@ -130,7 +130,7 @@ public static class ThemeTokens
 
     public static readonly string AppVersion = typeof(ThemeTokens).Assembly.GetName().Version is { } v
         ? $"{v.Major}.{v.Minor}.{v.Build}"
-        : "2.0.1";
+        : "2.0.2";
 
     // ── SVG Vector Paths (Modern Technical Icons) ──
     public const string SvgRouter = "M4,17V9H20V17H4M12,10A1,1 0 0,0 11,11A1,1 0 0,0 12,12A1,1 0 0,0 13,11A1,1 0 0,0 12,10M15,10A1,1 0 0,0 14,11A1,1 0 0,0 15,12A1,1 0 0,0 16,11A1,1 0 0,0 15,10M18,10A1,1 0 0,0 17,11A1,1 0 0,0 18,12A1,1 0 0,0 19,11A1,1 0 0,0 18,10M7,12V14H10V12H7Z";

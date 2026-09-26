@@ -20,8 +20,16 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
     public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
     {
         using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
-        udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+        try
+        {
+            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Info, Name, $"Socket initialization failed: {ex.Message}");
+            return;
+        }
 
         string mSearch = "M-SEARCH * HTTP/1.1\r\n" +
                          "HOST: 239.255.255.250:1900\r\n" +

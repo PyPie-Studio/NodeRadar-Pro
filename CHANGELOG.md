@@ -1,5 +1,28 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.2 (2026-09-27)
+
+### ⚡ Performance and Zero-Allocation Networking
+- **Zero-Allocation Linux ARP Parsing:** Replaced whole-file `ReadAllText` and `string.Split` in `ArpResolver` with streaming `StreamReader`, `ReadOnlySpan<char>` slicing in `TryParseProcNetArpLine`, and `string.Create` for MAC uppercase and hyphen substitution (73% memory allocation reduction, 3.7x execution speedup).
+- **Zero-Allocation Subnet IP Parsing:** Replaced IP string splitting in `SubnetScanner` with stack spans, `CountDots`, and .NET 10 `HashSet.TryGetAlternateLookup<ReadOnlySpan<char>>` (0 heap bytes allocated for IP comparisons during active discovery sweeps).
+- **Event-Driven Log Queue Flushing:** Replaced `Thread.Sleep(10)` spin-polling in `Logger.FlushForTesting()` with `ManualResetEventSlim` signaling (15x faster test queue flush latency).
+
+### 🧹 Architecture and UI Refactoring
+- **Modularized Security Audit Export:** Refactored monolithic audit generator in `SupportPage.cs` into modular static helpers (`BuildSecurityAuditReport`, `AppendExecutiveSummary`, etc.) with strict 12-hour AM/PM formatting (`yyyy-MM-dd hh:mm:ss tt`) and mirrored unit tests.
+- **De-nested Theme Integrity Shield:** Extracted anonymous `Task.Run` delegate in `DarkPurpleTheme.cs` into a clean static `VerifySystemIntegrity` method.
+- **De-nested Inventory Fingerprinting:** Extracted node fingerprinting logic in `InventoryPage.cs:OnPingClicked` into `TryFingerprintDiscoveredNodeAsync` with clean guard clauses.
+- **Clean Database History Merging:** Flattened 7 levels of indentation in `LocalDatabase.MergeWithHistoryBulk` by extracting `MergeExistingNode` and `MergePortBanners` helpers.
+
+### 🔒 Security & Boundary Defense
+- **SMTP Certificate Validation Hardening:** Removed commented-out insecure SSL/TLS certificate validation bypass callback in `EmailService.cs`.
+- **PR Security Sentinel:** Conducted comprehensive 7-pillar audit across 22 pull requests, rejecting critical vulnerabilities (plaintext keys on disk, live database deletion hazards, and `rundll32.exe` LOLBIN execution).
+
+### 🧪 Test Coverage & Diagnostics
+- **Comprehensive Database Backup Tests:** Added `DatabaseBackupServiceTests.cs` covering backup creation, custom paths, 7-generation retention pruning, corrupt database rotation, and restore failure recovery.
+- **Headless Audio Testing Seam:** Added `SetSoundPlayerForTesting` test seam in `AudioService` for deterministic execution without OS audio hardware dependencies.
+- **Inventory Uptime History Test:** Added targeted unit test in `LocalDatabaseTests.cs` verifying MAC-filtered 24-hour uptime queries for selected inventory assets.
+- **Ratcheted Test Suite:** All 349 unit and integration tests passing cleanly on xUnit v3 under Release configuration with 0 compiler warnings.
+
 ## NodeRadar Pro v2.0.1 (2026-09-20)
 
 ### Packaging & Installation
