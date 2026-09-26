@@ -2,12 +2,16 @@
 
 ## NodeRadar Pro v2.0.3 (2026-09-27)
 
-### 🧪 Test Coverage & Diagnostics
-- ratchet coverage threshold to 55% and deduplicate VSTest telemetry
+### Bug Fixes & Application Resilience
+- **Avalonia Resource URI Assembly Alignment (`DarkPurpleTheme.cs`, `SideNavBar.cs`, `SupportPage.cs`)**: Fixed desktop startup crash caused by legacy space in `avares://NodeRadar Pro/...` resource URIs following assembly migration to `NodeRadarPro`. Aligned all icon and logo URIs to `avares://NodeRadarPro/...`.
+- **Defensive UI Asset Loading**: Wrapped window icon and navigation logo loading routines in `try/catch` handlers with stream disposal and warning telemetry, ensuring missing or corrupt media assets never terminate the host process.
+- **Fallback Binary Verification Path (`DarkPurpleTheme.cs`)**: Corrected executable fallback probe in `VerifySystemIntegrity` from `NodeRadar Pro.dll` to `NodeRadarPro.dll`.
 
-### 🧹 Maintenance and Refactoring
-- docs: relocate showcase video and poster to docs/media
-- docs: add video showcase demo to README and align changelog formatting
+### Quality Gate & Diagnostics
+- **Automated Embedded Asset Tests (`AssetLoadingTests.cs`)**: Added test fixtures verifying critical embedded UI assets (`.ico`, `.png`) load and open with valid byte streams via `StandardAssetLoader`. Added regression assertion ensuring whitespace in resource hostnames is caught.
+- **Master Quality Gate Smoke Step (`Test-MasterGate.ps1`)**: Added Step 2/5 application startup smoke verification executing `--smoke-test` on every local quality gate run.
+- **Release Packaging Preflight Check (`Build-ReleasePackage.ps1`)**: Added Step 2/3 startup smoke verification that validates published self-contained binaries prior to Inno Setup installer compilation.
+- **Coverage Ratchet**: Ratcheted coverage threshold to 55.0% and deduplicated VSTest telemetry.
 
 ## NodeRadar Pro v2.0.2 (2026-09-27)
 
