@@ -2,26 +2,26 @@
 
 ## NodeRadar Pro v2.0.2 (2026-09-27)
 
-### ⚡ Performance and Zero-Allocation Networking
-- **Zero-Allocation Linux ARP Parsing:** Replaced whole-file `ReadAllText` and `string.Split` in `ArpResolver` with streaming `StreamReader`, `ReadOnlySpan<char>` slicing in `TryParseProcNetArpLine`, and `string.Create` for MAC uppercase and hyphen substitution (73% memory allocation reduction, 3.7x execution speedup).
-- **Zero-Allocation Subnet IP Parsing:** Replaced IP string splitting in `SubnetScanner` with stack spans, `CountDots`, and .NET 10 `HashSet.TryGetAlternateLookup<ReadOnlySpan<char>>` (0 heap bytes allocated for IP comparisons during active discovery sweeps).
-- **Event-Driven Log Queue Flushing:** Replaced `Thread.Sleep(10)` spin-polling in `Logger.FlushForTesting()` with `ManualResetEventSlim` signaling (15x faster test queue flush latency).
+### Performance and Zero-Allocation Networking
+- **Zero-Allocation Linux ARP Parsing (`ArpResolver.cs`)**: Replaced whole-file `ReadAllText` and `string.Split` with streaming `StreamReader`, `ReadOnlySpan<char>` slicing in `TryParseProcNetArpLine` and `string.Create` for MAC uppercase and hyphen substitution (73% memory allocation reduction, 3.7x execution speedup).
+- **Zero-Allocation Subnet IP Parsing (`SubnetScanner.cs`)**: Replaced IP string splitting with stack spans, `CountDots` and .NET 10 `HashSet.TryGetAlternateLookup<ReadOnlySpan<char>>` (0 heap bytes allocated for IP comparisons during active discovery sweeps).
+- **Event-Driven Log Queue Flushing (`Logger.cs`)**: Replaced `Thread.Sleep(10)` polling loop in `Logger.FlushForTesting()` with `ManualResetEventSlim` signaling (15x faster test queue flush latency).
 
-### 🧹 Architecture and UI Refactoring
-- **Modularized Security Audit Export:** Refactored monolithic audit generator in `SupportPage.cs` into modular static helpers (`BuildSecurityAuditReport`, `AppendExecutiveSummary`, etc.) with strict 12-hour AM/PM formatting (`yyyy-MM-dd hh:mm:ss tt`) and mirrored unit tests.
-- **De-nested Theme Integrity Shield:** Extracted anonymous `Task.Run` delegate in `DarkPurpleTheme.cs` into a clean static `VerifySystemIntegrity` method.
-- **De-nested Inventory Fingerprinting:** Extracted node fingerprinting logic in `InventoryPage.cs:OnPingClicked` into `TryFingerprintDiscoveredNodeAsync` with clean guard clauses.
-- **Clean Database History Merging:** Flattened 7 levels of indentation in `LocalDatabase.MergeWithHistoryBulk` by extracting `MergeExistingNode` and `MergePortBanners` helpers.
+### Architecture and UI Refactoring
+- **Modularized Security Audit Export (`SupportPage.cs`)**: Refactored monolithic audit generator into modular static helpers (`BuildSecurityAuditReport`, `AppendExecutiveSummary`) with strict 12-hour AM/PM formatting (`yyyy-MM-dd hh:mm:ss tt`) and mirrored unit tests.
+- **De-nested Theme Integrity Shield (`DarkPurpleTheme.cs`)**: Extracted anonymous `Task.Run` delegate into a clean static `VerifySystemIntegrity` method.
+- **De-nested Inventory Fingerprinting (`InventoryPage.cs`)**: Extracted node fingerprinting logic in `OnPingClicked` into `TryFingerprintDiscoveredNodeAsync` with clean guard clauses.
+- **Clean Database History Merging (`LocalDatabase.cs`)**: Flattened 7 levels of indentation in `MergeWithHistoryBulk` by extracting `MergeExistingNode` and `MergePortBanners` helpers.
 
-### 🔒 Security & Boundary Defense
-- **SMTP Certificate Validation Hardening:** Removed commented-out insecure SSL/TLS certificate validation bypass callback in `EmailService.cs`.
-- **PR Security Sentinel:** Conducted comprehensive 7-pillar audit across 22 pull requests, rejecting critical vulnerabilities (plaintext keys on disk, live database deletion hazards, and `rundll32.exe` LOLBIN execution).
+### Security
+- **SMTP Certificate Validation Hardening (`EmailService.cs`)**: Removed commented-out insecure SSL/TLS certificate validation bypass callback.
+- **Pull Request Security Triage**: Audited 22 open pull requests against security invariants, closing unsafe contributions that stored plaintext master keys on disk, deleted live user databases in `%USERPROFILE%\Documents` during tests or invoked `rundll32.exe`.
 
-### 🧪 Test Coverage & Diagnostics
-- **Comprehensive Database Backup Tests:** Added `DatabaseBackupServiceTests.cs` covering backup creation, custom paths, 7-generation retention pruning, corrupt database rotation, and restore failure recovery.
-- **Headless Audio Testing Seam:** Added `SetSoundPlayerForTesting` test seam in `AudioService` for deterministic execution without OS audio hardware dependencies.
-- **Inventory Uptime History Test:** Added targeted unit test in `LocalDatabaseTests.cs` verifying MAC-filtered 24-hour uptime queries for selected inventory assets.
-- **Ratcheted Test Suite:** All 349 unit and integration tests passing cleanly on xUnit v3 under Release configuration with 0 compiler warnings.
+### Test Coverage & Diagnostics
+- **Comprehensive Database Backup Tests (`DatabaseBackupServiceTests.cs`)**: Added unit and integration tests covering backup creation, custom target paths, 7-generation retention pruning, corrupt database rotation and restore failure recovery.
+- **Headless Audio Testing Seam (`AudioService.cs`)**: Added `SetSoundPlayerForTesting` test seam for deterministic test runs without OS audio hardware dependencies.
+- **Inventory Uptime History Test (`LocalDatabaseTests.cs`)**: Added targeted unit test verifying MAC-filtered 24-hour uptime queries for selected inventory assets.
+- **Ratcheted Coverage Gate (`coverage-threshold.txt`)**: Locked code coverage ratchet threshold to 55.0% across all 349 passing tests.
 
 ## NodeRadar Pro v2.0.1 (2026-09-20)
 

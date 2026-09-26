@@ -397,6 +397,10 @@ coverage/
 *.dump.txt
 conflicts_*.txt
 
+# Media & Video Generation Artifacts
+brag-output/
+videos/
+
 # Windows OS Files
 Thumbs.db
 desktop.ini
