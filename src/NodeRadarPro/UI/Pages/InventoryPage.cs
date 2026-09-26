@@ -1210,20 +1210,7 @@ public class InventoryPage : Border
                 _pingResult.Text = $"✅ Reachable ({(latency >= 0 ? $"{latency}ms" : "ARP/TCP")})";
                 _pingResult.Foreground = ThemeTokens.Tertiary;
                 _currentNode.IsOnline = true; _currentNode.PingLatencyMs = latency; _currentNode.LastSeen = DateTime.UtcNow;
-                if (mac != "Unknown" && (_currentNode.MacAddress.StartsWith("MANUAL") || _currentNode.MacAddress == "Unknown"))
-                {
-                    _currentNode.MacAddress = mac;
-                    var fingerprint = await NodeRadarPro.Core.Fingerprinting.DeepFingerprintEngine.Instance.FingerprintNodeAsync(_currentNode, System.Threading.CancellationToken.None);
-                    _currentNode.Vendor = fingerprint.Vendor;
-                    _currentNode.DeviceType = fingerprint.TypeString;
-                    _currentNode.OsGuess = fingerprint.Os;
-                    _currentNode.IconPath = fingerprint.IconSvgKey;
-                    if (!string.IsNullOrEmpty(fingerprint.Model))
-                    {
-                        if (string.IsNullOrEmpty(_currentNode.ExactModel)) _currentNode.ExactModel = fingerprint.Model;
-                        else if (!_currentNode.ExactModel.Contains(fingerprint.Model)) _currentNode.ExactModel = $"{fingerprint.Model} | {_currentNode.ExactModel}";
-                    }
-                }
+                await TryFingerprintDiscoveredNodeAsync(_currentNode, mac);
             }
             else { _pingResult.Text = "❌ Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
         }
@@ -1233,6 +1220,36 @@ public class InventoryPage : Border
         {
             _pingBtn.IsEnabled = true; _pingBtn.Content = "◎  Ping Device";
             if (_currentNode != null) { UpdateStatusDot(_currentNode.IsOnline); RefreshDetailView(); DeviceStatusChanged?.Invoke(_currentNode); }
+        }
+    }
+
+
+    private static async Task TryFingerprintDiscoveredNodeAsync(NetworkNode node, string mac)
+    {
+        if (mac == "Unknown" || (!node.MacAddress.StartsWith("MANUAL") && node.MacAddress != "Unknown"))
+        {
+            return;
+        }
+
+        node.MacAddress = mac;
+        var fingerprint = await NodeRadarPro.Core.Fingerprinting.DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, System.Threading.CancellationToken.None);
+        node.Vendor = fingerprint.Vendor;
+        node.DeviceType = fingerprint.TypeString;
+        node.OsGuess = fingerprint.Os;
+        node.IconPath = fingerprint.IconSvgKey;
+
+        if (string.IsNullOrEmpty(fingerprint.Model))
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(node.ExactModel))
+        {
+            node.ExactModel = fingerprint.Model;
+        }
+        else if (!node.ExactModel.Contains(fingerprint.Model))
+        {
+            node.ExactModel = $"{fingerprint.Model} | {node.ExactModel}";
         }
     }
 
