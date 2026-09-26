@@ -5,7 +5,14 @@ namespace NodeRadarPro.Core
 {
     public static class AudioService
     {
+        private static Action<bool>? _customPlayerForTesting;
+
         public static bool Enabled { get; set; } = true;
+
+        internal static void SetSoundPlayerForTesting(Action<bool>? player)
+        {
+            _customPlayerForTesting = player;
+        }
 
         public static void PlayAlert(bool critical)
         {
@@ -16,6 +23,12 @@ namespace NodeRadarPro.Core
 
             try
             {
+                if (_customPlayerForTesting != null)
+                {
+                    _customPlayerForTesting(critical);
+                    return;
+                }
+
                 if (critical)
                 {
                     SystemSounds.Hand.Play();
