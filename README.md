@@ -18,8 +18,8 @@ Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter
 ---
 
 <div align="center">
-  <a href="https://github.com/PyPie-Studio/NodeRadar-Pro/releases/download/v2.0.2/brag.mp4">
-    <img width="1200" alt="NodeRadar Pro Video Showcase Demo" src="https://github.com/PyPie-Studio/NodeRadar-Pro/releases/download/v2.0.2/brag.jpg" />
+  <a href="docs/media/showcase.mp4">
+    <img width="1200" alt="NodeRadar Pro Video Showcase Demo" src="docs/media/showcase.jpg" />
   </a>
   <p><em>Watch the 20-second product showcase: sub-second sweeps, live 24h uptime telemetry and intrusion alerts</em></p>
 </div>
