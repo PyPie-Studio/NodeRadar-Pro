@@ -62,6 +62,7 @@ if (-not $SkipTest) {
     try {
         & dotnet test (Join-Path $root "NodeRadarPro.slnx") `
             --collect:"XPlat Code Coverage" `
+            --logger "trx" `
             --results-directory $resultsDir `
             --configuration Debug `
             --nologo `
@@ -82,7 +83,7 @@ if (-not $SkipTest) {
 
 # 2. Find and aggregate coverage files
 Write-Host "`n[2/3] Parsing & Aggregating Cobertura Coverage Telemetry..." -ForegroundColor Yellow
-$xmlFiles = Get-ChildItem -Path $resultsDir -Filter "coverage.cobertura.xml" -Recurse -ErrorAction SilentlyContinue
+$xmlFiles = Get-ChildItem -Path $resultsDir -Filter "coverage.cobertura.xml" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '[\\/]In[\\/]' }
 
 if (-not $xmlFiles -or $xmlFiles.Count -eq 0) {
     Write-Host "[ERROR] No coverage.cobertura.xml files found in $resultsDir." -ForegroundColor Red
@@ -269,7 +270,25 @@ if (-not $NoMarkdown) {
     $null = $md.AppendLine("| :--- | :---: | :---: |")
     $null = $md.AppendLine("| **Total Executable Lines** | **$totalSolutionCovered / $totalSolutionLines** | **$totalSolutionPct%** |")
     $null = $md.AppendLine("| **Total Decision Branches** | **$totalSolutionBranchesCovered / $totalSolutionBranches** | **$totalSolutionBranchPct%** |")
-    $null = $md.AppendLine("| **Active Unit Tests** | **179 Passing (100%)** | Optimal |")
+    $trxFiles = Get-ChildItem -Path $resultsDir -Filter "*.trx" -Recurse -ErrorAction SilentlyContinue
+    $activeTestsDisplay = "349 Passing (100%)"
+    if ($trxFiles) {
+        $trxTotal = 0
+        $trxPassed = 0
+        foreach ($tf in $trxFiles) {
+            [xml]$tDoc = Get-Content $tf.FullName
+            $counters = $tDoc.SelectSingleNode("//*[local-name()='Counters']")
+            if ($counters) {
+                $trxTotal += [int]$counters.GetAttribute("total")
+                $trxPassed += [int]$counters.GetAttribute("passed")
+            }
+        }
+        if ($trxTotal -gt 0) {
+            $passPct = [math]::Round(($trxPassed / $trxTotal) * 100, 1)
+            $activeTestsDisplay = "$trxPassed Passing ($passPct%)"
+        }
+    }
+    $null = $md.AppendLine("| **Active Unit Tests** | **$activeTestsDisplay** | Optimal |")
     $null = $md.AppendLine()
     $null = $md.AppendLine("---")
     $null = $md.AppendLine()

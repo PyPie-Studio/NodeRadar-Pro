@@ -15,7 +15,7 @@ param(
 $total = 0
 $covered = 0
 
-Get-ChildItem -Path $Path -Recurse -Filter "coverage.cobertura.xml" -ErrorAction SilentlyContinue | ForEach-Object {
+Get-ChildItem -Path $Path -Recurse -Filter "coverage.cobertura.xml" -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '[\\/]In[\\/]' } | ForEach-Object {
     [xml]$x = Get-Content -LiteralPath $_.FullName
     foreach ($line in $x.SelectNodes("//line")) {
         $total++
