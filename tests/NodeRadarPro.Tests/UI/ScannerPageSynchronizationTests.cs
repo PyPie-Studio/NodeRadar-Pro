@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Threading.Tasks;
-
 namespace NodeRadarPro.Tests.UI;
 
 public class ScannerPageSynchronizationTests
@@ -10,7 +7,7 @@ public class ScannerPageSynchronizationTests
     {
         // Simulate polling loop wait
         int inFlightCountPolling = 1;
-        var stopwatchPolling = Stopwatch.StartNew();
+        var stopwatchPolling = System.Diagnostics.Stopwatch.StartNew();
 
         var pollingTask = Task.Run(async () =>
         {
@@ -29,7 +26,7 @@ public class ScannerPageSynchronizationTests
         // Simulate Async Signal wait (TaskCompletionSource)
         int inFlightCountSignal = 1;
         var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var stopwatchSignal = Stopwatch.StartNew();
+        var stopwatchSignal = System.Diagnostics.Stopwatch.StartNew();
 
         var signalTask = Task.Run(async () =>
         {
