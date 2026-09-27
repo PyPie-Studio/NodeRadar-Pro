@@ -150,8 +150,9 @@ public static class ArpResolver
 
             return FormatMacAddress(macAddr);
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Log(LogLevel.Warning, "ArpResolver", $"ResolveWindows failed for {ipAddress}: {ex.Message}");
             return "Unknown";
         }
     }
@@ -191,7 +192,10 @@ public static class ArpResolver
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "ArpResolver", $"NetBIOS resolution failed for {ipAddress}: {ex.Message}");
+        }
         return string.Empty;
     }
 
@@ -217,8 +221,9 @@ public static class ArpResolver
             }
             return "Unknown";
         }
-        catch
+        catch (Exception ex)
         {
+            Logger.Log(LogLevel.Warning, "ArpResolver", $"ResolveLinux failed for {ipAddress}: {ex.Message}");
             return "Unknown";
         }
     }
@@ -317,7 +322,10 @@ public static class ArpResolver
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "ArpResolver", $"GetLinuxArpTable failed: {ex.Message}");
+        }
 
         return results;
     }

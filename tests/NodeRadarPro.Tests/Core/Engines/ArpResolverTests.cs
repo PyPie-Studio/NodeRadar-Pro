@@ -58,6 +58,20 @@ public class ArpResolverTests
     }
 
     [Fact]
+    public void TryResolveNetBiosName_WhenExceptionOccurs_LogsWarningAndReturnsEmptyString()
+    {
+        // Arrange - use an invalid port number to trigger an exception during connect/setup
+        string testIp = "127.0.0.1";
+        int invalidPort = -1;
+
+        // Act
+        string result = ArpResolver.TryResolveNetBiosName(testIp, invalidPort);
+
+        // Assert
+        Assert.Equal(string.Empty, result);
+    }
+
+    [Fact]
     public void GetFullArpTable_ReturnsListWithoutExceptions()
     {
         // Act
