@@ -254,8 +254,14 @@ public class SubnetScanner
                         {
                             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
+                        catch (OperationCanceledException)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                        }
                         return node;
                     }, token));
                 }
@@ -308,8 +314,14 @@ public class SubnetScanner
                             {
                                 await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                             }
-                            catch (OperationCanceledException) { }
-                            catch { }
+                            catch (OperationCanceledException)
+                            {
+                                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                            }
                             return node;
                         }, token));
                     }
@@ -400,8 +412,14 @@ public class SubnetScanner
                         {
                             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
+                        catch (OperationCanceledException)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}");
+                        }
                         return node;
                     }, token));
                 }

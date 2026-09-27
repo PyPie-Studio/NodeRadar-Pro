@@ -103,4 +103,41 @@ public class SubnetScannerTests
         var results = await scanner.ScanRangeAsync("192.168.1", 5, 2, CancellationToken.None);
         Assert.Empty(results);
     }
+
+
+    [Fact]
+    public async Task ScanRangeAsync_ArpPostSweep_HandlesExceptionDuringMetadataResolutionAndReturnsNode()
+    {
+        // Arrange
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper
+            {
+                Status = IPStatus.TimedOut,
+                RoundtripTime = 0
+            });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns("Unknown");
+
+        // Return a node in ARP table that was not discovered in ping sweep
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)> { ("192.168.1.10", "AA:BB:CC:DD:EE:FF") });
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object)
+        {
+            EnableDnsResolve = true,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        // Act
+        var results = await scanner.ScanRangeAsync("192.168.1", 10, 10, CancellationToken.None);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("192.168.1.10", results[0].IpAddress);
+        Assert.Equal("AA:BB:CC:DD:EE:FF", results[0].MacAddress);
+    }
 }
