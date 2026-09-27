@@ -167,4 +167,37 @@ public class ConnectivityMonitorTests
         var allDevs = monitor.GetAllDevices();
         Assert.Single(allDevs);
     }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_WhenDbLogThrows_HandlesExceptionGracefully()
+    {
+        // Arrange: database with disposed underlying database to force an exception when Log is called
+        using var ms = new MemoryStream();
+        var liteDb = new LiteDB.LiteDatabase(ms, new LiteDB.BsonMapper());
+        var tempDb = new LocalDatabase(liteDb);
+        tempDb.DisposeConnection(); // DB calls like Log will throw ObjectDisposedException or NullReferenceException
+
+        var monitor = new ConnectivityMonitor(tempDb);
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:99",
+            IpAddress = "192.0.2.253",
+            IsOnline = true,
+            AlertOnConnectionLost = true,
+            FailedCheckCount = 2 // Next failed ping makes IsOnline false -> triggers offline alert
+        };
+        monitor.AddDevice(dev);
+
+        using var cts = new CancellationTokenSource(1000);
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        // Act & Assert: Should complete without throwing exception
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+        await task;
+
+        var allDevs = monitor.GetAllDevices();
+        Assert.Single(allDevs);
+        Assert.False(allDevs[0].IsOnline);
+    }
 }

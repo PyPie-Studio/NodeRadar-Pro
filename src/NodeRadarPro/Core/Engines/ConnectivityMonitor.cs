@@ -219,7 +219,14 @@ public class ConnectivityMonitor
                         Message = $"{device.DisplayName} ({device.IpAddress}) went offline"
                     };
                     alertsToInsert.Add(alert);
-                    try { _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress); } catch { }
+                    try
+                    {
+                        _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Error, "Monitor", $"Failed to log offline alert to database: {ex.Message}", device.MacAddress);
+                    }
                     AlertTriggered?.Invoke(alert);
                 }
             }
@@ -240,7 +247,14 @@ public class ConnectivityMonitor
                     ResolvedAt = DateTime.UtcNow
                 };
                 alertsToInsert.Add(reconnectAlert);
-                try { _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress); } catch { }
+                try
+                {
+                    _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Monitor", $"Failed to log reconnect alert to database: {ex.Message}", device.MacAddress);
+                }
                 AlertTriggered?.Invoke(reconnectAlert);
             }
 
