@@ -317,7 +317,10 @@ public static class ArpResolver
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetLinuxArpTable: {ex.Message}");
+        }
 
         return results;
     }
