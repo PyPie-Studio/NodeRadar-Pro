@@ -245,7 +245,14 @@ public class DarkPurpleTheme
             long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
 
             int alertCount = 0;
-            try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+            try
+            {
+                alertCount = db.GetUnresolvedAlertCount();
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "UI", $"Failed to get unresolved alert count: {ex.Message}");
+            }
 
             Dispatcher.UIThread.Post(() =>
             {
@@ -437,7 +444,14 @@ public class DarkPurpleTheme
             {
                 int online = activeNodesMap.Values.Count(n => n.IsOnline);
                 int alertCountActual = 0;
-                try { alertCountActual = db.GetUnresolvedAlertCount(); } catch { }
+                try
+                {
+                    alertCountActual = db.GetUnresolvedAlertCount();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "UI", $"Failed to get unresolved alert count: {ex.Message}");
+                }
 
                 topNav.UpdateStatus(online, -1, alertCountActual);
                 dashboardPage.RefreshData();
