@@ -27,6 +27,34 @@ public class SubnetScanner
     public bool FastScanMode { get; set; } = false;
     public bool EnableOsDetection { get; set; } = true;
     public string PreferredInterfaceName { get; set; } = ""; // S3: Interface preference
+    // Cache for NetworkInterface.GetAllNetworkInterfaces() to avoid repeated native system calls
+    private static NetworkInterface[]? _cachedNetworkInterfaces;
+    private static DateTime _networkInterfacesCacheTime = DateTime.MinValue;
+    private static readonly TimeSpan InterfaceCacheTtl = TimeSpan.FromSeconds(5);
+    private static readonly object InterfaceCacheLock = new();
+
+    public static NetworkInterface[] GetCachedNetworkInterfaces()
+    {
+        lock (InterfaceCacheLock)
+        {
+            if (_cachedNetworkInterfaces == null || (DateTime.UtcNow - _networkInterfacesCacheTime) > InterfaceCacheTtl)
+            {
+                _cachedNetworkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+                _networkInterfacesCacheTime = DateTime.UtcNow;
+            }
+            return _cachedNetworkInterfaces;
+        }
+    }
+
+    public static void ClearNetworkInterfacesCache()
+    {
+        lock (InterfaceCacheLock)
+        {
+            _cachedNetworkInterfaces = null;
+            _networkInterfacesCacheTime = DateTime.MinValue;
+        }
+    }
+
     private string _localBindingIp = "";
 
     private readonly IPingProvider _pingProvider;
@@ -45,7 +73,7 @@ public class SubnetScanner
 
         try
         {
-            var interfaces = NetworkInterface.GetAllNetworkInterfaces();
+            var interfaces = GetCachedNetworkInterfaces();
 
             var ni = interfaces
                 .FirstOrDefault(n => n.Name.Contains(PreferredInterfaceName, StringComparison.OrdinalIgnoreCase));
@@ -737,7 +765,7 @@ public class SubnetScanner
         var subnets = new List<string>();
         string? preferredSubnet = null;
 
-        foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
+        foreach (var ni in GetCachedNetworkInterfaces())
         {
             if (ni.OperationalStatus != OperationalStatus.Up) continue;
             if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;

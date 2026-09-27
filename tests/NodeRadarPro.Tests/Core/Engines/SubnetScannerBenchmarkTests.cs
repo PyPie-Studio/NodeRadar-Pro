@@ -93,3 +93,26 @@ public class SubnetScannerBenchmarkTests
         return matchCount;
     }
 }
+
+public class SubnetScannerCacheTests
+{
+    [Fact]
+    public void GetAllLocalBaseIps_ReturnsConsistentResults()
+    {
+        SubnetScanner.ClearNetworkInterfacesCache();
+        var first = SubnetScanner.GetAllLocalBaseIps();
+        var second = SubnetScanner.GetAllLocalBaseIps();
+
+        Assert.Equal(first, second);
+    }
+
+    [Fact]
+    public void GetCachedNetworkInterfaces_CachesResultsWithinTtl()
+    {
+        SubnetScanner.ClearNetworkInterfacesCache();
+        var first = SubnetScanner.GetCachedNetworkInterfaces();
+        var second = SubnetScanner.GetCachedNetworkInterfaces();
+
+        Assert.Same(first, second);
+    }
+}
