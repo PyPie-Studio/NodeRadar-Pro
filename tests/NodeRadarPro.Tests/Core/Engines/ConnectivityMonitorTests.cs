@@ -167,4 +167,28 @@ public class ConnectivityMonitorTests
         var allDevs = monitor.GetAllDevices();
         Assert.Single(allDevs);
     }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_WhenDbLogThrows_HandlesExceptionGracefully()
+    {
+        // Test database wrapper or exception handling
+        var monitor = new ConnectivityMonitor(null);
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            IpAddress = "127.0.0.1",
+            IsOnline = false
+        };
+        monitor.AddDevice(dev);
+
+        using var cts = new CancellationTokenSource(2000);
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+        await task;
+
+        var allDevs = monitor.GetAllDevices();
+        Assert.Single(allDevs);
+    }
 }
