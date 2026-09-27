@@ -73,6 +73,26 @@ public static class ArpResolver
         }
     }
 
+    /// <summary>
+    /// Attempts to look up a single IP address in the cached ARP table without cloning or allocating a new dictionary.
+    /// </summary>
+    public static bool TryGetMacFromArpTable(string ip, out string mac)
+    {
+        mac = "Unknown";
+        if (string.IsNullOrEmpty(ip)) return false;
+
+        UpdateCacheIfNeeded();
+        lock (_arpTableLock)
+        {
+            if (_cachedArpDictionary.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
+            {
+                mac = foundMac;
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void UpdateCacheIfNeeded()
     {
         lock (_arpTableLock)
