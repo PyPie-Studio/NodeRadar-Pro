@@ -677,6 +677,7 @@ public class InventoryPage : Border
         rootGrid.Children.Add(rightCol);
 
         Child = rootGrid;
+        RefreshDeviceList();
     }
 
     // ══════════════════════════════════

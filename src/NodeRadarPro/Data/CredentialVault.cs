@@ -16,7 +16,28 @@ public static class CredentialVault
     public static string GetOrGenerateDbPassword(string folder)
     {
         if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return "test_password";
+        {
+            string mockKeyFile = Path.Combine(folder, "db_key.bin");
+            if (File.Exists(mockKeyFile))
+            {
+                try
+                {
+                    return Encoding.UTF8.GetString(File.ReadAllBytes(mockKeyFile));
+                }
+                catch
+                {
+                }
+            }
+            string mockPassword = "test_password";
+            try
+            {
+                SaveDbPassword(folder, mockPassword);
+            }
+            catch
+            {
+            }
+            return mockPassword;
+        }
 
         string keyFile = Path.Combine(folder, "db_key.bin");
         if (File.Exists(keyFile))
@@ -59,7 +80,11 @@ public static class CredentialVault
     public static void SaveDbPassword(string folder, string password)
     {
         if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
+        {
+            string mockKeyFile = Path.Combine(folder, "db_key.bin");
+            File.WriteAllBytes(mockKeyFile, Encoding.UTF8.GetBytes(password));
             return;
+        }
 
         string keyFile = Path.Combine(folder, "db_key.bin");
         byte[] secret = Encoding.UTF8.GetBytes(password);
