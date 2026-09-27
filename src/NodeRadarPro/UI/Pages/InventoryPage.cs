@@ -47,6 +47,8 @@ public class InventoryPage : Border
     private readonly Grid _timeAxis;
     private int _uptimeHours = 24;
 
+    public int UptimeHours => _uptimeHours;
+
     // Detail controls
     private readonly TextBlock _detailName;
     private readonly TextBlock _detailSubtitle;
