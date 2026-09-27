@@ -116,7 +116,14 @@ public class DarkPurpleTheme
         var cts = new CancellationTokenSource();
 
         // Log startup
-        try { db.Log(LogLevel.Info, "System", "NodeRadar Pro started"); } catch { }
+        try
+        {
+            db.Log(LogLevel.Info, "System", "NodeRadar Pro started");
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "System", $"Failed to record startup log: {ex.Message}");
+        }
 
         // ═══════════════════════════════════════════
         // ██  SHELL COMPONENTS
