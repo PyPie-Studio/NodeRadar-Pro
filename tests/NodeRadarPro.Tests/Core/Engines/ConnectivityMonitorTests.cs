@@ -167,4 +167,54 @@ public class ConnectivityMonitorTests
         var allDevs = monitor.GetAllDevices();
         Assert.Single(allDevs);
     }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_WhenDatabaseThrowsException_HandlesAndLogsErrorGracefully()
+    {
+        // Setup custom log directory for testing
+        string tempLogDir = Path.Combine(Path.GetTempPath(), "ConnectivityMonitorTests_" + Guid.NewGuid().ToString("N"));
+        Logger.SetCustomLogDirectoryForTesting(tempLogDir);
+
+        try
+        {
+            // Create LocalDatabase with disposed LiteDatabase so calls like InsertAlerts / InsertUptimeSnapshots fail/throw NullReferenceException/ObjectDisposedException
+            using var ms = new MemoryStream();
+            var liteDb = new LiteDB.LiteDatabase(ms);
+            var db = new LocalDatabase(liteDb);
+            liteDb.Dispose();
+
+            var monitor = new ConnectivityMonitor(db);
+            var dev = new NetworkNode
+            {
+                MacAddress = "00:11:22:33:44:99",
+                IpAddress = "192.0.2.253",
+                IsOnline = true,
+                AlertOnConnectionLost = true
+            };
+            monitor.AddDevice(dev);
+
+            var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", BindingFlags.NonPublic | BindingFlags.Instance);
+            Assert.NotNull(methodInfo);
+
+            using var cts = new CancellationTokenSource(2000);
+            var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+            await task;
+
+            Logger.FlushForTesting();
+
+            string logFile = Path.Combine(tempLogDir, "noderadar_system.log");
+            Assert.True(File.Exists(logFile));
+            string logContent = File.ReadAllText(logFile);
+            Assert.Contains("ConnectivityMonitor", logContent);
+            Assert.Contains("Failed to", logContent);
+        }
+        finally
+        {
+            Logger.SetCustomLogDirectoryForTesting(null);
+            if (Directory.Exists(tempLogDir))
+            {
+                try { Directory.Delete(tempLogDir, true); } catch { }
+            }
+        }
+    }
 }

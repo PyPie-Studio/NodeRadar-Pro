@@ -294,11 +294,25 @@ public class ConnectivityMonitor
         // Bulk insert generated alerts
         if (alertsToInsert.Count > 0)
         {
-            try { _db?.InsertAlerts(alertsToInsert); } catch { }
+            try
+            {
+                _db?.InsertAlerts(alertsToInsert);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "ConnectivityMonitor", $"Failed to bulk insert alerts: {ex.Message}");
+            }
         }
 
         // Persist uptime snapshots
-        try { _db?.InsertUptimeSnapshots(uptimeSnapshots); } catch { }
+        try
+        {
+            _db?.InsertUptimeSnapshots(uptimeSnapshots);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "ConnectivityMonitor", $"Failed to insert uptime snapshots: {ex.Message}");
+        }
 
         StatusUpdated?.Invoke(_trackedDevices.Values.ToList());
     }
