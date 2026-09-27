@@ -46,6 +46,7 @@ public class ScannerPage : Border
     private bool _isScanning = false;
     private DateTime _scanStartTime;
     private int _inFlightDiscoveryCount = 0;
+    private TaskCompletionSource? _discoveryCompletionTcs;
 
     public event Action? DataChanged;
     public event Action<NetworkNode>? DeviceSaved;
@@ -508,7 +509,10 @@ public class ScannerPage : Border
         }
         finally
         {
-            Interlocked.Decrement(ref _inFlightDiscoveryCount);
+            if (Interlocked.Decrement(ref _inFlightDiscoveryCount) == 0)
+            {
+                _discoveryCompletionTcs?.TrySetResult();
+            }
         }
     }
 
@@ -523,6 +527,7 @@ public class ScannerPage : Border
         {
             _isScanning = true;
             _scanCts = new CancellationTokenSource();
+            _discoveryCompletionTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _scanResults.Clear();
             _scanResultMacs.Clear();
             _resultsBody.Children.Clear();
@@ -554,9 +559,9 @@ public class ScannerPage : Border
             }
 
             // Wait for all in-flight discovery tasks to finish before updating final status
-            while (Volatile.Read(ref _inFlightDiscoveryCount) > 0)
+            if (Volatile.Read(ref _inFlightDiscoveryCount) > 0 && _discoveryCompletionTcs != null)
             {
-                await Task.Delay(50);
+                await _discoveryCompletionTcs.Task;
             }
 
             // Final UI sync to catch the last posted discovery events
@@ -582,6 +587,7 @@ public class ScannerPage : Border
         }
         finally
         {
+            _discoveryCompletionTcs?.TrySetResult();
             _isScanning = false;
             _progressBar.Value = _scanCts?.IsCancellationRequested == true ? 0 : 100;
             _progressPct.Text = _scanCts?.IsCancellationRequested == true ? "0%" : "100%";
@@ -595,6 +601,7 @@ public class ScannerPage : Border
     private void OnStopScan(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _scanCts?.Cancel();
+        _discoveryCompletionTcs?.TrySetResult();
         _isScanning = false; // Allow immediate restart
         _statusText.Text = "Scan cancelled.";
         _scanningBadgeText.Text = "Idle";

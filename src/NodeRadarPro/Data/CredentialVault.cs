@@ -15,16 +15,15 @@ public static class CredentialVault
 
     public static string GetOrGenerateDbPassword(string folder)
     {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return "test_password";
-
         string keyFile = Path.Combine(folder, "db_key.bin");
         if (File.Exists(keyFile))
         {
             try
             {
                 byte[] encrypted = File.ReadAllBytes(keyFile);
-                byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                byte[] decrypted = Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true"
+                    ? encrypted
+                    : ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
                 return Encoding.UTF8.GetString(decrypted);
             }
             catch
@@ -58,12 +57,11 @@ public static class CredentialVault
 
     public static void SaveDbPassword(string folder, string password)
     {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return;
-
         string keyFile = Path.Combine(folder, "db_key.bin");
         byte[] secret = Encoding.UTF8.GetBytes(password);
-        byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
+        byte[] encrypted = Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true"
+            ? secret
+            : ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
         File.WriteAllBytes(keyFile, encrypted);
     }
 
