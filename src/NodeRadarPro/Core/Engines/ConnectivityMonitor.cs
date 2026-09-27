@@ -145,7 +145,11 @@ public class ConnectivityMonitor
                         _arpSemaphore.Release();
                     }
                 }
-                catch { }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"ARP check failed for {device.IpAddress}: {ex.Message}");
+                }
             }
 
             // ICMP ping
@@ -159,7 +163,11 @@ public class ConnectivityMonitor
                     latency = reply.RoundtripTime;
                 }
             }
-            catch { }
+            catch (OperationCanceledException) { }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"ICMP ping failed for {device.IpAddress}: {ex.Message}");
+            }
 
             // TCP fallback
             bool tcpOnline = false;
