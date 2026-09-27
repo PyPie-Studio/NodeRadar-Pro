@@ -23,7 +23,12 @@ public class SubnetScanner
     // ── Configurable properties ──
     public int TimeoutMs { get; set; } = 1500;
     public bool EnableDnsResolve { get; set; } = true;
-    public bool EnableInlinePortScan { get; set; } = false;
+    private bool _enableInlinePortScan = false;
+    public bool EnableInlinePortScan
+    {
+        get => _enableInlinePortScan || EnableOsDetection || FastScanMode;
+        set => _enableInlinePortScan = value;
+    }
     public bool FastScanMode { get; set; } = false;
     public bool EnableOsDetection { get; set; } = true;
     public string PreferredInterfaceName { get; set; } = ""; // S3: Interface preference
@@ -599,7 +604,7 @@ public class SubnetScanner
             var fingerprint = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, token);
             node.Vendor = fingerprint.Vendor;
             node.DeviceType = fingerprint.TypeString;
-            node.OsGuess = fingerprint.Os;
+            node.OsGuess = EnableOsDetection ? fingerprint.Os : string.Empty;
             node.IconPath = fingerprint.IconSvgKey;
 
             if (!string.IsNullOrEmpty(fingerprint.Model))

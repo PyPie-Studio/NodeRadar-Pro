@@ -103,4 +103,59 @@ public class SubnetScannerTests
         var results = await scanner.ScanRangeAsync("192.168.1", 5, 2, CancellationToken.None);
         Assert.Empty(results);
     }
+
+    [Fact]
+    public void EnableInlinePortScan_ReturnsTrue_WhenOsDetectionIsEnabled()
+    {
+        var scanner = new SubnetScanner
+        {
+            EnableOsDetection = true,
+            EnableInlinePortScan = false
+        };
+
+        Assert.True(scanner.EnableInlinePortScan);
+    }
+
+    [Fact]
+    public void EnableInlinePortScan_ReturnsFalse_WhenOsDetectionAndFastScanDisabled()
+    {
+        var scanner = new SubnetScanner
+        {
+            EnableOsDetection = false,
+            FastScanMode = false,
+            EnableInlinePortScan = false
+        };
+
+        Assert.False(scanner.EnableInlinePortScan);
+    }
+
+    [Fact]
+    public async Task ScanRangeAsync_WhenOsDetectionDisabled_ClearsOsGuess()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.1", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper
+            {
+                Status = IPStatus.Success,
+                RoundtripTime = 10
+            });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.1", It.IsAny<string>()))
+            .Returns("00:11:22:33:44:55");
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>());
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object)
+        {
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        var results = await scanner.ScanRangeAsync("192.168.1", 1, 1, CancellationToken.None);
+
+        Assert.Single(results);
+        Assert.Equal(string.Empty, results[0].OsGuess);
+    }
 }
