@@ -51,6 +51,8 @@ public class CredentialVaultTests : IDisposable
         Assert.Equal("", CredentialVault.DecryptSecret(""));
         Assert.Equal("", CredentialVault.DecryptSecret(null!));
         Assert.Equal("", CredentialVault.DecryptSecret("NotValidBase64!!!"));
+        Assert.Equal("", CredentialVault.DecryptSecret("Invalid Base 64 string!"));
+        Assert.Equal("", CredentialVault.DecryptSecret("This is not base64 ==="));
     }
 
     [Fact]
