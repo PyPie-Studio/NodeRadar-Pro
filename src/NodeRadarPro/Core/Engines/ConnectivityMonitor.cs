@@ -219,7 +219,7 @@ public class ConnectivityMonitor
                         Message = $"{device.DisplayName} ({device.IpAddress}) went offline"
                     };
                     alertsToInsert.Add(alert);
-                    try { _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress); } catch { }
+                    try { _db?.Log(LogLevel.Warning, "Monitor", alert.Message, device.MacAddress); } catch (Exception ex) { Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"Failed to log alert to DB: {ex.Message}"); }
                     AlertTriggered?.Invoke(alert);
                 }
             }
@@ -240,7 +240,7 @@ public class ConnectivityMonitor
                     ResolvedAt = DateTime.UtcNow
                 };
                 alertsToInsert.Add(reconnectAlert);
-                try { _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress); } catch { }
+                try { _db?.Log(LogLevel.Info, "Monitor", reconnectAlert.Message, device.MacAddress); } catch (Exception ex) { Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"Failed to log reconnect alert to DB: {ex.Message}"); }
                 AlertTriggered?.Invoke(reconnectAlert);
             }
 
@@ -294,11 +294,11 @@ public class ConnectivityMonitor
         // Bulk insert generated alerts
         if (alertsToInsert.Count > 0)
         {
-            try { _db?.InsertAlerts(alertsToInsert); } catch { }
+            try { _db?.InsertAlerts(alertsToInsert); } catch (Exception ex) { Logger.Log(LogLevel.Error, "ConnectivityMonitor", $"Failed to insert alerts: {ex.Message}"); }
         }
 
         // Persist uptime snapshots
-        try { _db?.InsertUptimeSnapshots(uptimeSnapshots); } catch { }
+        try { _db?.InsertUptimeSnapshots(uptimeSnapshots); } catch (Exception ex) { Logger.Log(LogLevel.Error, "ConnectivityMonitor", $"Failed to insert uptime snapshots: {ex.Message}"); }
 
         StatusUpdated?.Invoke(_trackedDevices.Values.ToList());
     }
