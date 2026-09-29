@@ -3,6 +3,7 @@ using NodeRadarPro.Core.Fingerprinting.Probes;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
+[Collection("ProbeSweepStaticState")]
 public class SsdpProbeTests : IDisposable
 {
     public SsdpProbeTests()

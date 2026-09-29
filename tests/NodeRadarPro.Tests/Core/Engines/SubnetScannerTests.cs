@@ -4,6 +4,7 @@ using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
 
+[Collection("ProbeSweepStaticState")]
 public class SubnetScannerTests
 {
     [Fact]

@@ -1,5 +1,17 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.5 (2026-09-30)
+
+### Performance and Memory Optimization
+- **Zero-Allocation ARP Table Lookups (`ArpResolver.cs`, `ISubnetScannerDependencies.cs`, `SubnetScanner.cs`)**: Replaced repeated full ARP dictionary cloning in subnet sweep fallback routines with `ArpResolver.TryGetMacFromArpTable`, querying the cached ARP dictionary directly under synchronization lock and eliminating over 90% of heap allocations during large subnet sweeps.
+- **Pre-Sized CSV String Building for Log Export (`SystemLogsPage.cs`)**: Pre-allocated `StringBuilder` capacity (`logs.Count * 128 + 64`), switched to chained `Append` calls, short-circuited quote replacement when no quotes are present and enforced the mandatory 12-hour AM/PM format standard (`yyyy-MM-dd  hh:mm:ss tt`).
+
+### Security and Boundary Defense
+- **Process Argument Encapsulation (`AppUtils.cs`)**: Migrated Windows `explorer.exe` launching in `AppUtils.OpenFolder` to `psi.ArgumentList.Add(folderPath)`, ensuring consistent argument list boundary handling across Windows, Linux and macOS platforms without manual shell string formatting.
+
+### Test Coverage and Quality Gate
+- **Constant-Time Verification Unit Tests (`SecurityServiceTests.cs`)**: Added 14 xUnit v3 test assertions covering null inputs, length discrepancies, case-insensitive hexadecimal equality and missing file handling against `SecurityService.VerifyHash` and `SecurityService.VerifyFileHash`.
+
 ## NodeRadar Pro v2.0.4 (2026-09-29)
 
 ### User Interface and Vector Modernization

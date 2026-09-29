@@ -4,6 +4,7 @@ using NodeRadarPro.Core.Fingerprinting.Probes;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
+[Collection("ProbeSweepStaticState")]
 public class MdnsProbeTests : IDisposable
 {
     public MdnsProbeTests()
