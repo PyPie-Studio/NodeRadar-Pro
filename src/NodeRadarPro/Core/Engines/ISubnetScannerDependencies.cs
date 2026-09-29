@@ -34,6 +34,18 @@ namespace NodeRadarPro.Core
         string ResolveMacAddress(string ip, string sourceIp = "");
         List<(string Ip, string Mac)> GetFullArpTable();
         string TryResolveNetBiosName(string ipAddress);
+        bool TryGetMacFromArpTable(string ip, out string mac)
+        {
+            var list = GetFullArpTable();
+            var found = list.Find(x => x.Ip == ip);
+            if (!string.IsNullOrEmpty(found.Mac))
+            {
+                mac = found.Mac;
+                return true;
+            }
+            mac = "Unknown";
+            return false;
+        }
     }
 
     public class DefaultArpResolver : IArpResolver
@@ -41,5 +53,6 @@ namespace NodeRadarPro.Core
         public string ResolveMacAddress(string ip, string sourceIp = "") => ArpResolver.ResolveMacAddress(ip, sourceIp);
         public List<(string Ip, string Mac)> GetFullArpTable() => ArpResolver.GetFullArpTable();
         public string TryResolveNetBiosName(string ipAddress) => ArpResolver.TryResolveNetBiosName(ipAddress);
+        public bool TryGetMacFromArpTable(string ip, out string mac) => ArpResolver.TryGetMacFromArpTable(ip, out mac);
     }
 }

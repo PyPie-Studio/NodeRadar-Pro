@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
@@ -63,6 +64,50 @@ public class SubnetScannerBenchmarkTests
         var hashSetSubnets = new HashSet<string> { "192.168.1", "10.0.0" };
         Assert.True(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), hashSetSubnets));
         Assert.False(SubnetScanner.IsIpInAnySubnet("172.16.0.1".AsSpan(), hashSetSubnets));
+    }
+
+    [Fact]
+    public void Benchmark_ArpTableLookup_BaselineVsOptimized()
+    {
+        // Warmup ARP table cache
+        _ = ArpResolver.GetFullArpTableAsDictionary();
+
+        const int iterations = 10000;
+        string targetIp = "127.0.0.1";
+
+        // Baseline: repeated GetFullArpTableAsDictionary()
+        long baselineAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var sw = Stopwatch.StartNew();
+        int foundBaseline = 0;
+        for (int i = 0; i < iterations; i++)
+        {
+            var dict = ArpResolver.GetFullArpTableAsDictionary();
+            if (dict.TryGetValue(targetIp, out var mac) && !string.IsNullOrEmpty(mac))
+            {
+                foundBaseline++;
+            }
+        }
+        sw.Stop();
+        long baselineAllocated = GC.GetAllocatedBytesForCurrentThread() - baselineAllocBefore;
+
+        // Optimized: TryGetMacFromArpTable
+        long optAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        sw.Restart();
+        int foundOpt = 0;
+        for (int i = 0; i < iterations; i++)
+        {
+            if (ArpResolver.TryGetMacFromArpTable(targetIp, out var mac) && !string.IsNullOrEmpty(mac))
+            {
+                foundOpt++;
+            }
+        }
+        sw.Stop();
+        long optAllocated = GC.GetAllocatedBytesForCurrentThread() - optAllocBefore;
+
+        Assert.Equal(foundBaseline, foundOpt);
+        // Direct lookup should allocate significantly fewer bytes than repeated dictionary cloning
+        Assert.True(optAllocated < baselineAllocated / 10,
+            $"Expected optimized allocations ({optAllocated} B) to be < 10% of baseline ({baselineAllocated} B)");
     }
 
     private static long RunBaseline((string Ip, string Mac)[] arpTable, string baseIp, int startIp, int endIp)

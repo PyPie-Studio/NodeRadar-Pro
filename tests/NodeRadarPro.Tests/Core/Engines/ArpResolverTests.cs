@@ -120,4 +120,24 @@ public class ArpResolverTests
 
         Assert.Equal("0E:6F:31:E3:E5:DC", formatted);
     }
+
+    [Fact]
+    public void TryGetMacFromArpTable_NullOrEmptyIp_ReturnsFalseAndUnknown()
+    {
+        bool foundNull = ArpResolver.TryGetMacFromArpTable(null!, out string macNull);
+        Assert.False(foundNull);
+        Assert.Equal("Unknown", macNull);
+
+        bool foundEmpty = ArpResolver.TryGetMacFromArpTable(string.Empty, out string macEmpty);
+        Assert.False(foundEmpty);
+        Assert.Equal("Unknown", macEmpty);
+    }
+
+    [Fact]
+    public void TryGetMacFromArpTable_NonExistentIp_ReturnsFalseAndUnknown()
+    {
+        bool found = ArpResolver.TryGetMacFromArpTable("203.0.113.199", out string mac);
+        Assert.False(found);
+        Assert.Equal("Unknown", mac);
+    }
 }
