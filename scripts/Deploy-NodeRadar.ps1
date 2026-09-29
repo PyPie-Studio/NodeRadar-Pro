@@ -356,8 +356,13 @@ if (-not $SkipRelease) {
 
         Push-Location $installerDir
         try {
-            $null = (& gh release view $versionTag 2>&1)
-            if ($LASTEXITCODE -eq 0) {
+            $prevEA = $ErrorActionPreference
+            $ErrorActionPreference = "SilentlyContinue"
+            & gh release view $versionTag 2>$null | Out-Null
+            $releaseExists = ($LASTEXITCODE -eq 0)
+            $ErrorActionPreference = $prevEA
+
+            if ($releaseExists) {
                 # Release already exists: update notes and upload installer
                 & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
                 if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
@@ -375,7 +380,7 @@ if (-not $SkipRelease) {
 
         # 3. CRITICAL: LIVE CONFIRMATION QUERY (Zero False Positives)
         Write-Host "  > Verifying release and attached assets live on GitHub..." -ForegroundColor Yellow
-        $verificationRaw = (& gh release view $versionTag --json tagName,url,assets 2>&1 | Out-String)
+        $verificationRaw = (& gh release view $versionTag --json tagName,url,assets | Out-String)
         if ($LASTEXITCODE -ne 0) {
             Fail-Run "7" "Live confirmation failed: Release $versionTag was not found on GitHub after creation attempt"
         }
