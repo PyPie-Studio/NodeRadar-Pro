@@ -173,9 +173,9 @@ namespace NodeRadarPro.Core
                     var psi = new ProcessStartInfo
                     {
                         FileName = "explorer.exe",
-                        Arguments = $"\"{folderPath}\"",
                         UseShellExecute = false
                     };
+                    psi.ArgumentList.Add(folderPath);
                     Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
