@@ -16,7 +16,7 @@
     <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>Resources\NodeRadar Pro Icon.ico</ApplicationIcon>
-    <Version>2.0.3</Version>
+    <Version>2.0.4</Version>
   </PropertyGroup>
 
   <PropertyGroup Label="Avalonia">
@@ -29,6 +29,7 @@
 
   <ItemGroup>
     <Content Include="Resources\NodeRadar Pro Icon.ico" />
+    <EmbeddedResource Include="..\..\CHANGELOG.md" Link="Resources\CHANGELOG.md" />
   </ItemGroup>
 
   <ItemGroup>

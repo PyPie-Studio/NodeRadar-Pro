@@ -43,11 +43,11 @@ public class AlertsPage : Border
 
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 0, 0, 20) };
 
-        var activeCard = MakeStatCard("⚠", "Active Alerts", _activeCount, ThemeTokens.Error);
+        var activeCard = MakeStatCard(ThemeTokens.SvgAlertTriangle, "Active Alerts", _activeCount, ThemeTokens.Error);
         ThemeTokens.SetToolTip(activeCard, "Outstanding network anomalies and security events requiring intervention.");
-        var resolvedCard = MakeStatCard("✅", "Resolved", _resolvedCount, ThemeTokens.Tertiary);
+        var resolvedCard = MakeStatCard(ThemeTokens.SvgCheck, "Resolved", _resolvedCount, ThemeTokens.Tertiary);
         ThemeTokens.SetToolTip(resolvedCard, "Total count of alerts that have been acknowledged and cleared.");
-        var totalCard = MakeStatCard("📊", "Total Events", _totalCount, ThemeTokens.Primary);
+        var totalCard = MakeStatCard(ThemeTokens.SvgChart, "Total Events", _totalCount, ThemeTokens.Primary);
         ThemeTokens.SetToolTip(totalCard, "Cumulative history of all security and connectivity triggers in the current session.");
 
         Grid.SetColumn(activeCard, 0); Grid.SetColumn(resolvedCard, 1); Grid.SetColumn(totalCard, 2);
@@ -57,7 +57,7 @@ public class AlertsPage : Border
         // Filter Row + Actions
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 16) };
 
-        var resolveAllBtn = ThemeTokens.SecondaryButton("✓  Resolve All");
+        var resolveAllBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgCheck, "Resolve All", ThemeTokens.Tertiary);
         ThemeTokens.SetToolTip(resolveAllBtn, "Mass-resolve all pending alerts and clear the active threat list.");
         resolveAllBtn.Width = 160; resolveAllBtn.HorizontalAlignment = HorizontalAlignment.Right;
         resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); AlertsChanged?.Invoke(); };
@@ -128,7 +128,7 @@ public class AlertsPage : Border
 
         if (filtered.Count == 0)
         {
-            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == "active" ? "✅  No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = ThemeTokens.DefaultFont });
+            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == "active" ? "No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = ThemeTokens.DefaultFont });
             return;
         }
 
@@ -136,12 +136,25 @@ public class AlertsPage : Border
             _alertListBody.Children.Add(BuildAlertCard(alert));
     }
 
+    private static (string SvgPath, IBrush Color) GetAlertVisuals(AlertType alertType) => alertType switch
+    {
+        AlertType.ConnectionLost => (ThemeTokens.SvgAlertTriangle, ThemeTokens.Error),
+        AlertType.HighLatency => (ThemeTokens.SvgRadar, ThemeTokens.Warning),
+        AlertType.PacketLoss => (ThemeTokens.SvgAlertTriangle, ThemeTokens.Warning),
+        AlertType.DeviceReconnected => (ThemeTokens.SvgCheck, ThemeTokens.Tertiary),
+        AlertType.NewDeviceDiscovered => (ThemeTokens.SvgSearch, ThemeTokens.Primary),
+        _ => (ThemeTokens.SvgInfo, ThemeTokens.OnSurfaceVariant)
+    };
+
     private Border BuildAlertCard(AlertEvent alert)
     {
-        string icon = alert.AlertType.GetIcon();
+        var (svgPath, alertColor) = GetAlertVisuals(alert.AlertType);
         string typeText = alert.AlertType.GetDisplayName();
 
-        var iconTb = new TextBlock { Text = icon, FontSize = 20, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
+        var iconElem = ThemeTokens.VectorIcon(svgPath, 18, alertColor);
+        iconElem.VerticalAlignment = VerticalAlignment.Center;
+        iconElem.Margin = new Thickness(0, 0, 14, 0);
+
         var titleTb = new TextBlock { Text = $"{typeText}: {alert.DeviceName}", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis };
         var msgTb = new TextBlock { Text = alert.Message, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0) };
         var timeTb = new TextBlock { Text = GetTimeAgo(alert.Timestamp), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont };
@@ -152,14 +165,25 @@ public class AlertsPage : Border
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(iconTb, 0); Grid.SetColumn(textCol, 1); Grid.SetColumn(timeTb, 2);
+        Grid.SetColumn(iconElem, 0); Grid.SetColumn(textCol, 1); Grid.SetColumn(timeTb, 2);
         timeTb.VerticalAlignment = VerticalAlignment.Center;
-        row.Children.Add(iconTb); row.Children.Add(textCol); row.Children.Add(timeTb);
+        row.Children.Add(iconElem); row.Children.Add(textCol); row.Children.Add(timeTb);
 
         if (!alert.IsResolved)
         {
             row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-            var resolveBtn = new Button { Content = "✓", Background = Brushes.Transparent, Foreground = ThemeTokens.Tertiary, Width = 36, Height = 36, CornerRadius = new CornerRadius(6), HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center, FontSize = 16, Margin = new Thickness(8, 0, 0, 0), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+            var resolveBtn = new Button
+            {
+                Content = ThemeTokens.VectorIcon(ThemeTokens.SvgCheck, 16, ThemeTokens.Tertiary),
+                Background = Brushes.Transparent,
+                Width = 36,
+                Height = 36,
+                CornerRadius = new CornerRadius(6),
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            };
             ThemeTokens.SetToolTip(resolveBtn, "Mark this specific alert as resolved and clear it from the active list.");
             resolveBtn.Click += (s, e) => { _db.ResolveAlert(alert.Id); RefreshAlerts(); AlertsChanged?.Invoke(); };
             Grid.SetColumn(resolveBtn, 3); row.Children.Add(resolveBtn);
@@ -189,11 +213,13 @@ public class AlertsPage : Border
         return chip;
     }
 
-    private static Border MakeStatCard(string icon, string label, TextBlock valueText, IBrush color)
+    private static Border MakeStatCard(string svgPath, string label, TextBlock valueText, IBrush color)
     {
-        var iconTb = new TextBlock { Text = icon, FontSize = 22, VerticalAlignment = VerticalAlignment.Top };
+        var iconElem = ThemeTokens.VectorIcon(svgPath, 22, color);
+        iconElem.HorizontalAlignment = HorizontalAlignment.Left;
+        iconElem.VerticalAlignment = VerticalAlignment.Top;
         var labelTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 0) };
-        return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconTb, valueText, labelTb } }, 20);
+        return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconElem, valueText, labelTb } }, 20);
     }
 
     private static string GetTimeAgo(DateTime utcTime)

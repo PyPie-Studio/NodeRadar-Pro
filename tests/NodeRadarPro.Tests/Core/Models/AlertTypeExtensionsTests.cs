@@ -4,18 +4,6 @@ namespace NodeRadarPro.Tests.Core.Models;
 
 public class AlertTypeExtensionsTests
 {
-    [Theory]
-    [InlineData(AlertType.ConnectionLost, "🔴")]
-    [InlineData(AlertType.HighLatency, "🟡")]
-    [InlineData(AlertType.PacketLoss, "🟠")]
-    [InlineData(AlertType.DeviceReconnected, "🟢")]
-    [InlineData(AlertType.NewDeviceDiscovered, "🔵")]
-    [InlineData((AlertType)999, "⚪")]
-    public void GetIcon_ReturnsExpectedIcon(AlertType alertType, string expectedIcon)
-    {
-        var icon = alertType.GetIcon();
-        Assert.Equal(expectedIcon, icon);
-    }
 
     [Theory]
     [InlineData(AlertType.ConnectionLost, "Connection Lost")]

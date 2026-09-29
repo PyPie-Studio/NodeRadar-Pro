@@ -29,14 +29,24 @@ namespace NodeRadarPro.Core
                     return;
                 }
 
-                if (critical)
+                _ = System.Threading.Tasks.Task.Run(() =>
                 {
-                    SystemSounds.Hand.Play();
-                }
-                else
-                {
-                    SystemSounds.Asterisk.Play();
-                }
+                    try
+                    {
+                        if (critical)
+                        {
+                            SystemSounds.Hand.Play();
+                        }
+                        else
+                        {
+                            SystemSounds.Asterisk.Play();
+                        }
+                    }
+                    catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
+                    {
+                        Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
+                    }
+                });
             }
             catch (InvalidOperationException ex)
             {

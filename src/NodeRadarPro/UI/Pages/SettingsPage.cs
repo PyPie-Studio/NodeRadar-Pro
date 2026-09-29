@@ -236,7 +236,8 @@ public class SettingsPage : Border
 
     private Control BuildScanParametersCard()
     {
-        var scanIcon = new TextBlock { Text = "◎", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
+        var scanIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgRadar, 18, ThemeTokens.Primary);
+        scanIcon.VerticalAlignment = VerticalAlignment.Center;
         var scanTitle = ThemeTokens.Headline("Scan Parameters", 22);
         var scanHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { scanIcon, scanTitle } };
 
@@ -255,8 +256,8 @@ public class SettingsPage : Border
         sliderGrid.Children.Add(sweepCard);
         sliderGrid.Children.Add(timeoutCard);
 
-        var synRow = MakeToggleCard("Aggressive Port Scanning (SYN)", "", _synScanToggle, "⊕");
-        var dnsRow = MakeToggleCard("Resolve Hostnames (DNS)", "", _dnsResolveToggle, "◉");
+        var synRow = MakeToggleCard("Aggressive Port Scanning (SYN)", "", _synScanToggle, ThemeTokens.SvgBolt);
+        var dnsRow = MakeToggleCard("Resolve Hostnames (DNS)", "", _dnsResolveToggle, ThemeTokens.SvgGlobe);
 
         var scanContent = new StackPanel { Spacing = 12, Children = { scanHeader, sliderGrid, synRow, dnsRow } };
         var scanCard = ThemeTokens.Card(scanContent, ThemeTokens.SurfaceContainerLow, 32);
@@ -266,7 +267,8 @@ public class SettingsPage : Border
 
     private Control BuildNotificationCenterCard()
     {
-        var notifIcon = new TextBlock { Text = "🔔", FontSize = 18, VerticalAlignment = VerticalAlignment.Center };
+        var notifIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgBell, 18, ThemeTokens.Primary);
+        notifIcon.VerticalAlignment = VerticalAlignment.Center;
         var notifTitle = ThemeTokens.Headline("Notification Center", 22);
         var notifHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 20), Children = { notifIcon, notifTitle } };
 
@@ -411,12 +413,12 @@ public class SettingsPage : Border
 
         if (sender is Button btn)
         {
-            btn.Content = "✅  Saved!";
+            btn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Saved!", 16, Brushes.White, Brushes.White);
             btn.IsEnabled = false;
             var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
             timer.Tick += (s2, e2) =>
             {
-                btn.Content = "Save\nConfiguration";
+                btn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgSave, "Save Configuration", 16, Brushes.White, Brushes.White);
                 btn.IsEnabled = true;
                 timer.Stop();
             };
@@ -528,7 +530,7 @@ public class SettingsPage : Border
 
     // ── UI FACTORY HELPERS ──
 
-    private static Border MakeToggleCard(string title, string description, CheckBox toggle, string? icon = null)
+    private static Border MakeToggleCard(string title, string description, CheckBox toggle, string? svgPath = null)
     {
         toggle.Content = null;
         var left = new StackPanel
@@ -539,7 +541,7 @@ public class SettingsPage : Border
             Children = { }
         };
 
-        if (icon != null)
+        if (svgPath != null)
         {
             left.Children.Add(new Border
             {
@@ -547,7 +549,7 @@ public class SettingsPage : Border
                 Height = 28,
                 CornerRadius = new CornerRadius(6),
                 Background = ThemeTokens.SurfaceContainerLowest,
-                Child = new TextBlock { Text = icon, FontSize = 12, Foreground = ThemeTokens.Primary, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center }
+                Child = ThemeTokens.VectorIcon(svgPath, 14, ThemeTokens.Primary)
             });
         }
 

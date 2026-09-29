@@ -49,7 +49,7 @@ namespace NodeRadarPro.Tests
 
                 // Assert
                 mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "⚠️ Device Disconnected" &&
+                    n.Title == "Device Disconnected" &&
                     n.Type == NotificationType.Error)),
                     Times.Once);
             }
@@ -81,7 +81,7 @@ namespace NodeRadarPro.Tests
 
                 // Assert
                 mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "✅ Device Reconnected" &&
+                    n.Title == "Device Reconnected" &&
                     n.Type == NotificationType.Success)),
                     Times.Once);
             }
@@ -113,7 +113,7 @@ namespace NodeRadarPro.Tests
 
                 // Assert
                 mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "🔵 New Device Discovered" &&
+                    n.Title == "New Device Discovered" &&
                     n.Type == NotificationType.Information)),
                     Times.Once);
             }

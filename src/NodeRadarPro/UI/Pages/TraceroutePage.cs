@@ -34,13 +34,13 @@ public class TraceroutePage : Border
         var title = ThemeTokens.Headline("Visual Traceroute", 36);
         var subtitle = ThemeTokens.Body("Map the digital pathway to any network destination.", 14);
 
-        _startBtn = ThemeTokens.PrimaryButton("▶  Start Trace");
+        _startBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgPlay, "Start Trace");
         _startBtn.Width = 160;
         _startBtn.Height = 44;
         _startBtn.Click += OnStartTrace;
         ThemeTokens.SetToolTip(_startBtn, "Begin identifying intermediate hops to the target destination.");
 
-        _stopBtn = ThemeTokens.SecondaryButton("■  Stop");
+        _stopBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgStop, "Stop", ThemeTokens.Error);
         _stopBtn.Width = 100;
         _stopBtn.Height = 44;
         _stopBtn.Foreground = ThemeTokens.Error;

@@ -198,6 +198,7 @@ public class DarkPurpleTheme
 
         var rootGrid = new Grid
         {
+            Background = ThemeTokens.SurfaceContainerLowest,
             ColumnDefinitions =
             {
                 new ColumnDefinition(new GridLength(ThemeTokens.SidebarWidth, GridUnitType.Pixel)),
@@ -220,56 +221,64 @@ public class DarkPurpleTheme
 
         void SyncGlobalStats()
         {
-            // Pre-calculate stats off the UI thread
-            var values = activeNodesMap.Values;
-            var snapshot = new System.Collections.Generic.List<NetworkNode>(values.Count);
-
-            int online = 0;
-            long totalLatency = 0;
-            int latencyCount = 0;
-
-            foreach (var node in values)
+            Task.Run(() =>
             {
-                snapshot.Add(node);
-                if (node.IsOnline)
+                var values = activeNodesMap.Values;
+                var snapshot = new System.Collections.Generic.List<NetworkNode>(values.Count);
+
+                int online = 0;
+                long totalLatency = 0;
+                int latencyCount = 0;
+
+                foreach (var node in values)
                 {
-                    online++;
-                    if (node.PingLatencyMs >= 0)
+                    snapshot.Add(node);
+                    if (node.IsOnline)
                     {
-                        totalLatency += node.PingLatencyMs;
-                        latencyCount++;
+                        online++;
+                        if (node.PingLatencyMs >= 0)
+                        {
+                            totalLatency += node.PingLatencyMs;
+                            latencyCount++;
+                        }
                     }
                 }
-            }
 
-            long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
+                long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
 
-            int alertCount = 0;
-            try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+                int alertCount = 0;
+                try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
 
-            Dispatcher.UIThread.Post(() =>
-            {
-                // Update Top Nav
-                topNav.UpdateStatus(online, avgLat, alertCount);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    // Update Top Nav
+                    topNav.UpdateStatus(online, avgLat, alertCount);
 
-                // Broadcast updates
-                EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
-                EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
+                    // Broadcast updates
+                    EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
+                    EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
+                });
             });
         }
 
         // ── Scanner page data changes → refresh dashboard ──
         scannerPage.DataChanged += () =>
         {
-            int count = activeNodesMap.Values.Count(n => n.IsOnline);
-            try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                int count = activeNodesMap.Values.Count(n => n.IsOnline);
+                try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
+                SyncGlobalStats();
+            });
         };
 
         alertsPage.AlertsChanged += () =>
         {
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         // ── Inventory page events ──
@@ -277,17 +286,23 @@ public class DarkPurpleTheme
         {
             monitor.AddDevice(node);
             activeNodesMap.UpdateNode(node);
-            try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         inventoryPage.DeviceDeleted += (node) =>
         {
             activeNodesMap.TryRemove(node.MacAddress, out _);
-            try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         inventoryPage.DevicesDeleted += (nodes) =>
@@ -296,9 +311,12 @@ public class DarkPurpleTheme
             {
                 activeNodesMap.TryRemove(node.MacAddress, out _);
             }
-            try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         inventoryPage.DeviceStatusChanged += (node) =>
@@ -334,32 +352,37 @@ public class DarkPurpleTheme
         inventoryPage.DeviceSelected += (node) =>
         {
             // Fix Issue 4: Fetch history when device is selected in inventory
-            var history = db.GetUptimeHistory(node.MacAddress, 24);
-            inventoryPage.UpdateUptimeChart(history);
+            Task.Run(() =>
+            {
+                var history = db.GetUptimeHistory(node.MacAddress, 24);
+                Dispatcher.UIThread.Post(() => inventoryPage.UpdateUptimeChart(history));
+            });
         };
 
         // ── Scanner device save → register device (I9) ──
         scannerPage.DeviceSaved += (node) =>
         {
-            db.UpdateRegistration(
-                node.MacAddress,
-                node.CustomName,
-                node.Notes,
-                node.Location,
-                node.DeviceName,
-                node.DeviceModel,
-                node.IconPath,
-                node.IpAddress,
-                node.VulnerabilityScore,
-                node.ThreatLevel,
-                node.ExactModel
-            );
-
             monitor.AddDevice(node);
             activeNodesMap.UpdateNode(node);
-            try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                db.UpdateRegistration(
+                    node.MacAddress,
+                    node.CustomName,
+                    node.Notes,
+                    node.Location,
+                    node.DeviceName,
+                    node.DeviceModel,
+                    node.IconPath,
+                    node.IpAddress,
+                    node.VulnerabilityScore,
+                    node.ThreatLevel,
+                    node.ExactModel
+                );
+                try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         // ── Settings saved → push to services ──
@@ -367,9 +390,12 @@ public class DarkPurpleTheme
         {
             settings = newSettings;
             ApplySettings(newSettings, monitor, scanner, detector);
-            try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
-            db.Checkpoint();
-            SyncGlobalStats();
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
+                db.Checkpoint();
+                SyncGlobalStats();
+            });
         };
 
         // ── Monitor alert events → update alerts page ──
@@ -421,38 +447,42 @@ public class DarkPurpleTheme
         // ═══════════════════════════════════════════
         // ██  STARTUP
         // ═══════════════════════════════════════════
-        window.Opened += async (s, e) =>
+        window.Opened += (s, e) =>
         {
-            // Background data load
-            settings = db.LoadSettings();
-
-            // Task 2: System Integrity Shield (Verify Binaries)
-            _ = Task.Run(() => VerifySystemIntegrity(settings, db));
-
-            // Apply settings to services (Non-UI)
-            ApplySettings(settings, monitor, scanner, detector);
-
-            // UI Status Updates
-            Dispatcher.UIThread.Post(() =>
+            Task.Run(() =>
             {
+                // Background data load
+                settings = db.LoadSettings();
+
+                // Task 2: System Integrity Shield (Verify Binaries)
+                VerifySystemIntegrity(settings, db);
+
+                // Apply settings to services (Non-UI)
+                ApplySettings(settings, monitor, scanner, detector);
+
+                // UI Status Updates
                 int online = activeNodesMap.Values.Count(n => n.IsOnline);
                 int alertCountActual = 0;
                 try { alertCountActual = db.GetUnresolvedAlertCount(); } catch { }
 
-                topNav.UpdateStatus(online, -1, alertCountActual);
-                dashboardPage.RefreshData();
-                inventoryPage.RefreshData();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    topNav.UpdateStatus(online, -1, alertCountActual);
+                    dashboardPage.RefreshData();
+                    inventoryPage.RefreshData();
+                });
+
                 SyncGlobalStats();
+
+                // Start services
+                if (activeNodesMap.Count > 0)
+                {
+                    _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token), cts.Token);
+                }
+
+                // Start background intrusion detector (Task 3)
+                _ = Task.Run(() => detector.StartAsync(cts.Token), cts.Token);
             });
-
-            // Start services
-            if (activeNodesMap.Count > 0)
-            {
-                _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token));
-            }
-
-            // Start background intrusion detector (Task 3)
-            _ = detector.StartAsync(cts.Token);
         };
 
         // ═══════════════════════════════════════════

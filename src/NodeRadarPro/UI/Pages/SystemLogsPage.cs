@@ -42,7 +42,7 @@ public class SystemLogsPage : Border
         var subtitle = ThemeTokens.Body("Event log viewer for scan events, device status changes, and alert triggers.", 16);
 
         // Export button
-        var exportBtn = ThemeTokens.SecondaryButton("⬇  Export Logs");
+        var exportBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgDownload, "Export Logs");
         ThemeTokens.SetToolTip(exportBtn, "Export up to 2000 log entries to a CSV file in your Documents folder.");
         exportBtn.Width = 160;
         exportBtn.HorizontalAlignment = HorizontalAlignment.Right;
@@ -62,9 +62,9 @@ public class SystemLogsPage : Border
         _warnStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Warning, FontFamily = ThemeTokens.DefaultFont };
         _errorStatValue = new TextBlock { Text = "0", FontSize = 32, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont };
 
-        var infoCard = MakeLogStatCard("ℹ", "Info", _infoStatValue);
-        var warnCard = MakeLogStatCard("⚠", "Warnings", _warnStatValue);
-        var errCard = MakeLogStatCard("❌", "Errors", _errorStatValue);
+        var infoCard = MakeLogStatCard(ThemeTokens.SvgInfo, "Info", _infoStatValue, ThemeTokens.Tertiary);
+        var warnCard = MakeLogStatCard(ThemeTokens.SvgAlertTriangle, "Warnings", _warnStatValue, ThemeTokens.Warning);
+        var errCard = MakeLogStatCard(ThemeTokens.SvgClose, "Errors", _errorStatValue, ThemeTokens.Error);
         Grid.SetColumn(infoCard, 0); Grid.SetColumn(warnCard, 1); Grid.SetColumn(errCard, 2);
         infoCard.Margin = new Thickness(0, 0, 8, 0); warnCard.Margin = new Thickness(4, 0, 4, 0); errCard.Margin = new Thickness(8, 0, 0, 0);
         statsGrid.Children.Add(infoCard); statsGrid.Children.Add(warnCard); statsGrid.Children.Add(errCard);
@@ -86,15 +86,15 @@ public class SystemLogsPage : Border
         clearBtn.Click += (s, e) => ClearAllFilters();
         ThemeTokens.SetToolTip(clearBtn, "Clear the search box and level filters to show all system telemetry.");
 
-        var searchIcon = new TextBlock { Text = "🔍", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 8, 0) };
+        var searchIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 13, ThemeTokens.OnSurfaceVariant);
+        searchIcon.VerticalAlignment = VerticalAlignment.Center;
+        searchIcon.Margin = new Thickness(12, 0, 8, 0);
         _searchBox = ThemeTokens.Input("Search logs..."); _searchBox.Width = 200; _searchBox.FontSize = 14; _searchBox.Padding = new Thickness(10, 6); _searchBox.Background = Brushes.Transparent;
 
         var clearSearchBtn = new Button
         {
-            Content = "✖",
-            FontSize = 11,
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 10, ThemeTokens.OnSurfaceVariant),
             Background = Brushes.Transparent,
-            Foreground = ThemeTokens.OnSurfaceVariant,
             Padding = new Thickness(6, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsVisible = false,
@@ -205,10 +205,26 @@ public class SystemLogsPage : Border
 
     private Border BuildLogRow(LogEntry log)
     {
-        string icon = log.Level switch { LogLevel.Info => "ℹ", LogLevel.Warning => "⚠", LogLevel.Error => "❌", _ => "•" };
-        IBrush levelColor = log.Level switch { LogLevel.Info => ThemeTokens.Tertiary, LogLevel.Warning => ThemeTokens.Warning, LogLevel.Error => ThemeTokens.Error, _ => ThemeTokens.OnSurfaceVariant };
+        string svgPath = log.Level switch
+        {
+            LogLevel.Info => ThemeTokens.SvgInfo,
+            LogLevel.Warning => ThemeTokens.SvgAlertTriangle,
+            LogLevel.Error => ThemeTokens.SvgClose,
+            _ => ThemeTokens.SvgRadar
+        };
+        IBrush levelColor = log.Level switch
+        {
+            LogLevel.Info => ThemeTokens.Tertiary,
+            LogLevel.Warning => ThemeTokens.Warning,
+            LogLevel.Error => ThemeTokens.Error,
+            _ => ThemeTokens.OnSurfaceVariant
+        };
 
-        var iconTb = new TextBlock { Text = icon, FontSize = 14, Foreground = levelColor, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Width = 20 };
+        var iconElem = ThemeTokens.VectorIcon(svgPath, 14, levelColor);
+        iconElem.VerticalAlignment = VerticalAlignment.Center;
+        iconElem.Margin = new Thickness(0, 0, 10, 0);
+        iconElem.Width = 16;
+        iconElem.Height = 16;
 
         var timeTb = new TextBlock { Text = log.Timestamp.ToLocalTime().ToString("hh:mm:ss tt"), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center, Width = 105, Margin = new Thickness(0, 0, 10, 0) };
         var srcTb = new Border { Background = ThemeTokens.SurfaceContainerHigh, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0), Child = new TextBlock { Text = log.Source, FontSize = 12, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
@@ -221,8 +237,8 @@ public class SystemLogsPage : Border
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(iconTb, 0); Grid.SetColumn(timeTb, 1); Grid.SetColumn(srcTb, 2); Grid.SetColumn(msgTb, 3); Grid.SetColumn(dateTb, 4);
-        row.Children.Add(iconTb); row.Children.Add(timeTb); row.Children.Add(srcTb); row.Children.Add(msgTb); row.Children.Add(dateTb);
+        Grid.SetColumn(iconElem, 0); Grid.SetColumn(timeTb, 1); Grid.SetColumn(srcTb, 2); Grid.SetColumn(msgTb, 3); Grid.SetColumn(dateTb, 4);
+        row.Children.Add(iconElem); row.Children.Add(timeTb); row.Children.Add(srcTb); row.Children.Add(msgTb); row.Children.Add(dateTb);
 
         return new Border { Padding = new Thickness(10, 8), CornerRadius = new CornerRadius(6), Child = row };
     }
@@ -235,11 +251,13 @@ public class SystemLogsPage : Border
         return chip;
     }
 
-    private static Border MakeLogStatCard(string icon, string label, TextBlock valueText)
+    private static Border MakeLogStatCard(string svgPath, string label, TextBlock valueText, IBrush color)
     {
-        var iconTb = new TextBlock { Text = icon, FontSize = 20, VerticalAlignment = VerticalAlignment.Top };
+        var iconElem = ThemeTokens.VectorIcon(svgPath, 20, color);
+        iconElem.HorizontalAlignment = HorizontalAlignment.Left;
+        iconElem.VerticalAlignment = VerticalAlignment.Top;
         var lblTb = new TextBlock { Text = label, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 0) };
-        return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconTb, valueText, lblTb } }, 20);
+        return ThemeTokens.GlassCard(new StackPanel { Spacing = 4, Children = { iconElem, valueText, lblTb } }, 20);
     }
 
     private async void OnExportLogs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

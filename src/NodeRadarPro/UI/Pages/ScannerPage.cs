@@ -79,7 +79,7 @@ public class ScannerPage : Border
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = "▶", FontSize = 14, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White },
+                    ThemeTokens.VectorIcon(ThemeTokens.SvgPlay, 14, Brushes.White),
                     new TextBlock { Text = "Start Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont }
                 }
             },
@@ -107,7 +107,7 @@ public class ScannerPage : Border
                 Spacing = 8,
                 Children =
                 {
-                    new TextBlock { Text = "■", FontSize = 12, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.Error },
+                    ThemeTokens.VectorIcon(ThemeTokens.SvgStop, 12, ThemeTokens.Error),
                     new TextBlock { Text = "Stop Scan", FontSize = 14, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.Error, FontFamily = ThemeTokens.DefaultFont }
                 }
             },
@@ -169,7 +169,7 @@ public class ScannerPage : Border
                 Orientation = Orientation.Horizontal,
                 Children =
                 {
-                    new TextBlock { Text = "◎", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) },
+                    ThemeTokens.VectorIcon(ThemeTokens.SvgRadar, 14, ThemeTokens.OnSurfaceVariant),
                     _startIp
                 }
             }
@@ -194,7 +194,7 @@ public class ScannerPage : Border
                 Orientation = Orientation.Horizontal,
                 Children =
                 {
-                    new TextBlock { Text = "◎", FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) },
+                    ThemeTokens.VectorIcon(ThemeTokens.SvgRadar, 14, ThemeTokens.OnSurfaceVariant),
                     _endIp
                 }
             }
@@ -377,18 +377,13 @@ public class ScannerPage : Border
         _filterInput.Padding = new Thickness(10, 6);
         _filterInput.TextChanged += (s, e) => RefreshFilteredResults();
 
-        var searchIcon = new TextBlock
-        {
-            Text = "🔍",
-            FontSize = 12,
-            Foreground = ThemeTokens.OnSurfaceVariant,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
+        var searchIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 12, ThemeTokens.OnSurfaceVariant);
+        searchIcon.VerticalAlignment = VerticalAlignment.Center;
+        searchIcon.Margin = new Thickness(0, 0, 8, 0);
 
         var exportBtn = new Button
         {
-            Content = "⬇",
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgDownload, 14, ThemeTokens.OnSurfaceVariant),
             Background = Brushes.Transparent,
             Foreground = ThemeTokens.OnSurfaceVariant,
             Width = 36,
@@ -475,41 +470,44 @@ public class ScannerPage : Border
         });
     }
 
-    private async void OnNodeDiscovered(NetworkNode node)
+    private void OnNodeDiscovered(NetworkNode node)
     {
         Interlocked.Increment(ref _inFlightDiscoveryCount);
-        try
+        _ = Task.Run(() =>
         {
-            // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
-            if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
-
-            // Offload database I/O to background thread before updating UI
-            var (mergedNode, isNew) = await Task.Run(() => _db.MergeWithHistory(node));
-            node = mergedNode;
-
-            await Dispatcher.UIThread.InvokeAsync(() =>
+            try
             {
-                // Update central dictionary directly (Fix for Dashboard/Nav sync)
-                _activeNodes.UpdateNode(node);
-                DataChanged?.Invoke();
+                // Filter out loopback, unknown MACs, and empty IPs to prevent dummy counting (Issue 3)
+                if (node.IpAddress == "127.0.0.1" || node.MacAddress == "00:00:00:00:00:00" || node.MacAddress == "Unknown") return;
 
-                // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
-                if (_scanResultMacs.Add(node.MacAddress))
+                // Offload database I/O to background thread before updating UI
+                var (mergedNode, _) = _db.MergeWithHistory(node);
+                node = mergedNode;
+
+                Dispatcher.UIThread.Post(() =>
                 {
-                    _scanResults.Add(node);
-                    int count = _scanResults.Count;
-                    _discoveredCount.Text = $"DISCOVERED: {count}";
-                    // Keep status text synced with real discovery list
-                    if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
+                    // Update central dictionary directly (Fix for Dashboard/Nav sync)
+                    _activeNodes.UpdateNode(node);
+                    DataChanged?.Invoke();
 
-                    _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
-                }
-            });
-        }
-        finally
-        {
-            Interlocked.Decrement(ref _inFlightDiscoveryCount);
-        }
+                    // Issue 3/2: Ensure we only add and count unique MACs discovered in this specific scan
+                    if (_scanResultMacs.Add(node.MacAddress))
+                    {
+                        _scanResults.Add(node);
+                        int count = _scanResults.Count;
+                        _discoveredCount.Text = $"DISCOVERED: {count}";
+                        // Keep status text synced with real discovery list
+                        if (_isScanning) _statusText.Text = $"Scanning... {count} devices found so far.";
+
+                        _resultsBody.Children.Add(MakeTableRow(node, count % 2 == 0));
+                    }
+                });
+            }
+            finally
+            {
+                Interlocked.Decrement(ref _inFlightDiscoveryCount);
+            }
+        });
     }
 
     private async void OnStartScan(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

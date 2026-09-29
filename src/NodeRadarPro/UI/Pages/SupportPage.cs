@@ -132,16 +132,22 @@ public class SupportPage : Border
         };
 
         var changelogLabel = ThemeTokens.Label("CHANGELOG", 12); changelogLabel.LetterSpacing = 1.5; changelogLabel.Margin = new Thickness(0, 16, 0, 8);
-        var changelogItems = new StackPanel
+        var changelogItems = new StackPanel { Spacing = 8 };
+
+        var recentReleases = ChangelogService.GetRecentReleases(4);
+        foreach (var release in recentReleases)
         {
-            Spacing = 6,
-            Children =
-            {
-                MakeChangelogItem("v1.0.0", "Initial release — subnet scanning, device inventory, port scanning, alert system, system logs."),
-            }
+            changelogItems.Children.Add(MakeChangelogCard(release));
+        }
+
+        var changelogScroll = new ScrollViewer
+        {
+            Content = changelogItems,
+            MaxHeight = 280,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         };
 
-        var checkUpdateBtn = ThemeTokens.PrimaryButton("🌐  Check Releases on GitHub");
+        var checkUpdateBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgGlobe, "Check Releases on GitHub");
         ThemeTokens.SetToolTip(checkUpdateBtn, "Open official GitHub Releases in your default browser to view changelogs and download the latest installer.");
         checkUpdateBtn.Margin = new Thickness(0, 16, 0, 0);
         checkUpdateBtn.Click += (s, e) =>
@@ -149,7 +155,7 @@ public class SupportPage : Border
             AppUtils.OpenSafeUrl(LatestReleaseUrl);
         };
 
-        var openLogsBtn = ThemeTokens.SecondaryButton("📂  Open Log Folder");
+        var openLogsBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgFolder, "Open Log Folder");
         ThemeTokens.SetToolTip(openLogsBtn, "Open the local folder containing detailed technical log files for debugging and support.");
         openLogsBtn.Margin = new Thickness(0, 12, 0, 0);
         openLogsBtn.Click += (s, e) =>
@@ -165,7 +171,7 @@ public class SupportPage : Border
             }
         };
 
-        var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogItems, checkUpdateBtn, openLogsBtn } };
+        var updatesContent = new StackPanel { Children = { updatesTitleRow, currentVerLabel, currentVer, statusRow, changelogLabel, changelogScroll, checkUpdateBtn, openLogsBtn } };
         var updatesCard = ThemeTokens.GlassCard(updatesContent, 24);
         updatesCard.Margin = new Thickness(0, 16, 0, 0);
         ThemeTokens.SetToolTip(updatesCard, "Monitor software versioning and check for mandatory security updates.");
@@ -183,7 +189,7 @@ public class SupportPage : Border
         reportDesc.Margin = new Thickness(0, 0, 0, 20);
         reportDesc.TextWrapping = TextWrapping.Wrap;
 
-        var generateBtn = ThemeTokens.PrimaryButton("🛡  Generate Security Audit");
+        var generateBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgShield, "Generate Security Audit");
         ThemeTokens.SetToolTip(generateBtn, "Export a comprehensive Markdown security audit report to your Desktop.");
         generateBtn.Height = 50;
 
@@ -201,7 +207,7 @@ public class SupportPage : Border
         {
             generateBtn.IsEnabled = false;
             progressIndicator.IsVisible = true;
-            generateBtn.Content = "⚙  Analyzing Network...";
+            generateBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgGear, "Analyzing Network...", 16, Brushes.White, Brushes.White);
 
             try
             {
@@ -223,18 +229,18 @@ public class SupportPage : Border
                 await File.WriteAllTextAsync(path, content);
                 LocalDatabase.Instance.Log(LogLevel.Info, "Audit", $"Security audit exported to {path}");
 
-                generateBtn.Content = "✅  Audit Exported to Desktop";
+                generateBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Audit Exported to Desktop", 16, Brushes.White, Brushes.White);
             }
             catch (Exception ex)
             {
                 LocalDatabase.Instance.Log(LogLevel.Error, "Audit", $"Security audit failed: {ex.Message}");
-                generateBtn.Content = "❌  Export Failed";
+                generateBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgClose, "Export Failed", 16, Brushes.White, Brushes.White);
             }
             finally
             {
                 progressIndicator.IsVisible = false;
                 var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(4) };
-                timer.Tick += (s2, e2) => { generateBtn.Content = "🛡  Generate Security Audit"; generateBtn.IsEnabled = true; timer.Stop(); };
+                timer.Tick += (s2, e2) => { generateBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgShield, "Generate Security Audit", 16, Brushes.White, Brushes.White); generateBtn.IsEnabled = true; timer.Stop(); };
                 timer.Start();
             }
         };
@@ -460,6 +466,55 @@ public class SupportPage : Border
         border.PointerExited += (s, e) => border.Background = ThemeTokens.SurfaceContainerLowest;
 
         return border;
+    }
+
+    private static Border MakeChangelogCard(ChangelogRelease release)
+    {
+        var badgeText = string.IsNullOrEmpty(release.Date)
+            ? $"v{release.Version}"
+            : $"v{release.Version}  •  {release.Date}";
+
+        var badge = new Border
+        {
+            Background = ThemeTokens.PrimaryContainerSubtle,
+            CornerRadius = new CornerRadius(4),
+            Padding = new Thickness(8, 3),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Child = new TextBlock
+            {
+                Text = badgeText,
+                FontSize = 13,
+                Foreground = ThemeTokens.Primary,
+                FontFamily = ThemeTokens.DefaultFont,
+                FontWeight = FontWeight.SemiBold
+            }
+        };
+
+        var contentPanel = new StackPanel { Spacing = 4, Children = { badge } };
+
+        if (release.Highlights != null && release.Highlights.Count > 0)
+        {
+            foreach (var highlight in release.Highlights.Take(3))
+            {
+                contentPanel.Children.Add(new TextBlock
+                {
+                    Text = $"• {highlight}",
+                    FontSize = 13,
+                    Foreground = ThemeTokens.OnSurfaceVariant,
+                    FontFamily = ThemeTokens.DefaultFont,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(4, 2, 0, 0)
+                });
+            }
+        }
+
+        return new Border
+        {
+            Background = ThemeTokens.SurfaceContainerLowest,
+            CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(14, 10),
+            Child = contentPanel
+        };
     }
 
     private static Border MakeChangelogItem(string version, string description) => new()

@@ -35,7 +35,7 @@ public class InventoryPage : Border
     private readonly TextBlock _deviceCountText;
     private string? _selectedMac;
     private string _activeFilter = "all";
-    private readonly StackPanel _chipPanel;
+    private readonly WrapPanel _chipPanel;
 
     private readonly Border _detailArea;
     private readonly Border _emptyDetail;
@@ -117,22 +117,15 @@ public class InventoryPage : Border
         // ═══════════════════════
         // LEFT: Search + Filter + Device List
         // ═══════════════════════
-        var searchIcon = new TextBlock
-        {
-            Text = "🔍",
-            FontSize = 13,
-            Foreground = ThemeTokens.OnSurfaceVariant,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 8, 0)
-        };
+        var searchIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgSearch, 13, ThemeTokens.OnSurfaceVariant);
+        searchIcon.VerticalAlignment = VerticalAlignment.Center;
+        searchIcon.Margin = new Thickness(0, 0, 8, 0);
         _searchBox = ThemeTokens.Input("Search devices, IPs, or tags...");
         _searchBox.Background = Brushes.Transparent;
         var clearSearchBtn = new Button
         {
-            Content = "✖",
-            FontSize = 11,
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 10, ThemeTokens.OnSurfaceVariant),
             Background = Brushes.Transparent,
-            Foreground = ThemeTokens.OnSurfaceVariant,
             Padding = new Thickness(6, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsVisible = false,
@@ -160,11 +153,10 @@ public class InventoryPage : Border
         };
 
         // Filter chips — built as field, rebuilt in RefreshDeviceList (B2)
-        _chipPanel = new StackPanel
+        _chipPanel = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
-            Spacing = 6,
-            Margin = new Thickness(12, 0, 12, 8)
+            Margin = new Thickness(12, 0, 12, 6)
         };
 
         // Device list header
@@ -277,6 +269,7 @@ public class InventoryPage : Border
         listDock.Children.Add(listScroll);
 
         var leftCard = ThemeTokens.Card(listDock, ThemeTokens.SurfaceContainerLow, 0);
+        leftCard.ClipToBounds = true;
 
         // ═══════════════════════
         // RIGHT: Detail Panel
@@ -574,23 +567,23 @@ public class InventoryPage : Border
         _notesInput.TextWrapping = TextWrapping.Wrap;
         ThemeTokens.SetToolTip(_notesInput, "Additional technical details or administrative notes.");
 
-        _saveBtn = ThemeTokens.PrimaryButton("💾  Save & Register");
+        _saveBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgSave, "Save & Register");
         ThemeTokens.SetToolTip(_saveBtn, "Commit these changes and permanently register this device in the database.");
         _saveBtn.Click += (s, e) => SaveCurrentNode();
 
-        _pingBtn = ThemeTokens.SecondaryButton("◎  Ping Device");
+        _pingBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgRadar, "Ping Device");
         ThemeTokens.SetToolTip(_pingBtn, "Send a live ICMP ping to check device responsiveness.");
         _pingBtn.Click += OnPingClicked;
 
-        _wakeBtn = ThemeTokens.SecondaryButton("⚡  Wake Device");
+        _wakeBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgBolt, "Wake Device");
         ThemeTokens.SetToolTip(_wakeBtn, "Send a Wake-on-LAN Magic Packet to power on this device remotely.");
         _wakeBtn.Click += OnWakeClicked;
 
-        _deleteBtn = ThemeTokens.DangerButton("🗑  Delete Device");
+        _deleteBtn = ThemeTokens.DangerButton(ThemeTokens.SvgTrash, "Delete Device");
         ThemeTokens.SetToolTip(_deleteBtn, "Remove this device permanently from the database.");
         _deleteBtn.Click += OnDeleteClicked;
 
-        var webBtn = ThemeTokens.TertiaryButton("🌐  Open Web UI");
+        var webBtn = ThemeTokens.TertiaryButton(ThemeTokens.SvgGlobe, "Open Web UI");
         ThemeTokens.SetToolTip(webBtn, "Open this device's IP in your default web browser.");
         webBtn.Click += (s, e) =>
         {
@@ -664,8 +657,8 @@ public class InventoryPage : Border
             Margin = new Thickness(24),
             ColumnDefinitions =
             {
-                new ColumnDefinition(new GridLength(1, GridUnitType.Star)),
-                new ColumnDefinition(new GridLength(2.2, GridUnitType.Star))
+                new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 340 },
+                new ColumnDefinition { Width = new GridLength(2.2, GridUnitType.Star) }
             }
         };
 
@@ -744,7 +737,7 @@ public class InventoryPage : Border
     private void OnBulkDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_selectedMacs.Count == 0) return;
-        _bulkDeleteBtn.Content = "⚠ Confirm Bulk Delete?";
+        _bulkDeleteBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Bulk Delete?", 14, Brushes.White, Brushes.White);
         _bulkDeleteBtn.Background = Brushes.DarkRed;
         _bulkDeleteBtn.Click -= OnBulkDeleteClicked;
         _bulkDeleteBtn.Click += DoActualBulkDelete;
@@ -1153,9 +1146,9 @@ public class InventoryPage : Border
         _db.UpdateRegistration(_currentNode.MacAddress, _currentNode.CustomName, _currentNode.Notes, _currentNode.Location, _currentNode.DeviceName, _currentNode.DeviceModel, _currentNode.IconPath, _currentNode.IpAddress, _currentNode.VulnerabilityScore, _currentNode.ThreatLevel, _currentNode.ExactModel);
         _detailName.Text = _currentNode.DisplayName;
 
-        _saveBtn.Content = "✅  Saved!";
+        _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Saved!", 16, Brushes.White, Brushes.White);
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-        timer.Tick += (s, ev) => { _saveBtn.Content = "💾  Save & Register"; timer.Stop(); };
+        timer.Tick += (s, ev) => { _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgSave, "Save & Register", 16, Brushes.White, Brushes.White); timer.Stop(); };
         timer.Start();
         DeviceSaved?.Invoke(_currentNode);
         RefreshDeviceList();
@@ -1164,7 +1157,7 @@ public class InventoryPage : Border
     private void OnDeleteClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
-        _deleteBtn.Content = "⚠  Confirm Delete?";
+        _deleteBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Delete?", 16, Brushes.White, Brushes.White);
         _deleteBtn.Background = SolidColorBrush.Parse("#8B0000");
         _deleteBtn.Click -= OnDeleteClicked;
         _deleteBtn.Click += DoActualDelete;
@@ -1188,7 +1181,7 @@ public class InventoryPage : Border
 
     private void ResetDeleteButton()
     {
-        _deleteBtn.Content = "🗑  Delete Device";
+        _deleteBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Delete Device", 16, ThemeTokens.Error, ThemeTokens.Error);
         _deleteBtn.Background = ThemeTokens.ErrorContainer;
         _deleteBtn.Click -= DoActualDelete;
         _deleteBtn.Click -= OnDeleteClicked;
@@ -1199,26 +1192,26 @@ public class InventoryPage : Border
     {
         if (_currentNode == null) return;
         string ip = _currentNode.IpAddress;
-        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _pingResult.Text = "⚠ Set a valid IP first."; _pingResult.Foreground = ThemeTokens.Error; return; }
+        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _pingResult.Text = "Set a valid IP first."; _pingResult.Foreground = ThemeTokens.Error; return; }
 
-        _pingBtn.IsEnabled = false; _pingBtn.Content = "◎  Pinging..."; _pingResult.Text = "";
+        _pingBtn.IsEnabled = false; _pingBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgRadar, "Pinging...", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface); _pingResult.Text = "";
         try
         {
             var (isOnline, mac, latency) = await SubnetScanner.QuickProbeAsync(ip);
             if (isOnline)
             {
-                _pingResult.Text = $"✅ Reachable ({(latency >= 0 ? $"{latency}ms" : "ARP/TCP")})";
+                _pingResult.Text = $"Reachable ({(latency >= 0 ? $"{latency}ms" : "ARP/TCP")})";
                 _pingResult.Foreground = ThemeTokens.Tertiary;
                 _currentNode.IsOnline = true; _currentNode.PingLatencyMs = latency; _currentNode.LastSeen = DateTime.UtcNow;
                 await TryFingerprintDiscoveredNodeAsync(_currentNode, mac);
             }
-            else { _pingResult.Text = "❌ Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
+            else { _pingResult.Text = "Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
         }
-        catch (System.Net.NetworkInformation.PingException ex) { _pingResult.Text = $"❌ {ex.Message}"; _pingResult.Foreground = ThemeTokens.Error; }
-        catch (PlatformNotSupportedException ex) { _pingResult.Text = $"❌ {ex.Message}"; _pingResult.Foreground = ThemeTokens.Error; }
+        catch (System.Net.NetworkInformation.PingException ex) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
+        catch (PlatformNotSupportedException ex) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
         finally
         {
-            _pingBtn.IsEnabled = true; _pingBtn.Content = "◎  Ping Device";
+            _pingBtn.IsEnabled = true; _pingBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgRadar, "Ping Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
             if (_currentNode != null) { UpdateStatusDot(_currentNode.IsOnline); RefreshDetailView(); DeviceStatusChanged?.Invoke(_currentNode); }
         }
     }
@@ -1263,16 +1256,16 @@ public class InventoryPage : Border
 
         if (success)
         {
-            _wakeBtn.Content = "✅  Magic Packet Sent";
+            _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Magic Packet Sent", 16, ThemeTokens.Tertiary, ThemeTokens.Tertiary);
             _db.Log(LogLevel.Info, "WoL", $"Magic Packet broadcasted to {_currentNode.MacAddress} ({_currentNode.DisplayName})");
         }
         else
         {
-            _wakeBtn.Content = "❌  Failed";
+            _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgClose, "Failed", 16, ThemeTokens.Error, ThemeTokens.Error);
         }
 
         await Task.Delay(2000);
-        _wakeBtn.Content = "⚡  Wake Device";
+        _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgBolt, "Wake Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
         _wakeBtn.IsEnabled = !_currentNode.IsOnline;
     }
 
@@ -1280,7 +1273,7 @@ public class InventoryPage : Border
     {
         if (_currentNode == null) return;
         string ip = _currentNode.IpAddress;
-        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _portResult.Text = "⚠ Set a valid IP first."; _portResult.Foreground = ThemeTokens.Error; return; }
+        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _portResult.Text = "Set a valid IP first."; _portResult.Foreground = ThemeTokens.Error; return; }
         _portScanBtn.IsEnabled = false; _portResult.Text = "";
         try
         {
@@ -1306,7 +1299,8 @@ public class InventoryPage : Border
         var chip = new Border
         {
             CornerRadius = new CornerRadius(14),
-            Padding = new Thickness(12, 5),
+            Padding = new Thickness(10, 4),
+            Margin = new Thickness(0, 0, 6, 6),
             Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent,
             BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30,
             BorderThickness = new Thickness(1),

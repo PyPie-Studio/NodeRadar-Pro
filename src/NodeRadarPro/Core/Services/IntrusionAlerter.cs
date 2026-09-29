@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
+using Avalonia.Threading;
 
 namespace NodeRadarPro.Core;
 
@@ -10,6 +11,7 @@ namespace NodeRadarPro.Core;
 public static class IntrusionAlerter
 {
     private static INotificationManager? _notificationManager;
+    private static bool _isTestMode;
 
     /// <summary>S4: Gate toast notifications behind settings.</summary>
     public static bool Enabled { get; set; } = true;
@@ -25,19 +27,48 @@ public static class IntrusionAlerter
             Position = NotificationPosition.BottomRight,
             MaxItems = 3
         };
+        _isTestMode = false;
     }
 
     public static void SetNotificationManagerForTesting(INotificationManager? manager)
     {
         _notificationManager = manager;
+        _isTestMode = manager != null;
+    }
+
+    private static void ShowNotification(Notification notification)
+    {
+        if (_notificationManager == null) return;
+
+        if (_isTestMode)
+        {
+            _notificationManager.Show(notification);
+            return;
+        }
+
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                _notificationManager.Show(notification);
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(() => _notificationManager?.Show(notification));
+            }
+        }
+        catch
+        {
+            _notificationManager.Show(notification);
+        }
     }
 
     public static void AlertDeviceOffline(NetworkNode node)
     {
         if (!Enabled || _notificationManager == null) return;
         AudioService.PlayAlert(true);
-        _notificationManager.Show(new Notification(
-            "⚠️ Device Disconnected",
+        ShowNotification(new Notification(
+            "Device Disconnected",
             $"{node.DisplayName} ({node.IpAddress}) is no longer responding.",
             NotificationType.Error,
             TimeSpan.FromSeconds(8)));
@@ -54,8 +85,8 @@ public static class IntrusionAlerter
     {
         if (!Enabled || _notificationManager == null) return;
         AudioService.PlayAlert(false);
-        _notificationManager.Show(new Notification(
-            "✅ Device Reconnected",
+        ShowNotification(new Notification(
+            "Device Reconnected",
             $"{node.DisplayName} ({node.IpAddress}) is back online.",
             NotificationType.Success,
             TimeSpan.FromSeconds(5)));
@@ -72,8 +103,8 @@ public static class IntrusionAlerter
     {
         if (!Enabled || _notificationManager == null) return;
         AudioService.PlayAlert(false);
-        _notificationManager.Show(new Notification(
-            "🔵 New Device Discovered",
+        ShowNotification(new Notification(
+            "New Device Discovered",
             $"{node.DisplayName} ({node.IpAddress}) has appeared on the network.",
             NotificationType.Information,
             TimeSpan.FromSeconds(10)));

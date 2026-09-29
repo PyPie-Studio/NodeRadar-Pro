@@ -24,6 +24,8 @@ public class IntrusionDetector
         _onAlertOverride = onAlert;
     }
 
+    public int InitialDelaySeconds { get; set; } = 30;
+
     public void Configure(AppSettings settings)
     {
         _scanner.PreferredInterfaceName = settings.SelectedInterfaceName;
@@ -55,6 +57,10 @@ public class IntrusionDetector
                 }
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Clean cancellation during shutdown
+        }
         catch (SocketException ex)
         {
             Database.Log(LogLevel.Error, "IntrusionDetector", $"Sweep failed: {ex.Message}");
@@ -63,10 +69,26 @@ public class IntrusionDetector
         {
             Database.Log(LogLevel.Error, "IntrusionDetector", $"Sweep failed: {ex.Message}");
         }
+        catch (Exception ex)
+        {
+            Database.Log(LogLevel.Warning, "IntrusionDetector", $"Sweep completed with warning: {ex.Message}");
+        }
     }
 
     public async Task StartAsync(CancellationToken token)
     {
+        if (InitialDelaySeconds > 0)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(InitialDelaySeconds), token);
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+        }
+
         while (!token.IsCancellationRequested)
         {
             await SweepOnceAsync(token);

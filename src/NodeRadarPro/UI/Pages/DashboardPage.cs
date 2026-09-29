@@ -198,7 +198,9 @@ public class DashboardPage : Border
     {
         var header = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
         var lbl = ThemeTokens.Label(label, 10);
-        var ico = new TextBlock { Text = icon, FontSize = 14, Opacity = 0.3, VerticalAlignment = VerticalAlignment.Center };
+        var ico = ThemeTokens.VectorIcon(icon, 14, ThemeTokens.OnSurfaceVariant);
+        ico.Opacity = 0.4;
+        ico.VerticalAlignment = VerticalAlignment.Center;
         Grid.SetColumn(lbl, 0); Grid.SetColumn(ico, 1);
         header.Children.Add(lbl); header.Children.Add(ico);
 

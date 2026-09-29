@@ -20,7 +20,7 @@ public class UptimeChartControl : Control
     private static readonly IBrush EmptyBrush = new SolidColorBrush(Color.Parse("#0C1322"), 0.3);
     private static readonly Pen GridPen = new(new SolidColorBrush(Color.Parse("#1E293B"), 0.4), 1);
     private static readonly FormattedText _noDataText = new(
-        "📈  Waiting for monitoring data...",
+        "Waiting for monitoring data...",
         System.Globalization.CultureInfo.CurrentCulture,
         FlowDirection.LeftToRight,
         new Typeface("Inter"),

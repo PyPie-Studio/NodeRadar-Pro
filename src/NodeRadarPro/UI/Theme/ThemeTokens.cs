@@ -130,7 +130,7 @@ public static class ThemeTokens
 
     public static readonly string AppVersion = typeof(ThemeTokens).Assembly.GetName().Version is { } v
         ? $"{v.Major}.{v.Minor}.{v.Build}"
-        : "2.0.3";
+        : "2.0.4";
 
     // ── SVG Vector Paths (Modern Technical Icons) ──
     public const string SvgRouter = "M4,17V9H20V17H4M12,10A1,1 0 0,0 11,11A1,1 0 0,0 12,12A1,1 0 0,0 13,11A1,1 0 0,0 12,10M15,10A1,1 0 0,0 14,11A1,1 0 0,0 15,12A1,1 0 0,0 16,11A1,1 0 0,0 15,10M18,10A1,1 0 0,0 17,11A1,1 0 0,0 18,12A1,1 0 0,0 19,11A1,1 0 0,0 18,10M7,12V14H10V12H7Z";
@@ -158,6 +158,16 @@ public static class ThemeTokens
     public const string SvgBolt = "M11,15H6L13,1V9H18L11,23V15Z";
     public const string SvgStop = "M18,18H6V6H18V18Z";
     public const string SvgPlay = "M8,5.14V19.14L19,12.14L8,5.14Z";
+    public const string SvgAlertTriangle = "M12,2L1,21H23L12,2M12,6L19.53,19H4.47L12,6M11,10V14H13V10H11M11,16V18H13V16H11Z";
+    public const string SvgInfo = "M11,9H13V7H11M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17H13V11H11V17Z";
+    public const string SvgClose = "M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z";
+    public const string SvgDownload = "M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z";
+    public const string SvgBell = "M12,2A2,2 0 0,0 10,4A7,7 0 0,0 3,11V16L1,18V19H23V18L21,16V11A7,7 0 0,0 14,4A2,2 0 0,0 12,2M12,22A2,2 0 0,0 14,20H10A2,2 0 0,0 12,22Z";
+    public const string SvgFolder = "M10,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8C22,6.89 21.1,6 20,6H12L10,4Z";
+    public const string SvgGlobe = "M17.9,17.39C17.64,16.59 16.7,16 15.5,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39M11,19.93C7.05,19.45 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z";
+    public const string SvgRadar = "M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z";
+    public const string SvgGear = "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z";
+    public const string SvgRefresh = "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z";
 
     public static string GetDeviceSvg(string? iconKey)
     {
@@ -311,6 +321,27 @@ public static class ThemeTokens
     // ██  FACTORY: Button
     // ═══════════════════════════════════════════
 
+    public static StackPanel ButtonContent(string svgPath, string text, double iconSize = 16, IBrush? iconColor = null, IBrush? textColor = null, FontWeight? fontWeight = null) => new()
+    {
+        Orientation = Orientation.Horizontal,
+        Spacing = 8,
+        HorizontalAlignment = HorizontalAlignment.Center,
+        VerticalAlignment = VerticalAlignment.Center,
+        Children =
+        {
+            VectorIcon(svgPath, iconSize, iconColor),
+            new TextBlock
+            {
+                Text = text,
+                FontSize = 14,
+                FontWeight = fontWeight ?? FontWeight.SemiBold,
+                FontFamily = DefaultFont,
+                Foreground = textColor ?? OnSurface,
+                VerticalAlignment = VerticalAlignment.Center
+            }
+        }
+    };
+
     public static Button PrimaryButton(string text) => new()
     {
         Content = text,
@@ -333,6 +364,13 @@ public static class ThemeTokens
         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
 
+    public static Button PrimaryButton(string svgPath, string text)
+    {
+        var btn = PrimaryButton(text);
+        btn.Content = ButtonContent(svgPath, text, 16, Brushes.White, Brushes.White, FontWeight.SemiBold);
+        return btn;
+    }
+
     public static Button SecondaryButton(string text) => new()
     {
         Content = text,
@@ -351,6 +389,13 @@ public static class ThemeTokens
         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
 
+    public static Button SecondaryButton(string svgPath, string text, IBrush? iconColor = null)
+    {
+        var btn = SecondaryButton(text);
+        btn.Content = ButtonContent(svgPath, text, 16, iconColor ?? OnSurface, OnSurface, FontWeight.SemiBold);
+        return btn;
+    }
+
     public static Button TertiaryButton(string text) => new()
     {
         Content = text,
@@ -363,6 +408,13 @@ public static class ThemeTokens
         Padding = new Thickness(8, 4),
         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
+
+    public static Button TertiaryButton(string svgPath, string text, IBrush? iconColor = null)
+    {
+        var btn = TertiaryButton(text);
+        btn.Content = ButtonContent(svgPath, text, 14, iconColor ?? Tertiary, Tertiary, FontWeight.Medium);
+        return btn;
+    }
 
     public static Button DangerButton(string text) => new()
     {
@@ -382,6 +434,13 @@ public static class ThemeTokens
         BorderThickness = new Thickness(1),
         Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
     };
+
+    public static Button DangerButton(string svgPath, string text)
+    {
+        var btn = DangerButton(text);
+        btn.Content = ButtonContent(svgPath, text, 16, Error, Error, FontWeight.SemiBold);
+        return btn;
+    }
 
     // ═══════════════════════════════════════════
     // ██  FACTORY: Status Indicators

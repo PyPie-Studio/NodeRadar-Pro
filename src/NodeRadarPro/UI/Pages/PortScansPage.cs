@@ -44,7 +44,7 @@ public class PortScansPage : Border
 
         _scanBtn = new Button
         {
-            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { new TextBlock { Text = "▶", FontSize = 15, Foreground = Brushes.White, VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = "Start Port Scan", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center } } },
+            Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgPlay, 14, Brushes.White), new TextBlock { Text = "Start Port Scan", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = Brushes.White, FontFamily = ThemeTokens.DefaultFont, VerticalAlignment = VerticalAlignment.Center } } },
             Background = new LinearGradientBrush { StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative), EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative), GradientStops = { new GradientStop(ThemeTokens.ColorPrimaryPurple, 0), new GradientStop(ThemeTokens.ColorPrimaryContainer, 1) } },
             Height = 46,
             Padding = new Thickness(28, 0),
