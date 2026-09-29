@@ -222,28 +222,28 @@ try {
             $cleaned = $line -replace "^[a-f0-9]+\s+", ""
             if ($cleaned -match "chore\(release\)" -or [string]::IsNullOrWhiteSpace($cleaned)) { continue }
 
-            # Normalize emoji prefixes and classify
-            if ($cleaned -match "^(?:🔒|🛡️|sec(?:urity)?(?:\([^)]+\))?:)\s*(.*)" -or $cleaned -match "(?i)(?:certificate revocation|command injection|vulnerability|cve|credential|encryption)") {
+            # Classify commits by standard semantic prefixes
+            if ($cleaned -match "^(?:sec(?:urity)?(?:\([^)]+\))?:)\s*(.*)" -or $cleaned -match "(?i)(?:certificate revocation|command injection|vulnerability|cve|credential|encryption)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $security.Add($item) }
-            } elseif ($cleaned -match "^(?:✨|feat(?:ure)?(?:\([^)]+\))?:)\s*(.*)") {
+            } elseif ($cleaned -match "^(?:feat(?:ure)?(?:\([^)]+\))?:)\s*(.*)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $features.Add($item) }
-            } elseif ($cleaned -match "^(?:🐛|🚑|fix(?:\([^)]+\))?:|bug(?:\([^)]+\))?:)\s*(.*)") {
+            } elseif ($cleaned -match "^(?:fix(?:\([^)]+\))?:|bug(?:\([^)]+\))?:)\s*(.*)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $fixes.Add($item) }
-            } elseif ($cleaned -match "^(?:⚡|🚀|perf(?:\([^)]+\))?:)\s*(.*)") {
+            } elseif ($cleaned -match "^(?:perf(?:\([^)]+\))?:)\s*(.*)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $perf.Add($item) }
-            } elseif ($cleaned -match "^(?:🧪|test(?:\([^)]+\))?:)\s*(.*)") {
+            } elseif ($cleaned -match "^(?:test(?:\([^)]+\))?:)\s*(.*)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $tests.Add($item) }
-            } elseif ($cleaned -match "^(?:🧹|♻️|style(?:\([^)]+\))?:|refactor(?:\([^)]+\))?:)\s*(.*)") {
+            } elseif ($cleaned -match "^(?:style(?:\([^)]+\))?:|refactor(?:\([^)]+\))?:)\s*(.*)") {
                 $item = if ($matches[1]) { $matches[1].Trim() } else { $cleaned }
                 $item = "- " + $item.TrimStart("- ")
                 if ($seen.Add($item)) { $refactor.Add($item) }
@@ -262,22 +262,22 @@ try {
         $notesLines += "$ReleaseNotes`n"
     } else {
         if ($security.Count -gt 0) {
-            $notesLines += "### 🔒 Security Enhancements`n" + ($security -join "`n") + "`n"
+            $notesLines += "### Security Enhancements`n" + ($security -join "`n") + "`n"
         }
         if ($features.Count -gt 0) {
-            $notesLines += "### ✨ New Features`n" + ($features -join "`n") + "`n"
+            $notesLines += "### New Features`n" + ($features -join "`n") + "`n"
         }
         if ($fixes.Count -gt 0) {
-            $notesLines += "### 🐛 Bug Fixes`n" + ($fixes -join "`n") + "`n"
+            $notesLines += "### Bug Fixes`n" + ($fixes -join "`n") + "`n"
         }
         if ($perf.Count -gt 0) {
-            $notesLines += "### ⚡ Performance and Optimization`n" + ($perf -join "`n") + "`n"
+            $notesLines += "### Performance and Optimization`n" + ($perf -join "`n") + "`n"
         }
         if ($tests.Count -gt 0) {
-            $notesLines += "### 🧪 Test Coverage & Diagnostics`n" + ($tests -join "`n") + "`n"
+            $notesLines += "### Test Coverage & Diagnostics`n" + ($tests -join "`n") + "`n"
         }
         if ($refactor.Count -gt 0) {
-            $notesLines += "### 🧹 Maintenance and Refactoring`n" + ($refactor -join "`n") + "`n"
+            $notesLines += "### Maintenance and Refactoring`n" + ($refactor -join "`n") + "`n"
         }
     }
 
