@@ -2,20 +2,14 @@
 
 ## NodeRadar Pro v2.0.4 (2026-09-29)
 
-### User Interface and Vector Modernization
-- **Project-Wide SVG Vector Standardization (`ThemeTokens.cs`)**: Replaced Unicode emojis across UI pages and notifications with technical SVG vector icons (`ThemeTokens.VectorIcon`), adding reusable vector constants (`SvgAlertTriangle`, `SvgInfo`, `SvgClose`, `SvgDownload`, `SvgBell`, `SvgFolder`, `SvgGlobe`, `SvgRadar`, `SvgGear`, `SvgRefresh`, `ButtonContent`).
-- **Telemetry Stat Card Left-Alignment (`AlertsPage.cs`, `SystemLogsPage.cs`)**: Explicitly configured `HorizontalAlignment.Left` on SVG icons inside `MakeStatCard` and `MakeLogStatCard`, correcting centered icon drift in vertical stack panels and aligning with numerical metrics.
-- **Dynamic Changelog Integration (`ChangelogService.cs`, `SupportPage.cs`)**: Embedded `CHANGELOG.md` directly into the assembly manifest (`NodeRadarPro.Resources.CHANGELOG.md`) with filesystem fallback. Converted `SupportPage.cs` to dynamically render recent release badges, dates and bullet items.
-- **Device Inventory Filter Chip Responsive Wrapping (`InventoryPage.cs`)**: Replaced unconstrained horizontal `StackPanel` with `WrapPanel` and boundary clipping on filter chips, preventing chips from overflowing past container bounds on non-maximized viewports.
+### New Features
+- vectorize icons, left-align stat cards, and bump to v2.0.4
 
-### Central Package Management (CPM) Upgrades
-- **Avalonia Framework 12.1.3 (`Directory.Packages.props`)**: Upgraded `Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent` and `Avalonia.Fonts.Inter` to 12.1.3.
-- **Dependency Upgrades (`Directory.Packages.props`)**: Updated `MailKit` to 4.18.1, `Moq` to 4.21.0, `coverlet.collector` to 10.1.0 and `SonarAnalyzer.CSharp` to 10.35.0.4138.
+### Bug Fixes
+- remove emoji prefixes from changelog generator in deploy script
 
-### Test Coverage and Quality Gate
-- **No-Emoji Regression Gate (`NoEmojiRegressionTests.cs`)**: Added automated regression test scanning all `.cs` files across `src/NodeRadarPro` to ensure zero Unicode emojis exist in the codebase.
-- **Stat Card Alignment Verification (`StatCardAlignmentTests.cs`)**: Added unit tests verifying left-alignment across stat card icon factories.
-- **Dynamic Changelog Unit Tests (`ChangelogServiceTests.cs`)**: Verified release parsing, version extraction and highlight bullet formatting.
+### Maintenance and Refactoring
+- docs(changelog): expand v2.0.3 technical release notes
 
 ## NodeRadar Pro v2.0.3 (2026-09-27)
 
