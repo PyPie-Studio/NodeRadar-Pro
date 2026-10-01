@@ -101,6 +101,10 @@ public class ConnectivityMonitor
                 await CheckAllDevicesAsync(token);
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Monitoring loop gracefully stopped via cancellation token
+        }
         finally { Interlocked.Exchange(ref _isRunningState, 0); }
     }
 
@@ -159,13 +163,18 @@ public class ConnectivityMonitor
                     latency = reply.RoundtripTime;
                 }
             }
-            catch (PingException ex)
+            catch (PingException)
             {
-                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"ICMP ping failed for {device.IpAddress}: {ex.Message}", device.MacAddress);
+                // Expected when host is offline or ICMP is filtered; fallback to TCP probe below
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"Unexpected error during ICMP ping for {device.IpAddress}: {ex.Message}", device.MacAddress);
+                // Cancellation observed; abort probe for this device
+                return;
+            }
+            catch (Exception)
+            {
+                // Non-fatal probe failure; fallback to TCP probe below
             }
 
             // TCP fallback
