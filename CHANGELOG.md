@@ -1,5 +1,15 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.6 (2026-10-02)
+
+### Bug Fixes and Application Resilience
+- **ICMP Probe Exception and Cancellation Hardening (`ConnectivityMonitor.cs`)**: Replaced raw catch blocks with non-logging PingException and OperationCanceledException handlers during device reachability checks, eliminating log flooding on offline endpoints while properly propagating cancellation.
+- **Background Monitor Task Cancellation Safety (`ConnectivityMonitor.cs`)**: Guarded StartMonitoringAsync with explicit OperationCanceledException handling to prevent unobserved task exceptions during background service termination.
+- **Headless Release Deployment Probe Resilience (`Deploy-NodeRadar.ps1`)**: Wrapped the GitHub release existence check in SilentlyContinue error handling, preventing PowerShell terminating error records during automated deployments.
+
+### Test Coverage and Quality Assurance
+- **Connectivity Monitor Exception Handling Tests (`ConnectivityMonitorTests.cs`)**: Added unit tests verifying unroutable RFC 5737 addresses execute without throwing, cancellation tokens abort in-flight sweeps cleanly and monitor tasks stop gracefully.
+
 ## NodeRadar Pro v2.0.5 (2026-09-30)
 
 ### Security Enhancements
