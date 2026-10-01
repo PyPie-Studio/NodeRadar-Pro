@@ -159,7 +159,14 @@ public class ConnectivityMonitor
                     latency = reply.RoundtripTime;
                 }
             }
-            catch { }
+            catch (PingException ex)
+            {
+                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"ICMP ping failed for {device.IpAddress}: {ex.Message}", device.MacAddress);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"Unexpected error during ICMP ping for {device.IpAddress}: {ex.Message}", device.MacAddress);
+            }
 
             // TCP fallback
             bool tcpOnline = false;
