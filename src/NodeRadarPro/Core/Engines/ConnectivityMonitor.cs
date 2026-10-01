@@ -101,6 +101,10 @@ public class ConnectivityMonitor
                 await CheckAllDevicesAsync(token);
             }
         }
+        catch (OperationCanceledException)
+        {
+            // Monitoring loop gracefully stopped via cancellation token
+        }
         finally { Interlocked.Exchange(ref _isRunningState, 0); }
     }
 
@@ -159,7 +163,19 @@ public class ConnectivityMonitor
                     latency = reply.RoundtripTime;
                 }
             }
-            catch { }
+            catch (PingException)
+            {
+                // Expected when host is offline or ICMP is filtered; fallback to TCP probe below
+            }
+            catch (OperationCanceledException)
+            {
+                // Cancellation observed; abort probe for this device
+                return;
+            }
+            catch (Exception)
+            {
+                // Non-fatal probe failure; fallback to TCP probe below
+            }
 
             // TCP fallback
             bool tcpOnline = false;

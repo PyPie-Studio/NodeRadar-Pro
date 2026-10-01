@@ -167,4 +167,62 @@ public class ConnectivityMonitorTests
         var allDevs = monitor.GetAllDevices();
         Assert.Single(allDevs);
     }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_UnreachableHost_ExecutesGracefullyWithoutException()
+    {
+        var monitor = new ConnectivityMonitor();
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:99",
+            IpAddress = "192.0.2.1", // RFC 5737 TEST-NET-1 unroutable IP
+            IsOnline = true
+        };
+        monitor.AddDevice(dev);
+
+        using var cts = new CancellationTokenSource(2000);
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+        var exception = await Record.ExceptionAsync(async () => await task);
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task CheckAllDevicesAsync_CancelledToken_AbortsGracefullyWithoutException()
+    {
+        var monitor = new ConnectivityMonitor();
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:88",
+            IpAddress = "192.0.2.2",
+            IsOnline = false
+        };
+        monitor.AddDevice(dev);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { cts.Token })!;
+        var exception = await Record.ExceptionAsync(async () => await task);
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task StartMonitoringAsync_CancelledToken_StopsGracefully()
+    {
+        var monitor = new ConnectivityMonitor();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        await monitor.StartMonitoringAsync(cts.Token);
+
+        Assert.False(monitor.IsRunning);
+    }
 }
