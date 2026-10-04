@@ -1,5 +1,19 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.7 (2026-10-04)
+
+### Security Enhancements
+- eliminate mock password backdoor and centralize credential protection
+
+### Performance and Optimization
+- pre-allocate subnet HashSet for O(1) ARP table lookups
+
+### Test Coverage & Diagnostics
+- add unit tests for IntrusionDetector.Configure mapping
+- cover EventAggregator GetDelegate and WeakSubscription edge cases
+- add unit tests for DeepFingerprintEngine discovery sweep
+- cover LocalDatabase.GetUptimeHistory negative and zero bounds
+
 ## NodeRadar Pro v2.0.6 (2026-10-02)
 
 ### Bug Fixes and Application Resilience
