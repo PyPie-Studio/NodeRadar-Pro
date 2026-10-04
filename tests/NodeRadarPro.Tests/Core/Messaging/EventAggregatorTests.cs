@@ -209,7 +209,8 @@ public class EventAggregatorTests
         var aggregator = new EventAggregator();
         int activeHandlerCallCount = 0;
 
-        Action<TestMessageA> actionToUnsubscribe = _ => activeHandlerCallCount++;
+        void ActionToUnsubscribe(TestMessageA _) { activeHandlerCallCount++; }
+        Action<TestMessageA> actionToUnsubscribe = ActionToUnsubscribe;
 
         RegisterDeadSubscriber(aggregator);
         aggregator.Subscribe(actionToUnsubscribe);
