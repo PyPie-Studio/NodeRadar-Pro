@@ -126,4 +126,79 @@ public class IntrusionDetectorTests : IDisposable
         Assert.Equal(LogLevel.Error, log.Level);
         Assert.Contains("Sweep failed: Scan timeout exceeded", log.Message);
     }
+
+    [Fact]
+    public void Configure_AppliesAppSettingsToScanner()
+    {
+        // Arrange
+        var scanner = new SubnetScanner();
+        var detector = new IntrusionDetector(scanner, _db);
+        var settings = new AppSettings
+        {
+            SelectedInterfaceName = "eth0",
+            ResponseTimeoutMs = 2500,
+            EnableDnsResolve = false,
+            EnableFastScan = true,
+            EnableOsDetection = false,
+            EnableInlinePortScan = true
+        };
+
+        // Act
+        detector.Configure(settings);
+
+        // Assert
+        Assert.Equal("eth0", scanner.PreferredInterfaceName);
+        Assert.Equal(2500, scanner.TimeoutMs);
+        Assert.False(scanner.EnableDnsResolve);
+        Assert.True(scanner.FastScanMode);
+        Assert.False(scanner.EnableOsDetection);
+        Assert.True(scanner.EnableInlinePortScan);
+    }
+
+    [Fact]
+    public void Configure_ReconfiguresScannerWhenCalledMultipleTimes()
+    {
+        // Arrange
+        var scanner = new SubnetScanner();
+        var detector = new IntrusionDetector(scanner, _db);
+
+        var initialSettings = new AppSettings
+        {
+            SelectedInterfaceName = "Ethernet 1",
+            ResponseTimeoutMs = 1000,
+            EnableDnsResolve = true,
+            EnableFastScan = false,
+            EnableOsDetection = true,
+            EnableInlinePortScan = false
+        };
+
+        var updatedSettings = new AppSettings
+        {
+            SelectedInterfaceName = "Wi-Fi",
+            ResponseTimeoutMs = 3000,
+            EnableDnsResolve = false,
+            EnableFastScan = true,
+            EnableOsDetection = false,
+            EnableInlinePortScan = true
+        };
+
+        // Act
+        detector.Configure(initialSettings);
+        Assert.Equal("Ethernet 1", scanner.PreferredInterfaceName);
+        Assert.Equal(1000, scanner.TimeoutMs);
+        Assert.True(scanner.EnableDnsResolve);
+        Assert.False(scanner.FastScanMode);
+        Assert.True(scanner.EnableOsDetection);
+        Assert.False(scanner.EnableInlinePortScan);
+
+        detector.Configure(updatedSettings);
+
+        // Assert
+        Assert.Equal("Wi-Fi", scanner.PreferredInterfaceName);
+        Assert.Equal(3000, scanner.TimeoutMs);
+        Assert.False(scanner.EnableDnsResolve);
+        Assert.True(scanner.FastScanMode);
+        Assert.False(scanner.EnableOsDetection);
+        Assert.True(scanner.EnableInlinePortScan);
+    }
 }
