@@ -540,6 +540,7 @@ public class LocalDatabase : IDisposable
 
     public List<UptimeSnapshot> GetUptimeHistory(string macAddress, int hours = 24)
     {
+        if (hours <= 0 || string.IsNullOrEmpty(macAddress)) return new List<UptimeSnapshot>();
         lock (SyncRoot)
         {
             var cutoff = DateTime.UtcNow.AddHours(-hours);

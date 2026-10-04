@@ -289,6 +289,56 @@ public class LocalDatabaseTests : IDisposable
         Assert.DoesNotContain(history24h, s => s.Timestamp < now.AddHours(-24));
     }
 
+    [Fact]
+    public void GetUptimeHistory_WithNegativeHours_ReturnsEmptyList()
+    {
+        var now = DateTime.UtcNow;
+        var snapshots = new List<UptimeSnapshot>
+        {
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 10, Timestamp = now.AddHours(-1) },
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 12, Timestamp = now.AddHours(-5) }
+        };
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var historyNeg1 = _db.GetUptimeHistory("11:22:33:44:55:66", -1);
+        var historyNeg24 = _db.GetUptimeHistory("11:22:33:44:55:66", -24);
+
+        Assert.Empty(historyNeg1);
+        Assert.Empty(historyNeg24);
+    }
+
+    [Fact]
+    public void GetUptimeHistory_WithZeroHours_ReturnsEmptyList()
+    {
+        var now = DateTime.UtcNow;
+        var snapshots = new List<UptimeSnapshot>
+        {
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 10, Timestamp = now.AddHours(-1) }
+        };
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var historyZero = _db.GetUptimeHistory("11:22:33:44:55:66", 0);
+
+        Assert.Empty(historyZero);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GetUptimeHistory_WithNullOrEmptyMacAddress_ReturnsEmptyList(string? macAddress)
+    {
+        var now = DateTime.UtcNow;
+        var snapshots = new List<UptimeSnapshot>
+        {
+            new UptimeSnapshot { MacAddress = "11:22:33:44:55:66", IsOnline = true, LatencyMs = 10, Timestamp = now.AddHours(-1) }
+        };
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var history = _db.GetUptimeHistory(macAddress!, 24);
+
+        Assert.Empty(history);
+    }
+
     // -- SETTINGS TESTS --
 
     [Fact]
