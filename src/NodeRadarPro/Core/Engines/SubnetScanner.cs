@@ -110,6 +110,7 @@ public class SubnetScanner
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, List<string> subnets)
     {
+        if (subnets == null || subnets.Count == 0) return false;
         if (CountDots(ipSpan) != 3) return false;
 
         int lastDotIndex = ipSpan.LastIndexOf('.');
@@ -130,6 +131,7 @@ public class SubnetScanner
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, HashSet<string> subnets)
     {
+        if (subnets == null || subnets.Count == 0) return false;
         if (CountDots(ipSpan) != 3) return false;
 
         int lastDotIndex = ipSpan.LastIndexOf('.');
@@ -144,11 +146,18 @@ public class SubnetScanner
             return lookup.Contains(ipSubnet);
         }
 
-        return subnets.Contains(ipSubnet.ToString());
+        foreach (var subnet in subnets)
+        {
+            if (ipSubnet.Equals(subnet.AsSpan(), StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, IEnumerable<string> subnets)
     {
+        if (subnets == null) return false;
         if (subnets is List<string> list)
             return IsIpInAnySubnet(ipSpan, list);
         if (subnets is HashSet<string> hashSet)
@@ -383,13 +392,14 @@ public class SubnetScanner
             try
             {
                 var arpTable = _arpResolver.GetFullArpTable();
+                var allSubnetsSet = new HashSet<string>(allSubnets, StringComparer.Ordinal);
                 var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
                     if (discoveredMacs.ContainsKey(mac)) continue;
 
-                    if (!IsIpInAnySubnet(ip.AsSpan(), allSubnets)) continue;
+                    if (!IsIpInAnySubnet(ip.AsSpan(), allSubnetsSet)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
