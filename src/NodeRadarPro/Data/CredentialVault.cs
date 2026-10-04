@@ -15,21 +15,18 @@ public static class CredentialVault
 
     public static string GetOrGenerateDbPassword(string folder)
     {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return "test_password";
-
         string keyFile = Path.Combine(folder, "db_key.bin");
         if (File.Exists(keyFile))
         {
             try
             {
                 byte[] encrypted = File.ReadAllBytes(keyFile);
-                byte[] decrypted = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+                byte[] decrypted = UnprotectData(encrypted);
                 return Encoding.UTF8.GetString(decrypted);
             }
             catch
             {
-                // If DPAPI decryption fails (e.g., moved to another machine), fallback to a new password
+                // If decryption fails (e.g., moved to another machine), fallback to a new password
                 // Note: The existing DB won't be openable, but returning a new password avoids a crash here.
             }
         }
@@ -58,12 +55,9 @@ public static class CredentialVault
 
     public static void SaveDbPassword(string folder, string password)
     {
-        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
-            return;
-
         string keyFile = Path.Combine(folder, "db_key.bin");
         byte[] secret = Encoding.UTF8.GetBytes(password);
-        byte[] encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
+        byte[] encrypted = ProtectData(secret);
         File.WriteAllBytes(keyFile, encrypted);
     }
 
@@ -72,41 +66,9 @@ public static class CredentialVault
     public static string EncryptSecret(string plainText)
     {
         if (string.IsNullOrEmpty(plainText)) return "";
-        try
-        {
-            var secret = Encoding.UTF8.GetBytes(plainText);
-            var encrypted = ProtectedData.Protect(secret, null, DataProtectionScope.CurrentUser);
-            return Convert.ToBase64String(encrypted);
-        }
-        catch (PlatformNotSupportedException)
-        {
-            byte[] salt = new byte[16];
-            byte[] nonce = new byte[12];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
-                rng.GetBytes(nonce);
-            }
-
-            byte[] key = DeriveKeyPbkdf2(salt);
-            byte[] plainBytes = Encoding.UTF8.GetBytes(plainText);
-            byte[] cipherText = new byte[plainBytes.Length];
-            byte[] tag = new byte[16];
-
-            using (var aesGcm = new AesGcm(key, 16))
-            {
-                aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
-            }
-
-            // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
-            byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
-            result[0] = 0x02;
-            Buffer.BlockCopy(salt, 0, result, 1, 16);
-            Buffer.BlockCopy(nonce, 0, result, 17, 12);
-            Buffer.BlockCopy(tag, 0, result, 29, 16);
-            Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
-            return Convert.ToBase64String(result);
-        }
+        var secret = Encoding.UTF8.GetBytes(plainText);
+        var encrypted = ProtectData(secret);
+        return Convert.ToBase64String(encrypted);
     }
 
     public static string DecryptSecret(string encryptedBase64)
@@ -124,62 +86,126 @@ public static class CredentialVault
 
         try
         {
-            var decrypted = ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
+            byte[] decrypted = UnprotectData(data);
             return Encoding.UTF8.GetString(decrypted);
+        }
+        catch
+        {
+            return "";
+        }
+    }
+
+    // ── Protection Helpers (DPAPI with AES-GCM PBKDF2 Fallback) ──
+
+    internal static byte[] ProtectData(byte[] userData)
+    {
+        try
+        {
+            return ProtectedData.Protect(userData, null, DataProtectionScope.CurrentUser);
         }
         catch (PlatformNotSupportedException)
         {
+            byte[] salt = new byte[16];
+            byte[] nonce = new byte[12];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(salt);
+                rng.GetBytes(nonce);
+            }
+
+            byte[] key = DeriveKeyPbkdf2(salt);
+            byte[] cipherText = new byte[userData.Length];
+            byte[] tag = new byte[16];
+
+            using (var aesGcm = new AesGcm(key, 16))
+            {
+                aesGcm.Encrypt(nonce, userData, cipherText, tag);
+            }
+
+            // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
+            byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
+            result[0] = 0x02;
+            Buffer.BlockCopy(salt, 0, result, 1, 16);
+            Buffer.BlockCopy(nonce, 0, result, 17, 12);
+            Buffer.BlockCopy(tag, 0, result, 29, 16);
+            Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
+            return result;
+        }
+    }
+
+    internal static byte[] UnprotectData(byte[] data)
+    {
+        try
+        {
+            return ProtectedData.Unprotect(data, null, DataProtectionScope.CurrentUser);
+        }
+        catch (Exception ex) when (ex is PlatformNotSupportedException || ex is CryptographicException)
+        {
             if (data.Length >= 45 && data[0] == 0x02)
             {
-                byte[] salt = new byte[16];
-                byte[] nonce = new byte[12];
-                byte[] tag = new byte[16];
-                byte[] cipherText = new byte[data.Length - 45];
-
-                Buffer.BlockCopy(data, 1, salt, 0, 16);
-                Buffer.BlockCopy(data, 17, nonce, 0, 12);
-                Buffer.BlockCopy(data, 29, tag, 0, 16);
-                Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
-
-                byte[] key = DeriveKeyPbkdf2(salt);
-                byte[] plainBytes = new byte[cipherText.Length];
-                using (var aesGcm = new AesGcm(key, 16))
+                try
                 {
-                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    byte[] salt = new byte[16];
+                    byte[] nonce = new byte[12];
+                    byte[] tag = new byte[16];
+                    byte[] cipherText = new byte[data.Length - 45];
+
+                    Buffer.BlockCopy(data, 1, salt, 0, 16);
+                    Buffer.BlockCopy(data, 17, nonce, 0, 12);
+                    Buffer.BlockCopy(data, 29, tag, 0, 16);
+                    Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
+
+                    byte[] key = DeriveKeyPbkdf2(salt);
+                    byte[] plainBytes = new byte[cipherText.Length];
+                    using (var aesGcm = new AesGcm(key, 16))
+                    {
+                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    }
+                    return plainBytes;
                 }
-                return Encoding.UTF8.GetString(plainBytes);
+                catch
+                {
+                    return data;
+                }
             }
             if (data.Length >= 29 && data[0] == 0x01)
             {
-                byte[] key = GetFallbackEncryptionKeyLegacy();
-                byte[] nonce = new byte[12];
-                byte[] tag = new byte[16];
-                byte[] cipherText = new byte[data.Length - 29];
-
-                Buffer.BlockCopy(data, 1, nonce, 0, 12);
-                Buffer.BlockCopy(data, 13, tag, 0, 16);
-                Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
-
-                byte[] plainBytes = new byte[cipherText.Length];
-                using (var aesGcm = new AesGcm(key, 16))
+                try
                 {
-                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    byte[] key = GetFallbackEncryptionKeyLegacy();
+                    byte[] nonce = new byte[12];
+                    byte[] tag = new byte[16];
+                    byte[] cipherText = new byte[data.Length - 29];
+
+                    Buffer.BlockCopy(data, 1, nonce, 0, 12);
+                    Buffer.BlockCopy(data, 13, tag, 0, 16);
+                    Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
+
+                    byte[] plainBytes = new byte[cipherText.Length];
+                    using (var aesGcm = new AesGcm(key, 16))
+                    {
+                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                    }
+                    return plainBytes;
                 }
-                return Encoding.UTF8.GetString(plainBytes);
+                catch
+                {
+                    return data;
+                }
             }
-            return Encoding.UTF8.GetString(data);
+            return data;
         }
     }
 
     // ── Internal Key Derivation ──
 
-    private static byte[] DeriveKeyPbkdf2(byte[] salt)
+    internal static byte[] DeriveKeyPbkdf2(byte[] salt)
     {
         string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
         return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
     }
 
-    private static byte[] GetFallbackEncryptionKeyLegacy()
+    internal static byte[] GetFallbackEncryptionKeyLegacy()
     {
         string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
         using var sha256 = SHA256.Create();
