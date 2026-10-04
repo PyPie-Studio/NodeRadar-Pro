@@ -1,9 +1,11 @@
 using Moq;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting;
+using NodeRadarPro.Core.Fingerprinting.Probes;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
+[Collection("ProbeSweepStaticState")]
 public class DeepFingerprintEngineTests
 {
     [Fact]
@@ -73,5 +75,73 @@ public class DeepFingerprintEngineTests
         // Assert
         Assert.NotNull(result);
         Assert.Equal(DeviceTypeCategory.NAS, result.Type);
+    }
+
+    [Fact]
+    public async Task StartDiscoverySweepAsync_WithCanceledToken_CompletesPromptlyWithoutException()
+    {
+        // Arrange
+        var engine = DeepFingerprintEngine.Instance;
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        var exception = await Record.ExceptionAsync(() => engine.StartDiscoverySweepAsync(cts.Token));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task StartDiscoverySweepAsync_ClearsProbeCaches()
+    {
+        // Arrange
+        MdnsProbe.InjectCacheForTesting("192.168.1.100", new MdnsProbe.MdnsData { InstanceName = "PreCachedDevice" });
+        SsdpProbe.InjectCacheForTesting("192.168.1.101", new SsdpProbe.SsdpData { FriendlyName = "PreCachedTV" });
+
+        var engine = new DeepFingerprintEngine();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(100);
+
+        // Act
+        await engine.StartDiscoverySweepAsync(cts.Token);
+
+        // Assert
+        var mdnsProbe = new MdnsProbe();
+        var mdnsResult = await mdnsProbe.ProbeAsync(new NetworkNode { IpAddress = "192.168.1.100" }, CancellationToken.None);
+        Assert.Empty(mdnsResult.RawData);
+
+        var ssdpProbe = new SsdpProbe();
+        var ssdpResult = await ssdpProbe.ProbeAsync(new NetworkNode { IpAddress = "192.168.1.101" }, CancellationToken.None);
+        Assert.Empty(ssdpResult.RawData);
+    }
+
+    [Fact]
+    public async Task StartDiscoverySweepAsync_WithShortTimeout_ExecutesAndCompletesCleanly()
+    {
+        // Arrange
+        var engine = new DeepFingerprintEngine();
+        using var cts = new CancellationTokenSource();
+        cts.CancelAfter(50);
+
+        // Act & Assert
+        var exception = await Record.ExceptionAsync(() => engine.StartDiscoverySweepAsync(cts.Token));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public async Task StartDiscoverySweepAsync_MultipleConcurrentCalls_ExecutesWithoutThrowing()
+    {
+        // Arrange
+        var engine = DeepFingerprintEngine.Instance;
+        using var cts1 = new CancellationTokenSource();
+        using var cts2 = new CancellationTokenSource();
+        cts1.CancelAfter(50);
+        cts2.CancelAfter(50);
+
+        // Act & Assert
+        var task1 = engine.StartDiscoverySweepAsync(cts1.Token);
+        var task2 = engine.StartDiscoverySweepAsync(cts2.Token);
+
+        var exception = await Record.ExceptionAsync(() => Task.WhenAll(task1, task2));
+        Assert.Null(exception);
     }
 }
