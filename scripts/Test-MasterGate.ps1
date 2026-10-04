@@ -14,7 +14,8 @@
 param(
     [switch]$SkipBuild,
     [switch]$WithTests,
-    [switch]$CheckCoverage
+    [switch]$CheckCoverage,
+    [string]$TestResultsDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,6 +62,17 @@ if ($WithTests) {
     try {
         $testArgs = @("test", "NodeRadarPro.slnx", "--configuration", "Release", "--nologo")
         if (-not $SkipBuild) { $testArgs += "--no-build" }
+        if ($TestResultsDirectory) {
+            $resolvedTestDir = if ([System.IO.Path]::IsPathRooted($TestResultsDirectory)) {
+                $TestResultsDirectory
+            } else {
+                Join-Path $root $TestResultsDirectory
+            }
+            if (-not (Test-Path $resolvedTestDir)) {
+                New-Item -ItemType Directory -Path $resolvedTestDir -Force | Out-Null
+            }
+            $testArgs += @("--logger", "trx;LogFileName=test-results.trx", "--results-directory", $resolvedTestDir)
+        }
         if ($CheckCoverage) {
             if (Test-Path $coverageDir) { Remove-Item $coverageDir -Recurse -Force -ErrorAction SilentlyContinue }
             $testArgs += @('--collect:"XPlat Code Coverage"', "--results-directory", $coverageDir)

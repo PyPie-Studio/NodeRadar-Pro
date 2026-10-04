@@ -10,8 +10,80 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-release:
-    name: Build, Package & Publish Release
+  verify:
+    name: Verify Release Quality Gate
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Master Quality Gate (with Tests)
+        shell: pwsh
+        run: |
+          ./scripts/Test-MasterGate.ps1 -WithTests -TestResultsDirectory "test-results"
+
+      - name: Publish Test Summary to GitHub Actions
+        if: always()
+        shell: pwsh
+        run: |
+          $trxPath = "test-results/test-results.trx"
+          if (Test-Path $trxPath) {
+            [xml]$trx = Get-Content $trxPath
+            $counters = $trx.TestRun.ResultSummary.Counters
+            $total = $counters.total
+            $passed = $counters.passed
+            $failed = $counters.failed
+            $skipped = [int]$counters.notExecuted + [int]$counters.notRunnable
+            $times = $trx.TestRun.Times
+            $durationSec = 0
+            if ($times.start -and $times.finish) {
+              $durationSec = [math]::Round(([datetime]$times.finish - [datetime]$times.start).TotalSeconds, 1)
+            }
+            
+            $status = if ([int]$failed -gt 0) { 'FAILED' } else { 'PASSED' }
+            $summaryLines = @(
+              "## Release Pre-Flight Test Results ($status)",
+              "",
+              "| Metric | Value |",
+              "| :--- | :--- |",
+              "| **Total Tests** | $total |",
+              "| **Passed** | $passed |",
+              "| **Failed** | $failed |",
+              "| **Skipped / Not Run** | $skipped |",
+              "| **Duration** | ${durationSec}s |"
+            )
+            if ($env:GITHUB_STEP_SUMMARY) {
+              ($summaryLines -join "`n") | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            }
+
+            if ([int]$failed -gt 0) {
+              foreach ($unitTestResult in $trx.SelectNodes("//UnitTestResult[@outcome='Failed']")) {
+                $testName = $unitTestResult.testName
+                $msg = $unitTestResult.Output.ErrorInfo.Message.Trim() -replace '\r?\n', ' '
+                Write-Host "::error title=Test Failure::$testName: $msg"
+              }
+            }
+          }
+
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1 # v4.6.1
+        with:
+          name: test-results-release
+          path: test-results/
+          if-no-files-found: ignore
+
+  publish-release:
+    name: Build, Package & Publish Release Assets
+    needs: verify
     runs-on: windows-latest
     permissions:
       contents: write
@@ -20,7 +92,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@v6
@@ -42,11 +114,6 @@ jobs:
               break
             }
           }
-
-      - name: Verify Master Quality Gate (with Tests)
-        shell: pwsh
-        run: |
-          ./scripts/Test-MasterGate.ps1 -WithTests
 
       - name: Build and Package Release Installer
         shell: pwsh
@@ -75,6 +142,14 @@ jobs:
           Write-Host "Generated SHA256SUMS.txt:"
           Get-Content $checksumPath
 
+      - name: Generate Build Provenance Attestation
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: |
+            releases/*.exe
+            releases/*.zip
+            releases/SHA256SUMS.txt
+
       - name: Extract Release Notes from CHANGELOG
         shell: pwsh
         run: |
@@ -89,13 +164,18 @@ jobs:
                   $extracted = $matches[0].Trim()
                   $notesBody = ($extracted -replace "^##\s+.*?\r?\n", "" -replace "\r?\n---\s*$", "").Trim()
                   $header = "# NodeRadar Pro $tag`n`n$notesBody`n`n---`n`n"
-                  $footer = @(
+                  $footerLines = @(
+                      "## Installation Options",
+                      "- **Installer**: Download ``NodeRadar.Pro_${tag}_Setup.exe`` and run the setup wizard.",
+                      "- **Portable**: Download ``NodeRadarPro-${tag}-win-x64-portable.zip`` and extract to any folder.",
+                      "",
                       "## Verification & Integrity",
                       "Verify downloaded binaries using the SHA-256 checksums in ``SHA256SUMS.txt``:",
                       "``````powershell",
                       "Get-FileHash .\<filename> -Algorithm SHA256",
                       "``````"
-                  ) -join "`n"
+                  )
+                  $footer = $footerLines -join "`n"
                   Set-Content -Path $notesFile -Value ($header + $footer) -Encoding utf8
                   Write-Host "Successfully extracted release notes for $version"
                   Get-Content $notesFile
@@ -103,7 +183,7 @@ jobs:
               }
           }
 
-          Set-Content -Path $notesFile -Value "# NodeRadar Pro $tag`n`nRelease bundle for $tag." -Encoding utf8
+          Set-Content -Path $notesFile -Value "# NodeRadar Pro $tag`n`nAutomated release bundle for $tag." -Encoding utf8
 
       - name: Publish GitHub Release
         shell: pwsh
@@ -115,12 +195,12 @@ jobs:
           $assets = Get-ChildItem -Path releases -Include "*.exe", "*.zip", "*.txt" -Recurse | Select-Object -ExpandProperty FullName
 
           if (gh release view $tag 2>$null) {
-              Write-Host "Updating existing release $tag with assets..."
+              Write-Host "Updating existing release $tag with notes and assets..."
               if (Test-Path $notesFile) {
                   gh release edit $tag --notes-file $notesFile
               }
               gh release upload $tag $assets --clobber
           } else {
               Write-Host "Creating new release $tag..."
-              gh release create $tag $assets --title "$tag" --notes-file $notesFile
+              gh release create $tag $assets --title "NodeRadar Pro $tag" --notes-file $notesFile
           }

@@ -42,6 +42,7 @@ param(
     [switch]$SkipTests,
     [switch]$SkipInno,
     [switch]$SkipRelease,
+    [switch]$PublishLocally,
     [string]$ReleaseNotes = "",
     [string]$LogPath = ""
 )
@@ -321,9 +322,9 @@ try {
     $ErrorActionPreference = $prevEap
 }
 
-# Phase 7: GitHub Release Publishing & Live API Verification
+# Phase 7: Git Push & Release Trigger
 if (-not $SkipRelease) {
-    Write-Step "7" "GitHub Release Publishing: Uploading installer & publishing release"
+    Write-Step "7" "Git Push & Release Trigger: Pushing commit and tag to origin"
     $prevEap = $ErrorActionPreference
     try {
         $ErrorActionPreference = "Stop"
@@ -340,61 +341,63 @@ if (-not $SkipRelease) {
             Fail-Run "7" "Failed to push git tag $versionTag to origin"
         }
 
-        # 2. Check installer existence
-        $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
-        if (-not $targetInstaller -or -not (Test-Path $targetInstaller)) {
-            Fail-Run "7" "Installer binary not found for release publishing ($targetInstaller)"
-        }
-
-        $installerFileName = [System.IO.Path]::GetFileName($targetInstaller)
-        $installerDir = [System.IO.Path]::GetDirectoryName($targetInstaller)
-
-        $notesTmpFile = Join-Path $logDir "release-notes-$versionTag.md"
-        [System.IO.File]::WriteAllText($notesTmpFile, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
-
-        Write-Host "  > Creating/updating GitHub Release via gh CLI..." -ForegroundColor Yellow
-
-        Push-Location $installerDir
-        try {
-            $prevEA = $ErrorActionPreference
-            $ErrorActionPreference = "SilentlyContinue"
-            & gh release view $versionTag 2>$null | Out-Null
-            $releaseExists = ($LASTEXITCODE -eq 0)
-            $ErrorActionPreference = $prevEA
-
-            if ($releaseExists) {
-                # Release already exists: update notes and upload installer
-                & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
-
-                & gh release upload $versionTag ".\$installerFileName" --clobber
-                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to upload installer to release $versionTag" }
-            } else {
-                # Create brand new release with installer asset
-                & gh release create $versionTag ".\$installerFileName" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
-                if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to create release $versionTag via gh CLI" }
+        if (-not $PublishLocally) {
+            Write-Host "  > Pushed tag $versionTag. GitHub Actions release workflow triggered." -ForegroundColor Green
+            Write-Host "  > GitHub Actions will build, test, package, attest provenance and publish release assets." -ForegroundColor Cyan
+            Complete-Step "7" $true "Pushed tag $versionTag to origin (delegated to GitHub Actions)"
+        } else {
+            # Local release upload fallback
+            Write-Host "  > Publishing locally via gh CLI (-PublishLocally switch)..." -ForegroundColor Yellow
+            $targetInstaller = if ($installerChecksums.Count -gt 0) { $installerChecksums[0].FullPath } else { $null }
+            if (-not $targetInstaller -or -not (Test-Path $targetInstaller)) {
+                Fail-Run "7" "Installer binary not found for release publishing ($targetInstaller)"
             }
-        } finally {
-            Pop-Location
-        }
 
-        # 3. CRITICAL: LIVE CONFIRMATION QUERY (Zero False Positives)
-        Write-Host "  > Verifying release and attached assets live on GitHub..." -ForegroundColor Yellow
-        $verificationRaw = (& gh release view $versionTag --json tagName,url,assets | Out-String)
-        if ($LASTEXITCODE -ne 0) {
-            Fail-Run "7" "Live confirmation failed: Release $versionTag was not found on GitHub after creation attempt"
-        }
+            $installerFileName = [System.IO.Path]::GetFileName($targetInstaller)
+            $installerDir = [System.IO.Path]::GetDirectoryName($targetInstaller)
 
-        $releaseInfo = $verificationRaw | ConvertFrom-Json
-        $assetNames = @($releaseInfo.assets | ForEach-Object { $_.name })
-        $normalizedAssetName = $installerFileName -replace ' ', '.'
-        $matchedAsset = $assetNames | Where-Object { $_ -eq $installerFileName -or $_ -eq $normalizedAssetName }
-        if (-not $matchedAsset) {
-            Fail-Run "7" "Live confirmation failed: Asset '$installerFileName' is missing from GitHub release assets (found: $($assetNames -join ', '))"
-        }
+            $notesTmpFile = Join-Path $logDir "release-notes-$versionTag.md"
+            [System.IO.File]::WriteAllText($notesTmpFile, $releaseNotesText, [System.Text.UTF8Encoding]::new($false))
 
-        $releaseUrl = $releaseInfo.url
-        Complete-Step "7" $true "Verified release $versionTag on GitHub with asset '$($matchedAsset -join ', ')' ($releaseUrl)"
+            Push-Location $installerDir
+            try {
+                $prevEA = $ErrorActionPreference
+                $ErrorActionPreference = "SilentlyContinue"
+                & gh release view $versionTag 2>$null | Out-Null
+                $releaseExists = ($LASTEXITCODE -eq 0)
+                $ErrorActionPreference = $prevEA
+
+                if ($releaseExists) {
+                    & gh release edit $versionTag --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+                    if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to edit existing release $versionTag via gh CLI" }
+
+                    & gh release upload $versionTag ".\$installerFileName" --clobber
+                    if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to upload installer to release $versionTag" }
+                } else {
+                    & gh release create $versionTag ".\$installerFileName" --title "NodeRadar Pro $versionTag" --notes-file "$notesTmpFile"
+                    if ($LASTEXITCODE -ne 0) { Fail-Run "7" "Failed to create release $versionTag via gh CLI" }
+                }
+            } finally {
+                Pop-Location
+            }
+
+            # Verify release on GitHub
+            $verificationRaw = (& gh release view $versionTag --json tagName,url,assets | Out-String)
+            if ($LASTEXITCODE -ne 0) {
+                Fail-Run "7" "Live confirmation failed: Release $versionTag was not found on GitHub after creation attempt"
+            }
+
+            $releaseInfo = $verificationRaw | ConvertFrom-Json
+            $assetNames = @($releaseInfo.assets | ForEach-Object { $_.name })
+            $normalizedAssetName = $installerFileName -replace ' ', '.'
+            $matchedAsset = $assetNames | Where-Object { $_ -eq $installerFileName -or $_ -eq $normalizedAssetName }
+            if (-not $matchedAsset) {
+                Fail-Run "7" "Live confirmation failed: Asset '$installerFileName' is missing from GitHub release assets (found: $($assetNames -join ', '))"
+            }
+
+            $releaseUrl = $releaseInfo.url
+            Complete-Step "7" $true "Verified release $versionTag on GitHub with asset '$($matchedAsset -join ', ')' ($releaseUrl)"
+        }
     } catch {
         Fail-Run "7" "Release publishing failed: $($_.Exception.Message)"
     } finally {
