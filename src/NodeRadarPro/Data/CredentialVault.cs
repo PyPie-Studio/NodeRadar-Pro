@@ -11,6 +11,8 @@ namespace NodeRadarPro.Data;
 /// </summary>
 public static class CredentialVault
 {
+    private static readonly object KeyLock = new object();
+
     // ── Database Password Management ──
 
     public static string GetOrGenerateDbPassword(string folder)
@@ -171,15 +173,67 @@ public static class CredentialVault
         }
     }
 
-    // ── Internal Key Derivation ──
+    // ── Internal Key Derivation & Master Key Management ──
 
     private static byte[] DeriveKeyPbkdf2(byte[] salt)
     {
-        string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
-        return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
+        byte[] secret = GetOrCreateFallbackMasterSecret();
+        return Rfc2898DeriveBytes.Pbkdf2(secret, salt, 100000, HashAlgorithmName.SHA256, 32);
     }
 
-    private static byte[] GetFallbackEncryptionKeyLegacy()
+    internal static byte[] GetOrCreateFallbackMasterSecret()
+    {
+        lock (KeyLock)
+        {
+            string appDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
+            try
+            {
+                Directory.CreateDirectory(appDir);
+            }
+            catch
+            {
+                // Fallback directory if MyDocuments is unavailable
+                appDir = AppDomain.CurrentDomain.BaseDirectory;
+            }
+
+            string keyFilePath = Path.Combine(appDir, "fallback_master.key");
+
+            if (File.Exists(keyFilePath))
+            {
+                try
+                {
+                    byte[] existingKey = File.ReadAllBytes(keyFilePath);
+                    if (existingKey.Length == 32)
+                    {
+                        return existingKey;
+                    }
+                }
+                catch
+                {
+                    // Fallthrough to generate a new key if reading fails
+                }
+            }
+
+            byte[] newKey = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(newKey);
+            }
+
+            try
+            {
+                File.WriteAllBytes(keyFilePath, newKey);
+            }
+            catch
+            {
+                // Ignore file write errors if environment prohibits writing
+            }
+
+            return newKey;
+        }
+    }
+
+    internal static byte[] GetFallbackEncryptionKeyLegacy()
     {
         string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
         using var sha256 = SHA256.Create();

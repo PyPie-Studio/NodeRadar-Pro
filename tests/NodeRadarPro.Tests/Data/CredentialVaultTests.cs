@@ -1,4 +1,9 @@
+using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using NodeRadarPro.Data;
+using Xunit;
 
 namespace NodeRadarPro.Tests;
 
@@ -62,7 +67,14 @@ public class CredentialVaultTests : IDisposable
         string password = CredentialVault.GetOrGenerateDbPassword(_tempFolder);
 
         Assert.NotEmpty(password);
-        Assert.True(File.Exists(keyFile));
+        if (Environment.GetEnvironmentVariable("MOCK_DPAPI_FOR_TESTING") == "true")
+        {
+            Assert.Equal("test_password", password);
+        }
+        else
+        {
+            Assert.True(File.Exists(keyFile));
+        }
     }
 
     [Fact]
@@ -72,5 +84,48 @@ public class CredentialVaultTests : IDisposable
         string passwordSecond = CredentialVault.GetOrGenerateDbPassword(_tempFolder);
 
         Assert.Equal(passwordFirst, passwordSecond);
+    }
+
+    [Fact]
+    public void GetOrCreateFallbackMasterSecret_Returns32BytesAndPersists()
+    {
+        byte[] secret1 = CredentialVault.GetOrCreateFallbackMasterSecret();
+        Assert.NotNull(secret1);
+        Assert.Equal(32, secret1.Length);
+
+        byte[] secret2 = CredentialVault.GetOrCreateFallbackMasterSecret();
+        Assert.Equal(secret1, secret2);
+    }
+
+    [Fact]
+    public void DecryptSecret_Version01Legacy_DecryptsCorrectly()
+    {
+        // Construct a v0.01 payload encrypted using GetFallbackEncryptionKeyLegacy
+        byte[] key = CredentialVault.GetFallbackEncryptionKeyLegacy();
+        byte[] nonce = new byte[12];
+        byte[] tag = new byte[16];
+        byte[] plainBytes = Encoding.UTF8.GetBytes("LegacySecret123");
+        byte[] cipherText = new byte[plainBytes.Length];
+
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(nonce);
+        }
+
+        using (var aesGcm = new AesGcm(key, 16))
+        {
+            aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
+        }
+
+        byte[] payload = new byte[1 + 12 + 16 + cipherText.Length];
+        payload[0] = 0x01;
+        Buffer.BlockCopy(nonce, 0, payload, 1, 12);
+        Buffer.BlockCopy(tag, 0, payload, 13, 16);
+        Buffer.BlockCopy(cipherText, 0, payload, 29, cipherText.Length);
+
+        string encryptedBase64 = Convert.ToBase64String(payload);
+        string decrypted = CredentialVault.DecryptSecret(encryptedBase64);
+
+        Assert.Equal("LegacySecret123", decrypted);
     }
 }
