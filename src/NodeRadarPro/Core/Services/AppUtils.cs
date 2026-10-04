@@ -130,9 +130,10 @@ namespace NodeRadarPro.Core
                 {
                     var psi = new ProcessStartInfo
                     {
-                        FileName = safeUrl,
-                        UseShellExecute = true
+                        FileName = "explorer.exe",
+                        UseShellExecute = false
                     };
+                    psi.ArgumentList.Add(safeUrl);
                     Process.Start(psi);
                 }
                 else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))

@@ -152,10 +152,13 @@ public class AppUtilsTests
         Assert.Null(exception);
     }
 
-    [Fact]
-    public void OpenSafeUrl_ValidHttpUrl_DoesNotThrow()
+    [Theory]
+    [InlineData("https://example.com")]
+    [InlineData("http://example.com/path?query=value&foo=bar")]
+    [InlineData("http://127.0.0.1:8080/dashboard")]
+    public void OpenSafeUrl_ValidHttpUrl_DoesNotThrow(string validUrl)
     {
-        var exception = Record.Exception(() => AppUtils.OpenSafeUrl("https://example.com"));
+        var exception = Record.Exception(() => AppUtils.OpenSafeUrl(validUrl));
         Assert.Null(exception);
     }
 
