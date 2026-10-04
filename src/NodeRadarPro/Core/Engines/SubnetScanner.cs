@@ -110,6 +110,8 @@ public class SubnetScanner
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, List<string> subnets)
     {
+        if (subnets == null || subnets.Count == 0) return false;
+
         if (CountDots(ipSpan) != 3) return false;
 
         int lastDotIndex = ipSpan.LastIndexOf('.');
@@ -118,6 +120,15 @@ public class SubnetScanner
         ReadOnlySpan<char> ipSubnet = ipSpan.Slice(0, lastDotIndex);
         ReadOnlySpan<char> lastOctetSpan = ipSpan.Slice(lastDotIndex + 1);
         if (!int.TryParse(lastOctetSpan, out int lastOctet) || lastOctet < 0 || lastOctet > 255) return false;
+
+        if (subnets.Count > 4)
+        {
+            var set = new HashSet<string>(subnets, StringComparer.Ordinal);
+            if (set.TryGetAlternateLookup<ReadOnlySpan<char>>(out var lookup))
+            {
+                return lookup.Contains(ipSubnet);
+            }
+        }
 
         for (int i = 0; i < subnets.Count; i++)
         {
@@ -130,6 +141,8 @@ public class SubnetScanner
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, HashSet<string> subnets)
     {
+        if (subnets == null || subnets.Count == 0) return false;
+
         if (CountDots(ipSpan) != 3) return false;
 
         int lastDotIndex = ipSpan.LastIndexOf('.');
@@ -144,11 +157,19 @@ public class SubnetScanner
             return lookup.Contains(ipSubnet);
         }
 
-        return subnets.Contains(ipSubnet.ToString());
+        foreach (var subnet in subnets)
+        {
+            if (ipSubnet.Equals(subnet.AsSpan(), StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
     }
 
     public static bool IsIpInAnySubnet(ReadOnlySpan<char> ipSpan, IEnumerable<string> subnets)
     {
+        if (subnets == null) return false;
+
         if (subnets is List<string> list)
             return IsIpInAnySubnet(ipSpan, list);
         if (subnets is HashSet<string> hashSet)
@@ -383,13 +404,14 @@ public class SubnetScanner
             try
             {
                 var arpTable = _arpResolver.GetFullArpTable();
+                var allSubnetsSet = new HashSet<string>(allSubnets, StringComparer.Ordinal);
                 var postSweepTasks = new List<Task<NetworkNode>>();
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
                     if (discoveredMacs.ContainsKey(mac)) continue;
 
-                    if (!IsIpInAnySubnet(ip.AsSpan(), allSubnets)) continue;
+                    if (!IsIpInAnySubnet(ip.AsSpan(), allSubnetsSet)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {

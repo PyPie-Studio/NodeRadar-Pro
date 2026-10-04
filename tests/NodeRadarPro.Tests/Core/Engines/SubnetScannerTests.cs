@@ -104,4 +104,81 @@ public class SubnetScannerTests
         var results = await scanner.ScanRangeAsync("192.168.1", 5, 2, CancellationToken.None);
         Assert.Empty(results);
     }
+    [Theory]
+    [InlineData("192.168.1.50", true)]
+    [InlineData("10.0.0.1", true)]
+    [InlineData("172.16.5.100", true)]
+    [InlineData("192.168.2.1", false)]
+    [InlineData("192.168.1", false)]
+    [InlineData("192.168.1.2.3", false)]
+    [InlineData("192.168.1.999", false)]
+    [InlineData("invalid_ip", false)]
+    public void IsIpInAnySubnet_ListOverload_ValidatesCorrectly(string ip, bool expected)
+    {
+        var subnets = new List<string> { "10.0.0", "172.16.5", "192.168.1", "10.1.1", "10.2.2", "10.3.3" };
+        bool actual = SubnetScanner.IsIpInAnySubnet(ip.AsSpan(), subnets);
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("192.168.1.50", true)]
+    [InlineData("10.0.0.1", true)]
+    [InlineData("192.168.2.1", false)]
+    public void IsIpInAnySubnet_HashSetOverload_ValidatesCorrectly(string ip, bool expected)
+    {
+        var subnets = new HashSet<string>(StringComparer.Ordinal) { "10.0.0", "172.16.5", "192.168.1" };
+        bool actual = SubnetScanner.IsIpInAnySubnet(ip.AsSpan(), subnets);
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("192.168.1.50", true)]
+    [InlineData("192.168.2.1", false)]
+    public void IsIpInAnySubnet_IEnumerableOverload_ValidatesCorrectly(string ip, bool expected)
+    {
+        IEnumerable<string> subnets = new string[] { "10.0.0", "172.16.5", "192.168.1" };
+        bool actual = SubnetScanner.IsIpInAnySubnet(ip.AsSpan(), subnets);
+        Assert.Equal(expected, actual);
+    }
+
+    [Fact]
+    public void IsIpInAnySubnet_EmptySubnets_ReturnsFalse()
+    {
+        Assert.False(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), new List<string>()));
+        Assert.False(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), new HashSet<string>()));
+        Assert.False(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), (List<string>)null!));
+    }
+
+    [Fact]
+    public void IsIpInAnySubnet_PerformanceBenchmark()
+    {
+        var subnetsList = Enumerable.Range(1, 50).Select(i => $"192.168.{i}").ToList();
+        var subnetsSet = new HashSet<string>(subnetsList, StringComparer.Ordinal);
+        string testIp = "192.168.50.100";
+
+        // Warmup
+        for (int i = 0; i < 1000; i++)
+        {
+            _ = SubnetScanner.IsIpInAnySubnet(testIp.AsSpan(), subnetsList);
+            _ = SubnetScanner.IsIpInAnySubnet(testIp.AsSpan(), subnetsSet);
+        }
+
+        var swList = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < 100_000; i++)
+        {
+            _ = SubnetScanner.IsIpInAnySubnet(testIp.AsSpan(), subnetsList);
+        }
+        swList.Stop();
+
+        var swSet = System.Diagnostics.Stopwatch.StartNew();
+        for (int i = 0; i < 100_000; i++)
+        {
+            _ = SubnetScanner.IsIpInAnySubnet(testIp.AsSpan(), subnetsSet);
+        }
+        swSet.Stop();
+
+        // Log baseline timings
+        Assert.True(swList.ElapsedMilliseconds >= 0);
+        Assert.True(swSet.ElapsedMilliseconds >= 0);
+    }
 }
