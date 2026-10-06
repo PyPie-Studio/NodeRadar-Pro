@@ -15,6 +15,7 @@
 ### Test Coverage and Diagnostics
 - **Database Deletion and Pruning Test Suite (`LocalDatabaseTests.cs`)**: Added 10 unit tests verifying individual alert deletion, bulk resolved deletion, age-based alert pruning, table truncations, single log deletion, timestamp-based log pruning and settings-backed pruning fallbacks.
 - **Support Hyperlink Verification (`SupportPageAuditReportTests.cs`)**: Added unit test validating safe website URL resolution and execution boundaries.
+- **Release Test Reporter Syntax Hardening (`release.yml`)**: Explicitly scoped PowerShell string interpolation to prevent parser errors during GitHub Actions test summary annotations.
 
 ## NodeRadar Pro v2.0.7 (2026-10-04)
 

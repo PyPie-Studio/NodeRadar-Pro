@@ -68,7 +68,7 @@ jobs:
               foreach ($unitTestResult in $trx.SelectNodes("//UnitTestResult[@outcome='Failed']")) {
                 $testName = $unitTestResult.testName
                 $msg = $unitTestResult.Output.ErrorInfo.Message.Trim() -replace '\r?\n', ' '
-                Write-Host "::error title=Test Failure::$testName: $msg"
+                Write-Host "::error title=Test Failure::$($testName): $msg"
               }
             }
           }
