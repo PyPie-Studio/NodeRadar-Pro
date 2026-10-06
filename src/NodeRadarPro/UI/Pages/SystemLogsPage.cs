@@ -29,6 +29,9 @@ public class SystemLogsPage : Border
     private string? _deviceFilter = null;
     private readonly CheckBox _autoScrollToggle;
     private readonly ScrollViewer _logScroll;
+    private readonly Button _exportBtn;
+    private readonly Button _purgeOldBtn;
+    private readonly Button _clearLogsBtn;
 
     public SystemLogsPage(LocalDatabase db)
     {
@@ -41,20 +44,43 @@ public class SystemLogsPage : Border
         title.Margin = new Thickness(0, 0, 0, 6);
         var subtitle = ThemeTokens.Body("Event log viewer for scan events, device status changes, and alert triggers.", 16);
 
-        // Export button
-        var exportBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgDownload, "Export Logs");
-        ThemeTokens.SetToolTip(exportBtn, "Export up to 2000 log entries to a CSV file in your Documents folder.");
-        exportBtn.Width = 160;
-        exportBtn.HorizontalAlignment = HorizontalAlignment.Right;
-        exportBtn.VerticalAlignment = VerticalAlignment.Bottom;
-        exportBtn.Click += OnExportLogs;
+        // Header Action Buttons
+        _exportBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgDownload, "Export Logs");
+        ThemeTokens.SetToolTip(_exportBtn, "Export up to 2000 log entries to a CSV file in your Documents folder.");
+        _exportBtn.Padding = new Thickness(14, 0);
+        _exportBtn.Height = 36;
+        _exportBtn.FontSize = 13;
+        _exportBtn.Click += OnExportLogs;
+
+        _purgeOldBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgTrash, "Purge > 7d", ThemeTokens.Warning);
+        ThemeTokens.SetToolTip(_purgeOldBtn, "Delete system logs older than 7 days to free up database storage.");
+        _purgeOldBtn.Padding = new Thickness(14, 0);
+        _purgeOldBtn.Height = 36;
+        _purgeOldBtn.FontSize = 13;
+        _purgeOldBtn.Click += OnPurgeOldClicked;
+
+        _clearLogsBtn = ThemeTokens.DangerButton(ThemeTokens.SvgTrash, "Clear Logs");
+        ThemeTokens.SetToolTip(_clearLogsBtn, "Permanently wipe all system logs from the database.");
+        _clearLogsBtn.Padding = new Thickness(14, 0);
+        _clearLogsBtn.Height = 36;
+        _clearLogsBtn.FontSize = 13;
+        _clearLogsBtn.Click += OnClearLogsClicked;
+
+        var headerButtons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Children = { _exportBtn, _purgeOldBtn, _clearLogsBtn }
+        };
 
         var headerGrid = new Grid();
         headerGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         headerGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         var titleGroup = new StackPanel { Children = { label, title, subtitle } };
-        Grid.SetColumn(titleGroup, 0); Grid.SetColumn(exportBtn, 1);
-        headerGrid.Children.Add(titleGroup); headerGrid.Children.Add(exportBtn);
+        Grid.SetColumn(titleGroup, 0); Grid.SetColumn(headerButtons, 1);
+        headerGrid.Children.Add(titleGroup); headerGrid.Children.Add(headerButtons);
 
         // Quick Stats — TextBlocks are now class fields so they update on refresh
         var statsGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) }, Margin = new Thickness(0, 20, 0, 20) };
@@ -170,6 +196,10 @@ public class SystemLogsPage : Border
         _warnStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Warning).ToString();
         _errorStatValue.Text = allLogs.Count(l => l.Level == LogLevel.Error).ToString();
 
+        _clearLogsBtn.IsEnabled = allLogs.Count > 0;
+        _purgeOldBtn.IsEnabled = allLogs.Count > 0;
+        _exportBtn.IsEnabled = allLogs.Count > 0;
+
         foreach (var log in logs)
             _logBody.Children.Add(BuildLogRow(log));
 
@@ -237,10 +267,66 @@ public class SystemLogsPage : Border
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         row.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         Grid.SetColumn(iconElem, 0); Grid.SetColumn(timeTb, 1); Grid.SetColumn(srcTb, 2); Grid.SetColumn(msgTb, 3); Grid.SetColumn(dateTb, 4);
         row.Children.Add(iconElem); row.Children.Add(timeTb); row.Children.Add(srcTb); row.Children.Add(msgTb); row.Children.Add(dateTb);
 
+        var delBtn = new Button
+        {
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 11, ThemeTokens.OnSurfaceVariant),
+            Background = Brushes.Transparent,
+            Width = 24,
+            Height = 24,
+            Padding = new Thickness(0),
+            Margin = new Thickness(8, 0, 0, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        ThemeTokens.SetToolTip(delBtn, "Delete this log entry permanently.");
+        delBtn.Click += (s, e) =>
+        {
+            _db.DeleteLog(log.Id);
+            RefreshLogs();
+        };
+        Grid.SetColumn(delBtn, 5);
+        row.Children.Add(delBtn);
+
         return new Border { Padding = new Thickness(10, 8), CornerRadius = new CornerRadius(6), Child = row };
+    }
+
+    private void OnPurgeOldClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _db.DeleteLogsOlderThan(DateTime.UtcNow.AddDays(-7));
+        RefreshLogs();
+    }
+
+    private void OnClearLogsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _clearLogsBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear?", 13, Brushes.White, Brushes.White);
+        _clearLogsBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearLogsBtn.Click -= OnClearLogsClicked;
+        _clearLogsBtn.Click += DoActualClearLogs;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        timer.Tick += (s, ev) => { ResetClearLogsButton(); timer.Stop(); };
+        timer.Start();
+    }
+
+    private void DoActualClearLogs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _db.ClearLogs();
+        ResetClearLogsButton();
+        RefreshLogs();
+    }
+
+    private void ResetClearLogsButton()
+    {
+        _clearLogsBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear Logs", 13, ThemeTokens.Error, ThemeTokens.Error);
+        _clearLogsBtn.Background = Brushes.Transparent;
+        _clearLogsBtn.Click -= DoActualClearLogs;
+        _clearLogsBtn.Click -= OnClearLogsClicked;
+        _clearLogsBtn.Click += OnClearLogsClicked;
     }
 
     private Border MakeLevelChip(string text, LogLevel? level)

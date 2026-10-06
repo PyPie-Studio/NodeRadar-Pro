@@ -524,6 +524,82 @@ public class LocalDatabase : IDisposable
         }
     }
 
+    public bool DeleteAlert(ObjectId alertId)
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            bool deleted = col.Delete(alertId);
+            if (deleted)
+            {
+                Checkpoint();
+            }
+            return deleted;
+        }
+    }
+
+    public int DeleteResolvedAlerts()
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            int deleted = col.DeleteMany(x => x.IsResolved);
+            if (deleted > 0)
+            {
+                Checkpoint();
+                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} resolved alerts.");
+            }
+            return deleted;
+        }
+    }
+
+    public int DeleteAlerts(IEnumerable<ObjectId> alertIds)
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            var idList = alertIds as IList<ObjectId> ?? alertIds.ToList();
+            if (idList.Count == 0) return 0;
+            int deleted = col.DeleteMany(x => idList.Contains(x.Id));
+            if (deleted > 0)
+            {
+                Checkpoint();
+                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} alerts.");
+            }
+            return deleted;
+        }
+    }
+
+    public int DeleteAlertsOlderThan(DateTime cutoff, bool resolvedOnly = false)
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            int deleted = resolvedOnly
+                ? col.DeleteMany(x => x.IsResolved && x.Timestamp < cutoff)
+                : col.DeleteMany(x => x.Timestamp < cutoff);
+
+            if (deleted > 0)
+            {
+                Checkpoint();
+                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} alerts older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
+            }
+            return deleted;
+        }
+    }
+
+    public int ClearAllAlerts()
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<AlertEvent>("alerts");
+            int count = col.DeleteAll();
+            Checkpoint();
+            Logger.Log(LogLevel.Info, "Database", $"Cleared all {count} alerts.");
+            return count;
+        }
+    }
+
     // ══════════════════════════════════
     // UPTIME HISTORY
     // ══════════════════════════════════
@@ -594,6 +670,47 @@ public class LocalDatabase : IDisposable
             return query.OrderByDescending(x => x.Timestamp)
                 .Limit(limit)
                 .ToList();
+        }
+    }
+
+    public bool DeleteLog(ObjectId logId)
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>("logs");
+            bool deleted = col.Delete(logId);
+            if (deleted)
+            {
+                Checkpoint();
+            }
+            return deleted;
+        }
+    }
+
+    public int DeleteLogsOlderThan(DateTime cutoff)
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>("logs");
+            int deleted = col.DeleteMany(x => x.Timestamp < cutoff);
+            if (deleted > 0)
+            {
+                Checkpoint();
+                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} logs older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
+            }
+            return deleted;
+        }
+    }
+
+    public int ClearLogs()
+    {
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>("logs");
+            int count = col.DeleteAll();
+            Checkpoint();
+            Logger.Log(LogLevel.Info, "Database", $"Cleared all {count} system logs.");
+            return count;
         }
     }
 
@@ -676,32 +793,37 @@ public class LocalDatabase : IDisposable
     /// Prunes old uptime snapshots, resolved alerts, and log entries to prevent unbounded DB growth.
     /// Called from the auto-backup timer or manually from maintenance routines.
     /// </summary>
-    public int PruneOldData(int uptimeRetentionDays = 30, int logRetentionDays = 14, int resolvedAlertRetentionDays = 30)
+    public int PruneOldData(int? uptimeRetentionDays = null, int? logRetentionDays = null, int? resolvedAlertRetentionDays = null)
     {
         lock (SyncRoot)
         {
+            AppSettings? settings = null;
+            int uptimeDays = uptimeRetentionDays ?? (settings ??= LoadSettings()).UptimeRetentionDays;
+            int logDays = logRetentionDays ?? (settings ??= LoadSettings()).LogRetentionDays;
+            int alertDays = resolvedAlertRetentionDays ?? (settings ??= LoadSettings()).ResolvedAlertRetentionDays;
+
             int deleted = 0;
             var now = DateTime.UtcNow;
 
             // Prune uptime snapshots
-            var uptimeCutoff = now.AddDays(-uptimeRetentionDays);
+            var uptimeCutoff = now.AddDays(-uptimeDays);
             deleted += _db.GetCollection<UptimeSnapshot>("uptime")
                 .DeleteMany(x => x.Timestamp < uptimeCutoff);
 
             // Prune old logs
-            var logCutoff = now.AddDays(-logRetentionDays);
+            var logCutoff = now.AddDays(-logDays);
             deleted += _db.GetCollection<LogEntry>("logs")
                 .DeleteMany(x => x.Timestamp < logCutoff);
 
             // Prune resolved alerts older than retention
-            var alertCutoff = now.AddDays(-resolvedAlertRetentionDays);
+            var alertCutoff = now.AddDays(-alertDays);
             deleted += _db.GetCollection<AlertEvent>("alerts")
                 .DeleteMany(x => x.IsResolved && x.ResolvedAt != null && x.ResolvedAt < alertCutoff);
 
             if (deleted > 0)
             {
                 Checkpoint();
-                Log(LogLevel.Info, "Database", $"Pruned {deleted} expired records (uptime>{uptimeRetentionDays}d, logs>{logRetentionDays}d, resolved alerts>{resolvedAlertRetentionDays}d).");
+                Logger.Log(LogLevel.Info, "Database", $"Pruned {deleted} expired records (uptime>{uptimeDays}d, logs>{logDays}d, resolved alerts>{alertDays}d).");
             }
 
             return deleted;

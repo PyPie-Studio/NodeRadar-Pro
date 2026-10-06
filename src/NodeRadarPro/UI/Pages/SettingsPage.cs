@@ -41,6 +41,11 @@ public class SettingsPage : Border
     private readonly CheckBox _enableAutoBackupToggle;
     private readonly Slider _autoBackupIntervalSlider;
     private readonly TextBlock _autoBackupIntervalValue;
+    private readonly Slider _logRetentionSlider;
+    private readonly TextBlock _logRetentionValue;
+    private readonly Slider _alertRetentionSlider;
+    private readonly TextBlock _alertRetentionValue;
+    private readonly Button _pruneBtn;
 
     // Notification
     private readonly CheckBox _toastToggle;
@@ -155,6 +160,20 @@ public class SettingsPage : Border
         _autoBackupIntervalSlider = new Slider { Minimum = 1, Maximum = 168, Value = 24 };
         _autoBackupIntervalValue = new TextBlock { Text = "24h", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center };
         _autoBackupIntervalSlider.ValueChanged += (s, e) => _autoBackupIntervalValue.Text = $"{(int)_autoBackupIntervalSlider.Value}h";
+
+        _logRetentionSlider = new Slider { Minimum = 1, Maximum = 90, Value = _settings.LogRetentionDays };
+        _logRetentionValue = new TextBlock { Text = $"{_settings.LogRetentionDays}d", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center };
+        _logRetentionSlider.ValueChanged += (s, e) => _logRetentionValue.Text = $"{(int)_logRetentionSlider.Value}d";
+
+        _alertRetentionSlider = new Slider { Minimum = 1, Maximum = 90, Value = _settings.ResolvedAlertRetentionDays };
+        _alertRetentionValue = new TextBlock { Text = $"{_settings.ResolvedAlertRetentionDays}d", FontSize = 13, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, VerticalAlignment = VerticalAlignment.Center };
+        _alertRetentionSlider.ValueChanged += (s, e) => _alertRetentionValue.Text = $"{(int)_alertRetentionSlider.Value}d";
+
+        _pruneBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgTrash, "Purge Expired Records", ThemeTokens.Error);
+        ThemeTokens.SetToolTip(_pruneBtn, "Immediately prune expired logs and resolved alerts past retention thresholds.");
+        _pruneBtn.Height = 36;
+        _pruneBtn.FontSize = 13;
+        _pruneBtn.Click += OnPruneClicked;
 
         _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
 
@@ -293,7 +312,15 @@ public class SettingsPage : Border
         intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
         _enableAutoBackupToggle.IsCheckedChanged += (s, e) => intervalCard.IsVisible = _enableAutoBackupToggle.IsChecked == true;
 
-        var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 10) };
+        var logRetentionCard = MakeSliderCard("Log Retention", "Days before old telemetry is pruned.", _logRetentionSlider, _logRetentionValue);
+        logRetentionCard.Margin = new Thickness(0, 0, 0, 8);
+
+        var alertRetentionCard = MakeSliderCard("Alert Retention", "Days before resolved alerts are pruned.", _alertRetentionSlider, _alertRetentionValue);
+        alertRetentionCard.Margin = new Thickness(0, 0, 0, 8);
+
+        _pruneBtn.Margin = new Thickness(0, 4, 0, 8);
+
+        var maintGrid = new Grid { Margin = new Thickness(0, 4, 0, 8) };
         maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         maintGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         Grid.SetColumn(_backupBtn, 0);
@@ -307,7 +334,7 @@ public class SettingsPage : Border
 
         var notifContent = new StackPanel
         {
-            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, autoBackupRow, intervalCard, maintGrid, _maintenanceStatus, actionButtonsGrid }
+            Children = { notifHeader, separator1, routingLabel, toastRow, soundRow, emailRow, _smtpSettingsPanel, separator2, thresholdLabel, latencyCard, packetCard, maintenanceLabel, autoBackupRow, intervalCard, logRetentionCard, alertRetentionCard, maintGrid, _pruneBtn, _maintenanceStatus, actionButtonsGrid }
         };
         return ThemeTokens.GlassCard(notifContent, 28);
     }
@@ -364,6 +391,11 @@ public class SettingsPage : Border
         _autoBackupIntervalSlider.Value = _settings.AutoBackupIntervalHours;
         _autoBackupIntervalValue.Text = $"{_settings.AutoBackupIntervalHours}h";
 
+        _logRetentionSlider.Value = _settings.LogRetentionDays;
+        _logRetentionValue.Text = $"{_settings.LogRetentionDays}d";
+        _alertRetentionSlider.Value = _settings.ResolvedAlertRetentionDays;
+        _alertRetentionValue.Text = $"{_settings.ResolvedAlertRetentionDays}d";
+
         _smtpHost.Text = _settings.SmtpHost;
         _smtpPort.Text = _settings.SmtpPort.ToString();
         _smtpUser.Text = _settings.SmtpUser;
@@ -395,6 +427,8 @@ public class SettingsPage : Border
 
         _settings.EnableAutoBackup = _enableAutoBackupToggle.IsChecked == true;
         _settings.AutoBackupIntervalHours = (int)_autoBackupIntervalSlider.Value;
+        _settings.LogRetentionDays = (int)_logRetentionSlider.Value;
+        _settings.ResolvedAlertRetentionDays = (int)_alertRetentionSlider.Value;
 
         _settings.SmtpHost = _smtpHost.Text ?? "";
         if (int.TryParse(_smtpPort.Text, out var port)) _settings.SmtpPort = port;
@@ -500,6 +534,30 @@ public class SettingsPage : Border
                 _maintenanceStatus.Text = $"Error: {ex.Message}";
                 _maintenanceStatus.Foreground = ThemeTokens.Error;
             }
+        }
+    }
+
+    private async void OnPruneClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _pruneBtn.IsEnabled = false;
+        _maintenanceStatus.Text = "Pruning expired database records...";
+        _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+        try
+        {
+            int logDays = (int)_logRetentionSlider.Value;
+            int alertDays = (int)_alertRetentionSlider.Value;
+            int pruned = await System.Threading.Tasks.Task.Run(() => _db.PruneOldData(logRetentionDays: logDays, resolvedAlertRetentionDays: alertDays));
+            _maintenanceStatus.Text = $"Retention cleanup complete: {pruned} expired records removed.";
+            _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+        }
+        catch (Exception ex)
+        {
+            _maintenanceStatus.Text = $"Prune error: {ex.Message}";
+            _maintenanceStatus.Foreground = ThemeTokens.Error;
+        }
+        finally
+        {
+            _pruneBtn.IsEnabled = true;
         }
     }
 

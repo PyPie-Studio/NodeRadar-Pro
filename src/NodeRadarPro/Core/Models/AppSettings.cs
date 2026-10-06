@@ -49,7 +49,10 @@ public class AppSettings
     // ── Application Maintenance ──
     public bool EnableAutoBackup { get; set; } = true;
     public int AutoBackupIntervalHours { get; set; } = 24;
+    public int LogRetentionDays { get; set; } = 14;
+    public int ResolvedAlertRetentionDays { get; set; } = 30;
+    public int UptimeRetentionDays { get; set; } = 30;
 
-    // â”€â”€ Security â”€â”€
+    // ── Security ──
     public string? LastKnownGoodHash { get; set; }
 }

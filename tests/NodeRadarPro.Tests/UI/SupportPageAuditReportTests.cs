@@ -86,4 +86,16 @@ public class SupportPageAuditReportTests
         Assert.DoesNotContain("## 2. Threat Vector Summary", report);
         Assert.DoesNotContain("## 4. Recent Security Alerts", report);
     }
+
+    [Fact]
+    public void WebsiteUrl_PointsToOfficialPypieStudioHttpsUrl()
+    {
+        Assert.Equal("https://pypiestudio.com", SupportPage.WebsiteUrl);
+        Assert.True(Uri.TryCreate(SupportPage.WebsiteUrl, UriKind.Absolute, out var uri));
+        Assert.Equal(Uri.UriSchemeHttps, uri?.Scheme);
+        Assert.Equal("pypiestudio.com", uri?.Host);
+
+        var exception = Record.Exception(() => AppUtils.OpenSafeUrl(SupportPage.WebsiteUrl));
+        Assert.Null(exception);
+    }
 }

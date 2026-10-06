@@ -1,5 +1,21 @@
 # NodeRadar Pro Changelog
 
+## NodeRadar Pro v2.0.8 (2026-10-06)
+
+### Data Persistence and Pruning Primitives
+- **Granular and Bulk LiteDB Deletion APIs (`LocalDatabase.cs`)**: Added synchronized collection operations under thread locks with automatic WAL checkpoints: `DeleteAlert`, `DeleteResolvedAlerts`, `DeleteAlerts`, `DeleteAlertsOlderThan`, `ClearAllAlerts`, `DeleteLog`, `DeleteLogsOlderThan` and `ClearLogs`.
+- **Configurable Retention Governance (`AppSettings.cs`, `LocalDatabase.cs`)**: Introduced persisted `LogRetentionDays` (default 14), `ResolvedAlertRetentionDays` (default 30) and `UptimeRetentionDays` (default 30) settings. Updated `PruneOldData` to dynamically consume configured limits when arguments are omitted.
+
+### User Interface and Telemetry Management
+- **Alert Center Granular and Bulk Deletion (`AlertsPage.cs`)**: Added inline trash deletion buttons to each alert card (`SvgTrash`), along with header-level "Clear Resolved" and "Clear All" action buttons backed by 2-step click-to-confirm latches (`Confirm Clear?` with a 3-second reset timer) and dynamic enablement.
+- **System Telemetry Pruning and Purging (`SystemLogsPage.cs`)**: Added inline row deletion actions (`SvgTrash`), a "Purge > 7d" one-click maintenance action and a header "Clear Logs" button with 2-step confirmation and live count synchronization.
+- **Maintenance Lifecycle Controls (`SettingsPage.cs`)**: Added interactive retention sliders for system logs and resolved alerts (1-90 days) inside the Maintenance & Lifecycle group, plus an asynchronous "Purge Expired Records" maintenance trigger with live UI feedback.
+- **Official Support Link Navigation (`SupportPage.cs`)**: Connected the official website button to `https://pypiestudio.com` via `AppUtils.OpenSafeUrl` with scheme validation and background process invocation.
+
+### Test Coverage and Diagnostics
+- **Database Deletion and Pruning Test Suite (`LocalDatabaseTests.cs`)**: Added 10 unit tests verifying individual alert deletion, bulk resolved deletion, age-based alert pruning, table truncations, single log deletion, timestamp-based log pruning and settings-backed pruning fallbacks.
+- **Support Hyperlink Verification (`SupportPageAuditReportTests.cs`)**: Added unit test validating safe website URL resolution and execution boundaries.
+
 ## NodeRadar Pro v2.0.7 (2026-10-04)
 
 ### Security Enhancements

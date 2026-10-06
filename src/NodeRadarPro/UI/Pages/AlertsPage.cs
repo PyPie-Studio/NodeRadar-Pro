@@ -6,6 +6,7 @@ using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
+using Avalonia.Threading;
 
 namespace NodeRadarPro.UI;
 
@@ -20,6 +21,9 @@ public class AlertsPage : Border
     private readonly TextBlock _resolvedCount;
     private readonly TextBlock _totalCount;
     private readonly StackPanel _filterRow;
+    private readonly Button _resolveAllBtn;
+    private readonly Button _clearResolvedBtn;
+    private readonly Button _clearAllBtn;
     private string _filterMode = "active";
 
     public event Action? AlertsChanged;
@@ -57,16 +61,40 @@ public class AlertsPage : Border
         // Filter Row + Actions
         _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Margin = new Thickness(0, 0, 0, 16) };
 
-        var resolveAllBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgCheck, "Resolve All", ThemeTokens.Tertiary);
-        ThemeTokens.SetToolTip(resolveAllBtn, "Mass-resolve all pending alerts and clear the active threat list.");
-        resolveAllBtn.Width = 160; resolveAllBtn.HorizontalAlignment = HorizontalAlignment.Right;
-        resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); AlertsChanged?.Invoke(); };
+        _resolveAllBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgCheck, "Resolve All", ThemeTokens.Tertiary);
+        ThemeTokens.SetToolTip(_resolveAllBtn, "Mass-resolve all pending alerts and clear the active threat list.");
+        _resolveAllBtn.Padding = new Thickness(14, 0);
+        _resolveAllBtn.Height = 36;
+        _resolveAllBtn.FontSize = 13;
+        _resolveAllBtn.Click += (s, e) => { _db.ResolveAllAlerts(); RefreshAlerts(); AlertsChanged?.Invoke(); };
+
+        _clearResolvedBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgTrash, "Clear Resolved", ThemeTokens.Error);
+        ThemeTokens.SetToolTip(_clearResolvedBtn, "Permanently delete all resolved alerts.");
+        _clearResolvedBtn.Padding = new Thickness(14, 0);
+        _clearResolvedBtn.Height = 36;
+        _clearResolvedBtn.FontSize = 13;
+        _clearResolvedBtn.Click += OnClearResolvedClicked;
+
+        _clearAllBtn = ThemeTokens.DangerButton(ThemeTokens.SvgTrash, "Clear All");
+        ThemeTokens.SetToolTip(_clearAllBtn, "Permanently delete all alerts from the database.");
+        _clearAllBtn.Padding = new Thickness(14, 0);
+        _clearAllBtn.Height = 36;
+        _clearAllBtn.FontSize = 13;
+        _clearAllBtn.Click += OnClearAllAlertsClicked;
+
+        var actionButtons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Children = { _resolveAllBtn, _clearResolvedBtn, _clearAllBtn }
+        };
 
         var filterGrid = new Grid();
         filterGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         filterGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
-        Grid.SetColumn(_filterRow, 0); Grid.SetColumn(resolveAllBtn, 1);
-        filterGrid.Children.Add(_filterRow); filterGrid.Children.Add(resolveAllBtn);
+        Grid.SetColumn(_filterRow, 0); Grid.SetColumn(actionButtons, 1);
+        filterGrid.Children.Add(_filterRow); filterGrid.Children.Add(actionButtons);
 
         // Alert list
         _alertListBody = new StackPanel { Spacing = 6 };
@@ -125,6 +153,10 @@ public class AlertsPage : Border
         _activeCount.Text = activeCount.ToString();
         _resolvedCount.Text = resolvedCount.ToString();
         _totalCount.Text = allAlerts.Count.ToString();
+
+        _resolveAllBtn.IsEnabled = activeCount > 0;
+        _clearResolvedBtn.IsEnabled = resolvedCount > 0;
+        _clearAllBtn.IsEnabled = allAlerts.Count > 0;
 
         if (filtered.Count == 0)
         {
@@ -195,6 +227,29 @@ public class AlertsPage : Border
             Grid.SetColumn(resolvedBadge, 3); row.Children.Add(resolvedBadge);
         }
 
+        row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        var deleteBtn = new Button
+        {
+            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgTrash, 15, ThemeTokens.Error),
+            Background = Brushes.Transparent,
+            Width = 36,
+            Height = 36,
+            CornerRadius = new CornerRadius(6),
+            HorizontalContentAlignment = HorizontalAlignment.Center,
+            VerticalContentAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(6, 0, 0, 0),
+            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        };
+        ThemeTokens.SetToolTip(deleteBtn, "Delete this alert permanently from the database.");
+        deleteBtn.Click += (s, e) =>
+        {
+            _db.DeleteAlert(alert.Id);
+            RefreshAlerts();
+            AlertsChanged?.Invoke();
+        };
+        Grid.SetColumn(deleteBtn, 4);
+        row.Children.Add(deleteBtn);
+
         return new Border
         {
             Background = alert.IsResolved ? Brushes.Transparent : ThemeTokens.SurfaceContainerLowest,
@@ -204,6 +259,62 @@ public class AlertsPage : Border
             BorderThickness = new Thickness(1),
             Child = row
         };
+    }
+
+    private void OnClearResolvedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _clearResolvedBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear?", 13, Brushes.White, Brushes.White);
+        _clearResolvedBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearResolvedBtn.Click -= OnClearResolvedClicked;
+        _clearResolvedBtn.Click += DoActualClearResolved;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        timer.Tick += (s, ev) => { ResetClearResolvedButton(); timer.Stop(); };
+        timer.Start();
+    }
+
+    private void DoActualClearResolved(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _db.DeleteResolvedAlerts();
+        ResetClearResolvedButton();
+        RefreshAlerts();
+        AlertsChanged?.Invoke();
+    }
+
+    private void ResetClearResolvedButton()
+    {
+        _clearResolvedBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear Resolved", 13, ThemeTokens.Error, ThemeTokens.Error);
+        _clearResolvedBtn.Background = Brushes.Transparent;
+        _clearResolvedBtn.Click -= DoActualClearResolved;
+        _clearResolvedBtn.Click -= OnClearResolvedClicked;
+        _clearResolvedBtn.Click += OnClearResolvedClicked;
+    }
+
+    private void OnClearAllAlertsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _clearAllBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear All?", 13, Brushes.White, Brushes.White);
+        _clearAllBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearAllBtn.Click -= OnClearAllAlertsClicked;
+        _clearAllBtn.Click += DoActualClearAllAlerts;
+        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        timer.Tick += (s, ev) => { ResetClearAllButton(); timer.Stop(); };
+        timer.Start();
+    }
+
+    private void DoActualClearAllAlerts(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        _db.ClearAllAlerts();
+        ResetClearAllButton();
+        RefreshAlerts();
+        AlertsChanged?.Invoke();
+    }
+
+    private void ResetClearAllButton()
+    {
+        _clearAllBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear All", 13, ThemeTokens.Error, ThemeTokens.Error);
+        _clearAllBtn.Background = Brushes.Transparent;
+        _clearAllBtn.Click -= DoActualClearAllAlerts;
+        _clearAllBtn.Click -= OnClearAllAlertsClicked;
+        _clearAllBtn.Click += OnClearAllAlertsClicked;
     }
 
     private Border MakeFilterChip(string text, string key, bool active)

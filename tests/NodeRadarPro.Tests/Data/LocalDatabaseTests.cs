@@ -580,4 +580,158 @@ public class LocalDatabaseTests : IDisposable
         Assert.Contains(retrieved, a => a.Message == "Alert 1");
         Assert.Contains(retrieved, a => a.Message == "Alert 2");
     }
+
+    [Fact]
+    public void Alerts_DeleteAlert_RemovesSpecificAlert()
+    {
+        var alert1 = new AlertEvent { MacAddress = "AA:BB", Message = "Alert 1" };
+        var alert2 = new AlertEvent { MacAddress = "CC:DD", Message = "Alert 2" };
+        _db.InsertAlert(alert1);
+        _db.InsertAlert(alert2);
+
+        bool deleted = _db.DeleteAlert(alert1.Id);
+        Assert.True(deleted);
+
+        var remaining = _db.GetAlerts();
+        Assert.Single(remaining);
+        Assert.Equal("Alert 2", remaining[0].Message);
+
+        bool deletedAgain = _db.DeleteAlert(alert1.Id);
+        Assert.False(deletedAgain);
+    }
+
+    [Fact]
+    public void Alerts_DeleteResolvedAlerts_RemovesOnlyResolved()
+    {
+        var now = DateTime.UtcNow;
+        var a1 = new AlertEvent { Message = "Active 1", IsResolved = false };
+        var a2 = new AlertEvent { Message = "Resolved 1", IsResolved = true, ResolvedAt = now };
+        var a3 = new AlertEvent { Message = "Resolved 2", IsResolved = true, ResolvedAt = now };
+        _db.InsertAlert(a1);
+        _db.InsertAlert(a2);
+        _db.InsertAlert(a3);
+
+        int count = _db.DeleteResolvedAlerts();
+        Assert.Equal(2, count);
+
+        var remaining = _db.GetAlerts();
+        Assert.Single(remaining);
+        Assert.Equal("Active 1", remaining[0].Message);
+    }
+
+    [Fact]
+    public void Alerts_DeleteAlerts_BulkRemovesSpecificIds()
+    {
+        var a1 = new AlertEvent { Message = "A1" };
+        var a2 = new AlertEvent { Message = "A2" };
+        var a3 = new AlertEvent { Message = "A3" };
+        _db.InsertAlert(a1);
+        _db.InsertAlert(a2);
+        _db.InsertAlert(a3);
+
+        int deleted = _db.DeleteAlerts(new[] { a1.Id, a3.Id });
+        Assert.Equal(2, deleted);
+
+        var remaining = _db.GetAlerts();
+        Assert.Single(remaining);
+        Assert.Equal("A2", remaining[0].Message);
+    }
+
+    [Fact]
+    public void Alerts_DeleteAlertsOlderThan_RemovesCorrectly()
+    {
+        var now = DateTime.UtcNow;
+        var oldAlert = new AlertEvent { Message = "Old", Timestamp = now.AddDays(-10), IsResolved = true };
+        var recentAlert = new AlertEvent { Message = "Recent", Timestamp = now.AddDays(-1), IsResolved = true };
+        _db.InsertAlert(oldAlert);
+        _db.InsertAlert(recentAlert);
+
+        int deleted = _db.DeleteAlertsOlderThan(now.AddDays(-5));
+        Assert.Equal(1, deleted);
+
+        var remaining = _db.GetAlerts();
+        Assert.Single(remaining);
+        Assert.Equal("Recent", remaining[0].Message);
+    }
+
+    [Fact]
+    public void Alerts_ClearAllAlerts_RemovesAllAlerts()
+    {
+        _db.InsertAlert(new AlertEvent { Message = "1" });
+        _db.InsertAlert(new AlertEvent { Message = "2" });
+        _db.InsertAlert(new AlertEvent { Message = "3" });
+
+        int cleared = _db.ClearAllAlerts();
+        Assert.Equal(3, cleared);
+
+        var remaining = _db.GetAlerts();
+        Assert.Empty(remaining);
+    }
+
+    [Fact]
+    public void Logs_DeleteLog_RemovesSpecificLog()
+    {
+        var log1 = new LogEntry { Message = "Log 1" };
+        var log2 = new LogEntry { Message = "Log 2" };
+        _db.InsertLog(log1);
+        _db.InsertLog(log2);
+
+        bool deleted = _db.DeleteLog(log1.Id);
+        Assert.True(deleted);
+
+        var remaining = _db.GetLogs();
+        Assert.Single(remaining);
+        Assert.Equal("Log 2", remaining[0].Message);
+    }
+
+    [Fact]
+    public void Logs_DeleteLogsOlderThan_RemovesExpiredLogs()
+    {
+        var now = DateTime.UtcNow;
+        var oldLog = new LogEntry { Message = "Old Log", Timestamp = now.AddDays(-15) };
+        var newLog = new LogEntry { Message = "New Log", Timestamp = now.AddDays(-1) };
+        _db.InsertLog(oldLog);
+        _db.InsertLog(newLog);
+
+        int deleted = _db.DeleteLogsOlderThan(now.AddDays(-7));
+        Assert.Equal(1, deleted);
+
+        var remaining = _db.GetLogs();
+        Assert.Single(remaining);
+        Assert.Equal("New Log", remaining[0].Message);
+    }
+
+    [Fact]
+    public void Logs_ClearLogs_RemovesAllLogs()
+    {
+        _db.InsertLog(new LogEntry { Message = "Log A" });
+        _db.InsertLog(new LogEntry { Message = "Log B" });
+
+        int cleared = _db.ClearLogs();
+        Assert.Equal(2, cleared);
+
+        var remaining = _db.GetLogs();
+        Assert.Empty(remaining);
+    }
+
+    [Fact]
+    public void PruneOldData_DefaultArguments_UsesSettingsValues()
+    {
+        var settings = _db.LoadSettings();
+        settings.LogRetentionDays = 5;
+        settings.ResolvedAlertRetentionDays = 5;
+        settings.UptimeRetentionDays = 5;
+        _db.SaveSettings(settings);
+
+        var now = DateTime.UtcNow;
+        _db.InsertLog(new LogEntry { Message = "Expired Log", Timestamp = now.AddDays(-7) });
+        _db.InsertLog(new LogEntry { Message = "Valid Log", Timestamp = now.AddDays(-2) });
+
+        int pruned = _db.PruneOldData();
+        Assert.True(pruned >= 1);
+
+        var remaining = _db.GetLogs();
+        Assert.DoesNotContain(remaining, l => l.Message == "Expired Log");
+        Assert.Contains(remaining, l => l.Message == "Valid Log");
+    }
 }
