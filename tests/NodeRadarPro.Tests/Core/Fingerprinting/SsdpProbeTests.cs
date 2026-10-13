@@ -16,6 +16,13 @@ public class SsdpProbeTests : IDisposable
         SsdpProbe.ClearCacheForTesting();
     }
 
+    [Fact]
+    public void Properties_ReturnExpectedMetadata()
+    {
+        var probe = new SsdpProbe();
+        Assert.Equal("SSDP / UPnP", probe.Name);
+        Assert.Equal(30, probe.Priority);
+    }
 
     [Theory]
     [InlineData("http://192.168.1.50/description.xml", "192.168.1.50", true)]
@@ -31,6 +38,7 @@ public class SsdpProbeTests : IDisposable
     [InlineData("invalid-url", "192.168.1.50", false)]
     [InlineData("", "192.168.1.50", false)]
     [InlineData("http://192.168.1.50/description.xml", "", false)]
+    [InlineData("http://192.168.1.50/description.xml", "not-an-ip", false)]
     public void IsValidSsdpLocationUrl_ValidationScenarios(string url, string senderIp, bool expected)
     {
         bool result = SsdpProbe.IsValidSsdpLocationUrl(url, senderIp);
@@ -47,10 +55,30 @@ public class SsdpProbeTests : IDisposable
     }
 
     [Fact]
+    public void ExtractXmlValue_CaseInsensitiveTag_ExtractsValue()
+    {
+        string xml = "<root><FRIENDLYNAME>Bedroom Speaker</FRIENDLYNAME></root>";
+        Assert.Equal("Bedroom Speaker", SsdpProbe.ExtractXmlValue(xml, "friendlyName"));
+    }
+
+    [Fact]
     public void ExtractXmlValue_MissingTag_ReturnsEmptyString()
     {
         string xml = "<root><deviceType>urn:schemas-upnp-org:device:MediaRenderer:1</deviceType></root>";
         Assert.Equal(string.Empty, SsdpProbe.ExtractXmlValue(xml, "manufacturer"));
+    }
+
+    [Fact]
+    public void ExtractXmlValue_MissingClosingTag_ReturnsEmptyString()
+    {
+        string xml = "<root><friendlyName>Broken Tag Target";
+        Assert.Equal(string.Empty, SsdpProbe.ExtractXmlValue(xml, "friendlyName"));
+    }
+
+    [Fact]
+    public void ExtractXmlValue_NullOrEmptyXml_ReturnsEmptyString()
+    {
+        Assert.Equal(string.Empty, SsdpProbe.ExtractXmlValue("", "friendlyName"));
     }
 
     [Fact]
@@ -79,5 +107,53 @@ public class SsdpProbeTests : IDisposable
         Assert.Equal("Sonos, Inc.", result.RawData["Manufacturer"]);
         Assert.Equal("Play:1", result.RawData["ModelName"]);
         Assert.Equal("urn:schemas-upnp-org:device:ZonePlayer:1", result.RawData["DeviceType"]);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_UncachedDevice_ReturnsEmptyRawData()
+    {
+        var probe = new SsdpProbe();
+        var node = new NetworkNode { IpAddress = "10.0.0.99" };
+
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.Equal("SSDP / UPnP", result.Source);
+        Assert.Empty(result.RawData);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_PartiallyPopulatedData_OnlyIncludesNonEmptyFields()
+    {
+        SsdpProbe.InjectCacheForTesting("192.168.1.60", new SsdpProbe.SsdpData
+        {
+            Server = "CustomServer/1.0",
+            FriendlyName = "",
+            Manufacturer = "ACME",
+            ModelName = "",
+            DeviceType = ""
+        });
+
+        var probe = new SsdpProbe();
+        var node = new NetworkNode { IpAddress = "192.168.1.60" };
+
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.Equal("SSDP / UPnP", result.Source);
+        Assert.Equal(2, result.RawData.Count);
+        Assert.Equal("CustomServer/1.0", result.RawData["Server"]);
+        Assert.Equal("ACME", result.RawData["Manufacturer"]);
+        Assert.False(result.RawData.ContainsKey("FriendlyName"));
+        Assert.False(result.RawData.ContainsKey("ModelName"));
+        Assert.False(result.RawData.ContainsKey("DeviceType"));
+    }
+
+    [Fact]
+    public async Task StartSweepAsync_CancelledToken_ExitsGracefully()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var exception = await Record.ExceptionAsync(() => SsdpProbe.StartSweepAsync(cts.Token));
+        Assert.Null(exception);
     }
 }
