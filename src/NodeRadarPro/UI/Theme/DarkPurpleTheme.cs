@@ -70,17 +70,6 @@ public class DarkPurpleTheme
 
     public static Window BuildMainWindow()
     {
-        WindowIcon? windowIcon = null;
-        try
-        {
-            using var iconStream = AssetLoader.Open(new Uri("avares://NodeRadarPro/Resources/NodeRadar Pro Icon.ico"));
-            windowIcon = new WindowIcon(iconStream);
-        }
-        catch (Exception ex)
-        {
-            Logger.Log(LogLevel.Warning, "UI", $"Failed to load window icon: {ex.Message}");
-        }
-
         var window = new Window
         {
             Title = "NodeRadar Pro — Network Monitor",
@@ -96,7 +85,7 @@ public class DarkPurpleTheme
                 WindowTransparencyLevel.Blur
             },
             WindowStartupLocation = WindowStartupLocation.CenterScreen,
-            Icon = windowIcon,
+            Icon = LoadWindowIcon(),
         };
 
         // ═══════════════════════════════════════════
@@ -108,7 +97,6 @@ public class DarkPurpleTheme
         monitor.SetDatabase(db);
         var detector = new IntrusionDetector();
 
-        AppSettings settings = null!;
         var activeNodesMap = new ConcurrentDictionary<string, NetworkNode>();
 
         // Load registered devices from database (Issue: Inventory was empty on restart)
@@ -119,60 +107,26 @@ public class DarkPurpleTheme
         // Log startup
         try { db.Log(LogLevel.Info, "System", "NodeRadar Pro started"); } catch { }
 
+        var services = new ShellServices(db, scanner, monitor, detector, activeNodesMap, cts);
+
         // ═══════════════════════════════════════════
-        // ██  SHELL COMPONENTS
+        // ██  SHELL COMPONENTS & PAGES
         // ═══════════════════════════════════════════
         var sideNav = new SideNavBar();
         var topNav = new TopNavBar();
 
-        // ═══════════════════════════════════════════
-        // ██  PAGES (Real implementations)
-        // ═══════════════════════════════════════════
-        var dashboardPage = new DashboardPage(activeNodesMap.Values.ToList());
-        var scannerPage = new ScannerPage(db, scanner, activeNodesMap);
-        var traceroutePage = new TraceroutePage();
-        var inventoryPage = new InventoryPage(db, monitor, activeNodesMap.Values.ToList());
-        var settingsPage = new SettingsPage(db);
-        var portScansPage = new PortScansPage();
-        var alertsPage = new AlertsPage(db);
-        var logsPage = new SystemLogsPage(db);
-        var supportPage = new SupportPage();
-
-        // ═══════════════════════════════════════════
-        // ██  PAGE HOST
-        // ═══════════════════════════════════════════
-        var pageHost = new Grid();
-        pageHost.Children.Add(dashboardPage);
-        pageHost.Children.Add(scannerPage);
-        pageHost.Children.Add(traceroutePage);
-        pageHost.Children.Add(inventoryPage);
-        pageHost.Children.Add(settingsPage);
-        pageHost.Children.Add(portScansPage);
-        pageHost.Children.Add(alertsPage);
-        pageHost.Children.Add(logsPage);
-        pageHost.Children.Add(supportPage);
-
-        // Hide all except dashboard
-        scannerPage.IsVisible = false;
-        traceroutePage.IsVisible = false;
-        inventoryPage.IsVisible = false;
-        settingsPage.IsVisible = false;
-        portScansPage.IsVisible = false;
-        alertsPage.IsVisible = false;
-        logsPage.IsVisible = false;
-        supportPage.IsVisible = false;
-
         var pages = new ShellPages(
-            dashboardPage,
-            scannerPage,
-            traceroutePage,
-            inventoryPage,
-            settingsPage,
-            portScansPage,
-            alertsPage,
-            logsPage,
-            supportPage);
+            new DashboardPage(activeNodesMap.Values.ToList()),
+            new ScannerPage(db, scanner, activeNodesMap),
+            new TraceroutePage(),
+            new InventoryPage(db, monitor, activeNodesMap.Values.ToList()),
+            new SettingsPage(db),
+            new PortScansPage(),
+            new AlertsPage(db),
+            new SystemLogsPage(db),
+            new SupportPage());
 
+        var pageHost = CreatePageHost(pages);
         var showPage = SetupPageNavigation(sideNav, pages);
 
         // ═══════════════════════════════════════════
@@ -203,121 +157,162 @@ public class DarkPurpleTheme
         // ═══════════════════════════════════════════
         // ██  EVENT WIRING
         // ═══════════════════════════════════════════
-
         IntrusionAlerter.Initialize(window);
 
         void SyncGlobalStats()
         {
-            Task.Run(() =>
-            {
-                var values = activeNodesMap.Values;
-                var snapshot = new System.Collections.Generic.List<NetworkNode>(values.Count);
-
-                int online = 0;
-                long totalLatency = 0;
-                int latencyCount = 0;
-
-                foreach (var node in values)
-                {
-                    snapshot.Add(node);
-                    if (node.IsOnline)
-                    {
-                        online++;
-                        if (node.PingLatencyMs >= 0)
-                        {
-                            totalLatency += node.PingLatencyMs;
-                            latencyCount++;
-                        }
-                    }
-                }
-
-                long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
-
-                int alertCount = 0;
-                try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
-
-                Dispatcher.UIThread.Post(() =>
-                {
-                    // Update Top Nav
-                    topNav.UpdateStatus(online, avgLat, alertCount);
-
-                    // Broadcast updates
-                    EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
-                    EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
-                });
-            });
+            SyncGlobalStatistics(activeNodesMap, db, topNav);
         }
 
         WirePageEvents(sideNav, pages, monitor, activeNodesMap, db, showPage, SyncGlobalStats);
+        WireSettingsEvents(pages, services, SyncGlobalStats);
+        WireMonitorEvents(monitor, activeNodesMap, pages.Alerts, SyncGlobalStats);
+        WireWindowLifecycle(window, services, topNav, pages, SyncGlobalStats);
 
-        // ── Settings saved → push to services ──
-        settingsPage.SettingsSaved += (newSettings) =>
+        return window;
+    }
+
+    private static WindowIcon? LoadWindowIcon()
+    {
+        try
         {
-            settings = newSettings;
-            ApplySettings(newSettings, monitor, scanner, detector);
+            using var iconStream = AssetLoader.Open(new Uri("avares://NodeRadarPro/Resources/NodeRadar Pro Icon.ico"));
+            return new WindowIcon(iconStream);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warning, "UI", $"Failed to load window icon: {ex.Message}");
+            return null;
+        }
+    }
+
+    private static Grid CreatePageHost(ShellPages pages)
+    {
+        var pageHost = new Grid();
+        pageHost.Children.Add(pages.Dashboard);
+        pageHost.Children.Add(pages.Scanner);
+        pageHost.Children.Add(pages.Traceroute);
+        pageHost.Children.Add(pages.Inventory);
+        pageHost.Children.Add(pages.Settings);
+        pageHost.Children.Add(pages.PortScans);
+        pageHost.Children.Add(pages.Alerts);
+        pageHost.Children.Add(pages.Logs);
+        pageHost.Children.Add(pages.Support);
+
+        pages.Scanner.IsVisible = false;
+        pages.Traceroute.IsVisible = false;
+        pages.Inventory.IsVisible = false;
+        pages.Settings.IsVisible = false;
+        pages.PortScans.IsVisible = false;
+        pages.Alerts.IsVisible = false;
+        pages.Logs.IsVisible = false;
+        pages.Support.IsVisible = false;
+
+        return pageHost;
+    }
+
+    private static void SyncGlobalStatistics(
+        ConcurrentDictionary<string, NetworkNode> activeNodesMap,
+        LocalDatabase db,
+        TopNavBar topNav)
+    {
+        Task.Run(() =>
+        {
+            var values = activeNodesMap.Values;
+            var snapshot = new System.Collections.Generic.List<NetworkNode>(values.Count);
+
+            int online = 0;
+            long totalLatency = 0;
+            int latencyCount = 0;
+
+            foreach (var node in values)
+            {
+                snapshot.Add(node);
+                if (node.IsOnline)
+                {
+                    online++;
+                    if (node.PingLatencyMs >= 0)
+                    {
+                        totalLatency += node.PingLatencyMs;
+                        latencyCount++;
+                    }
+                }
+            }
+
+            long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
+            int alertCount = 0;
+            try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                topNav.UpdateStatus(online, avgLat, alertCount);
+                EventAggregator.Instance.Publish(new GlobalStatsUpdatedMessage(online, avgLat, alertCount));
+                EventAggregator.Instance.Publish(new NodesUpdatedMessage(snapshot));
+            });
+        });
+    }
+
+    private static void WireSettingsEvents(
+        ShellPages pages,
+        ShellServices services,
+        Action syncGlobalStats)
+    {
+        pages.Settings.SettingsSaved += (newSettings) =>
+        {
+            ApplySettings(newSettings, services.Monitor, services.Scanner, services.Detector);
             Task.Run(() =>
             {
-                try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
-                db.Checkpoint();
-                SyncGlobalStats();
+                try { services.Db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
+                services.Db.Checkpoint();
+                syncGlobalStats();
             });
         };
+    }
 
-        WireMonitorEvents(monitor, activeNodesMap, alertsPage, SyncGlobalStats);
-
-        // ═══════════════════════════════════════════
-        // ██  STARTUP
-        // ═══════════════════════════════════════════
+    private static void WireWindowLifecycle(
+        Window window,
+        ShellServices services,
+        TopNavBar topNav,
+        ShellPages pages,
+        Action syncGlobalStats)
+    {
         window.Opened += (s, e) =>
         {
             Task.Run(() =>
             {
-                // Background data load
-                settings = db.LoadSettings();
+                var settings = services.Db.LoadSettings();
+                VerifySystemIntegrity(settings, services.Db);
+                ApplySettings(settings, services.Monitor, services.Scanner, services.Detector);
 
-                // Task 2: System Integrity Shield (Verify Binaries)
-                VerifySystemIntegrity(settings, db);
-
-                // Apply settings to services (Non-UI)
-                ApplySettings(settings, monitor, scanner, detector);
-
-                // UI Status Updates
-                int online = activeNodesMap.Values.Count(n => n.IsOnline);
+                int online = services.ActiveNodesMap.Values.Count(n => n.IsOnline);
                 int alertCountActual = 0;
-                try { alertCountActual = db.GetUnresolvedAlertCount(); } catch { }
+                try { alertCountActual = services.Db.GetUnresolvedAlertCount(); } catch { }
 
                 Dispatcher.UIThread.Post(() =>
                 {
                     topNav.UpdateStatus(online, -1, alertCountActual);
-                    dashboardPage.RefreshData();
-                    inventoryPage.RefreshData();
+                    pages.Dashboard.RefreshData();
+                    pages.Inventory.RefreshData();
                 });
 
-                SyncGlobalStats();
+                syncGlobalStats();
 
-                // Start services
-                if (!activeNodesMap.IsEmpty)
+                if (!services.ActiveNodesMap.IsEmpty)
                 {
-                    _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token), cts.Token);
+                    _ = Task.Run(() => services.Monitor.StartMonitoringAsync(services.Cts.Token), services.Cts.Token);
                 }
 
-                // Start background intrusion detector (Task 3)
-                _ = Task.Run(() => detector.StartAsync(cts.Token), cts.Token);
+                _ = Task.Run(() => services.Detector.StartAsync(services.Cts.Token), services.Cts.Token);
             });
         };
 
-        // ═══════════════════════════════════════════
-        // ██  CLEANUP
-        // ═══════════════════════════════════════════
         window.Closing += (s, e) =>
         {
-            cts.Cancel();
-            cts.Dispose();
-            scannerPage.Cleanup();
-            try { db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
+            services.Cts.Cancel();
+            services.Cts.Dispose();
+            pages.Scanner.Cleanup();
+            try { services.Db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
         };
-
-        return window;
     }
 
     /// <summary>
@@ -382,6 +377,14 @@ public class DarkPurpleTheme
         SystemLogsPage Logs,
         SupportPage Support);
 
+    private sealed record ShellServices(
+        LocalDatabase Db,
+        SubnetScanner Scanner,
+        ConnectivityMonitor Monitor,
+        IntrusionDetector Detector,
+        ConcurrentDictionary<string, NetworkNode> ActiveNodesMap,
+        CancellationTokenSource Cts);
+
     private static Action<string> SetupPageNavigation(
         SideNavBar sideNav,
         ShellPages pages)
@@ -415,13 +418,11 @@ public class DarkPurpleTheme
         return ShowPage;
     }
 
-    private static void WirePageEvents(
-        SideNavBar sideNav,
+    private static void WireScannerAndAlertEvents(
         ShellPages pages,
         ConnectivityMonitor monitor,
         ConcurrentDictionary<string, NetworkNode> activeNodesMap,
         LocalDatabase db,
-        Action<string> showPage,
         Action syncGlobalStats)
     {
         // ── Scanner page data changes → refresh dashboard ──
@@ -444,6 +445,28 @@ public class DarkPurpleTheme
             });
         };
 
+        // ── Scanner device save → register device (I9) ──
+        pages.Scanner.DeviceSaved += (node) =>
+        {
+            monitor.AddDevice(node);
+            activeNodesMap.UpdateNode(node);
+            Task.Run(() =>
+            {
+                db.UpdateRegistration(node);
+                try { db.Log(LogLevel.Info, LogScanner, $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+    }
+
+    private static void WireInventoryEvents(
+        ShellPages pages,
+        ConnectivityMonitor monitor,
+        ConcurrentDictionary<string, NetworkNode> activeNodesMap,
+        LocalDatabase db,
+        Action syncGlobalStats)
+    {
         // ── Inventory page events ──
         pages.Inventory.DeviceSaved += (node) =>
         {
@@ -488,6 +511,22 @@ public class DarkPurpleTheme
             syncGlobalStats();
         };
 
+        pages.Inventory.DeviceSelected += (node) =>
+        {
+            // Fix Issue 4: Fetch history when device is selected in inventory
+            Task.Run(() =>
+            {
+                var history = db.GetUptimeHistory(node.MacAddress, 24);
+                Dispatcher.UIThread.Post(() => pages.Inventory.UpdateUptimeChart(history));
+            });
+        };
+    }
+
+    private static void WireNavigationEvents(
+        ShellPages pages,
+        SideNavBar sideNav,
+        Action<string> showPage)
+    {
         // ── Dashboard device selection → switch to inventory ──
         pages.Dashboard.DeviceSelected += (node) =>
         {
@@ -511,30 +550,20 @@ public class DarkPurpleTheme
             sideNav.SetActive(PageLogs);
             showPage(PageLogs);
         };
+    }
 
-        pages.Inventory.DeviceSelected += (node) =>
-        {
-            // Fix Issue 4: Fetch history when device is selected in inventory
-            Task.Run(() =>
-            {
-                var history = db.GetUptimeHistory(node.MacAddress, 24);
-                Dispatcher.UIThread.Post(() => pages.Inventory.UpdateUptimeChart(history));
-            });
-        };
-
-        // ── Scanner device save → register device (I9) ──
-        pages.Scanner.DeviceSaved += (node) =>
-        {
-            monitor.AddDevice(node);
-            activeNodesMap.UpdateNode(node);
-            Task.Run(() =>
-            {
-                db.UpdateRegistration(node);
-                try { db.Log(LogLevel.Info, LogScanner, $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
-                db.Checkpoint();
-                syncGlobalStats();
-            });
-        };
+    private static void WirePageEvents(
+        SideNavBar sideNav,
+        ShellPages pages,
+        ConnectivityMonitor monitor,
+        ConcurrentDictionary<string, NetworkNode> activeNodesMap,
+        LocalDatabase db,
+        Action<string> showPage,
+        Action syncGlobalStats)
+    {
+        WireScannerAndAlertEvents(pages, monitor, activeNodesMap, db, syncGlobalStats);
+        WireInventoryEvents(pages, monitor, activeNodesMap, db, syncGlobalStats);
+        WireNavigationEvents(pages, sideNav, showPage);
     }
 
     private static void WireMonitorEvents(

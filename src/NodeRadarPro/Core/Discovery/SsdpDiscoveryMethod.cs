@@ -11,6 +11,7 @@ namespace NodeRadarPro.Core.Discovery;
 public class SsdpDiscoveryMethod : IDiscoveryMethod
 {
     public string Name => "UPnP / SSDP";
+    private const string DeviceTypeRouterGateway = "Router / Gateway";
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
@@ -19,7 +20,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
 
     public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<UdpClient>? udpClientFactory = null, CancellationToken ct = default)
     {
-        using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
+        using var udp = udpClientFactory?.Invoke() ?? new UdpClient();
         try
         {
             udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
@@ -41,40 +42,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         var target = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
 
         // Listen loop in background
-        var listenTask = Task.Run(async () =>
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                try
-                {
-                    var result = await udp.ReceiveAsync(ct);
-                    string senderIp = result.RemoteEndPoint.Address.ToString();
-                    if (senderIp.StartsWith("169.254", StringComparison.Ordinal)) continue;
-                    string data = Encoding.UTF8.GetString(result.Buffer);
-
-                    Logger.Log(LogLevel.Info, Name, $"Received response from {senderIp} ({result.Buffer.Length} bytes):\r\n{data}");
-
-                    var device = TryParseSsdpResponse(senderIp, data, Name);
-                    if (device != null)
-                    {
-                        Logger.Log(LogLevel.Info, Name, $"Discovered UPnP: IP={senderIp}, Host={device.Hostname}, Vendor={device.Vendor}");
-                        onDeviceDiscovered(device);
-                    }
-                }
-                catch (OperationCanceledException) { break; }
-                catch (ObjectDisposedException) { break; }
-                catch (SocketException ex)
-                {
-                    Logger.Log(LogLevel.Info, Name, $"Socket closed or error in listening loop: {ex.Message}");
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(LogLevel.Info, Name, $"Fatal error in listening loop: {ex.Message}");
-                    break;
-                }
-            }
-        }, ct);
+        _ = Task.Run(() => ProcessIncomingResponsesAsync(udp, Name, onDeviceDiscovered, ct), ct);
 
         // Send query
         try
@@ -95,32 +63,74 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         catch (OperationCanceledException) { }
     }
 
+    private static async Task ProcessIncomingResponsesAsync(
+        UdpClient udp,
+        string protocolName,
+        Action<NetworkDevice> onDeviceDiscovered,
+        CancellationToken ct)
+    {
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var result = await udp.ReceiveAsync(ct);
+                string senderIp = result.RemoteEndPoint.Address.ToString();
+                if (senderIp.StartsWith("169.254", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                string data = Encoding.UTF8.GetString(result.Buffer);
+                Logger.Log(LogLevel.Info, protocolName, $"Received response from {senderIp} ({result.Buffer.Length} bytes):\r\n{data}");
+
+                var device = TryParseSsdpResponse(senderIp, data, protocolName);
+                if (device != null)
+                {
+                    Logger.Log(LogLevel.Info, protocolName, $"Discovered UPnP: IP={senderIp}, Host={device.Hostname}, Vendor={device.Vendor}");
+                    onDeviceDiscovered(device);
+                }
+            }
+            catch (OperationCanceledException) { break; }
+            catch (ObjectDisposedException) { break; }
+            catch (SocketException ex)
+            {
+                Logger.Log(LogLevel.Info, protocolName, $"Socket closed or error in listening loop: {ex.Message}");
+                break;
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Info, protocolName, $"Fatal error in listening loop: {ex.Message}");
+                break;
+            }
+        }
+    }
+
     private static (string Vendor, string Hostname, string DeviceType) IdentifyDevice(string server, string location)
     {
         if (server.Contains("Huawei", StringComparison.OrdinalIgnoreCase) ||
             location.Contains("huawei", StringComparison.OrdinalIgnoreCase))
         {
-            return ("Huawei", "Huawei HG8120C ONU", "Router / Gateway");
+            return ("Huawei", "Huawei HG8120C ONU", DeviceTypeRouterGateway);
         }
 
         if (server.Contains("TP-Link", StringComparison.OrdinalIgnoreCase) ||
             location.Contains("tplink", StringComparison.OrdinalIgnoreCase))
         {
-            return ("TP-Link", "TP-Link Router", "Router / Gateway");
+            return ("TP-Link", "TP-Link Router", DeviceTypeRouterGateway);
         }
 
         if (server.Contains("MikroTik", StringComparison.OrdinalIgnoreCase))
         {
-            return ("MikroTik", "MikroTik Router", "Router / Gateway");
+            return ("MikroTik", "MikroTik Router", DeviceTypeRouterGateway);
         }
 
         if (!string.IsNullOrEmpty(server))
         {
             var vendor = ParseVendorFromServerHeader(server);
-            return (vendor, $"{vendor} Router", "Router / Gateway");
+            return (vendor, $"{vendor} Router", DeviceTypeRouterGateway);
         }
 
-        return ("Unknown Vendor", "Router / ONU", "Router / Gateway");
+        return ("Unknown Vendor", "Router / ONU", DeviceTypeRouterGateway);
     }
 
     private static NetworkDevice? TryParseSsdpResponse(string senderIp, string data, string protocolName)
