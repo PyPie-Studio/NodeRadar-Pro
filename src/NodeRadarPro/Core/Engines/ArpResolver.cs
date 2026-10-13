@@ -17,6 +17,7 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class ArpResolver
 {
+    public const string UnknownMac = "Unknown";
     public delegate int SendArpDelegate(int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen);
     // Native Windows API for ARP resolution
     [DllImport("iphlpapi.dll", ExactSpelling = true)]
@@ -40,7 +41,7 @@ public static class ArpResolver
             return ResolveLinux(ipAddress);
         }
 
-        return "Unknown";
+        return UnknownMac;
     }
 
     // ── Cache for GetFullArpTable ──
@@ -80,7 +81,7 @@ public static class ArpResolver
     /// </summary>
     public static bool TryGetMacFromArpTable(string ip, out string mac)
     {
-        mac = "Unknown";
+        mac = UnknownMac;
         if (string.IsNullOrEmpty(ip)) return false;
 
         UpdateCacheIfNeeded();
@@ -134,7 +135,7 @@ public static class ArpResolver
 
     public static string FormatMacAddress(ReadOnlySpan<byte> macAddr)
     {
-        if (macAddr.Length < 6) return "Unknown";
+        if (macAddr.Length < 6) return UnknownMac;
         return string.Create(17, (macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]), (span, bytes) =>
         {
             bytes.Item1.TryFormat(span.Slice(0, 2), out _, "X2");
@@ -168,13 +169,13 @@ public static class ArpResolver
                 : SendARP((int)parsedIp.Address, srcIpInt, macAddr, ref macAddrLen);
 #pragma warning restore CS0618 
 
-            if (result != 0) return "Unknown";
+            if (result != 0) return UnknownMac;
 
             return FormatMacAddress(macAddr);
         }
         catch
         {
-            return "Unknown";
+            return UnknownMac;
         }
     }
 
@@ -274,7 +275,7 @@ public static class ArpResolver
         {
             using var reader = new System.IO.StreamReader("/proc/net/arp");
             string? line = reader.ReadLine(); // Skip header
-            if (line == null) return "Unknown";
+            if (line == null) return UnknownMac;
 
             while ((line = reader.ReadLine()) != null)
             {
@@ -286,11 +287,11 @@ public static class ArpResolver
                     }
                 }
             }
-            return "Unknown";
+            return UnknownMac;
         }
         catch
         {
-            return "Unknown";
+            return UnknownMac;
         }
     }
 

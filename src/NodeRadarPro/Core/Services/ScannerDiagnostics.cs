@@ -11,6 +11,9 @@ namespace NodeRadarPro.Core;
 
 public static class ScannerDiagnostics
 {
+    private const string SourceMacOuiLookup = "MAC OUI Lookup";
+    private const string KeyVendor = "Vendor";
+
     public static async Task<int> RunDiagnosticsAsync(Func<NetworkInterface[]>? getNetworkInterfaces = null)
     {
         Console.WriteLine("==================================================");
@@ -135,7 +138,7 @@ public static class ScannerDiagnostics
             var nodeNas = new NetworkNode { IpAddress = "192.168.1.55", MacAddress = "00:11:32:AA:BB:CC", Hostname = "Synology-NAS" };
             var probesNas = new List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Synology" } } },
+                new ProbeResult { Source = SourceMacOuiLookup, RawData = new Dictionary<string, string> { { KeyVendor, "Synology" } } },
                 new ProbeResult { Source = "mDNS / Bonjour", RawData = new Dictionary<string, string> { { "Model", "DS220+" } } }
             };
             var classNas = DeviceClassifierEngine.Classify(nodeNas, probesNas);
@@ -149,7 +152,7 @@ public static class ScannerDiagnostics
             var nodePhone = new NetworkNode { IpAddress = "192.168.1.60", MacAddress = "10:19:94:11:22:33", Hostname = "Galaxy-S21" };
             var probesPhone = new List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Samsung Electronics" } } }
+                new ProbeResult { Source = SourceMacOuiLookup, RawData = new Dictionary<string, string> { { KeyVendor, "Samsung Electronics" } } }
             };
             var classPhone = DeviceClassifierEngine.Classify(nodePhone, probesPhone);
             if (classPhone.TypeString != "Mobile Phone" || classPhone.Vendor != "Samsung Electronics" || classPhone.Os != "Linux/Android")
@@ -162,7 +165,7 @@ public static class ScannerDiagnostics
             var nodeRouter = new NetworkNode { IpAddress = "192.168.1.1", MacAddress = "00:0B:AD:99:88:77", Hostname = "router.local" };
             var probesRouter = new List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Fiberhome" } } }
+                new ProbeResult { Source = SourceMacOuiLookup, RawData = new Dictionary<string, string> { { KeyVendor, "Fiberhome" } } }
             };
             var classRouter = DeviceClassifierEngine.Classify(nodeRouter, probesRouter);
             if (classRouter.TypeString != "Router / Gateway" || classRouter.Vendor != "Fiberhome" || classRouter.Os != "Infrastructure")
@@ -175,7 +178,7 @@ public static class ScannerDiagnostics
             var nodePrivacy = new NetworkNode { IpAddress = "192.168.1.70", MacAddress = "02:11:22:33:44:55", Hostname = "Unknown Device" };
             var probesPrivacy = new List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Privacy MAC" } } }
+                new ProbeResult { Source = SourceMacOuiLookup, RawData = new Dictionary<string, string> { { KeyVendor, "Privacy MAC" } } }
             };
             var classPrivacy = DeviceClassifierEngine.Classify(nodePrivacy, probesPrivacy);
             if (classPrivacy.TypeString != "Mobile Device" || classPrivacy.Vendor != "Privacy MAC" || classPrivacy.Os != "macOS/iOS")

@@ -20,6 +20,10 @@ public class SubnetScanner
     public event Action<NetworkNode>? NodeDiscovered;
     public event Action<double>? ProgressUpdated;
 
+    private const string LogSource = "SubnetScanner";
+    private const string UnknownDevice = "Unknown Device";
+    private const string UnknownMac = ArpResolver.UnknownMac;
+
     // ── Configurable properties ──
     public int TimeoutMs { get; set; } = 1500;
     public bool EnableDnsResolve { get; set; } = true;
@@ -74,7 +78,7 @@ public class SubnetScanner
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Failed to resolve binding IP address: {ex.Message}");
+            Logger.Log(LogLevel.Warning, LogSource, $"Failed to resolve binding IP address: {ex.Message}");
         }
     }
 
@@ -439,7 +443,7 @@ public class SubnetScanner
 
         bool isReachable = false;
         long latency = -1;
-        string mac = "Unknown";
+        string mac = UnknownMac;
         int pingTimeout = Math.Min(TimeoutMs, 2000);
 
         try
@@ -458,7 +462,7 @@ public class SubnetScanner
             mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
 
             // Fallback: If direct SendARP failed, check the full system ARP table
-            if (mac == "Unknown")
+            if (mac == UnknownMac)
             {
                 if (_arpResolver.TryGetMacFromArpTable(ip, out var foundMac))
                 {
@@ -466,7 +470,7 @@ public class SubnetScanner
                 }
             }
 
-            if (mac != "Unknown") isReachable = true;
+            if (mac != UnknownMac) isReachable = true;
         }
         catch { }
 
@@ -498,10 +502,10 @@ public class SubnetScanner
             if (probeResults.Any(r => r))
             {
                 isReachable = true;
-                if (mac == "Unknown")
+                if (mac == UnknownMac)
                 {
                     mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
-                    if (mac == "Unknown")
+                    if (mac == UnknownMac)
                     {
                         if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
                     }
@@ -512,7 +516,7 @@ public class SubnetScanner
         if (!isReachable) return null;
 
         // Final fallback: Use IP-based ID but flag it properly (Issue: prevents database link loss)
-        if (mac == "Unknown")
+        if (mac == UnknownMac)
         {
             // We check the database to see if we have a device that HAD this IP recently
             // This allows us to maintain identity even if ARP is transiently failing.
@@ -545,8 +549,8 @@ public class SubnetScanner
         {
             await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
         }
-        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}"); }
-        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Metadata resolution timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
 
         return node;
     }
@@ -562,10 +566,10 @@ public class SubnetScanner
             if (EnableDnsResolve)
                 node.Hostname = await TryGetHostnameAsync(node.IpAddress);
             else
-                node.Hostname = "Unknown Device";
+                node.Hostname = UnknownDevice;
 
             // NetBIOS fallback
-            if (node.Hostname == "Unknown Device" && EnableDnsResolve && !token.IsCancellationRequested)
+            if (node.Hostname == UnknownDevice && EnableDnsResolve && !token.IsCancellationRequested)
             {
                 try
                 {
@@ -576,8 +580,8 @@ public class SubnetScanner
                     if (!string.IsNullOrEmpty(netbios))
                         node.Hostname = netbios;
                 }
-                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"NetBIOS resolution timed out for {node.IpAddress}"); }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"NetBIOS resolution failed for {node.IpAddress}: {ex.Message}"); }
+                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"NetBIOS resolution timed out for {node.IpAddress}"); }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"NetBIOS resolution failed for {node.IpAddress}: {ex.Message}"); }
             }
 
             // Inline port scanning (if enabled)
@@ -591,12 +595,12 @@ public class SubnetScanner
                     node.OpenPorts = scanResults.Keys.OrderBy(p => p).ToList();
                     node.PortBanners = scanResults;
                 }
-                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan/banner grabbing timed out for {node.IpAddress}"); }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Inline port scan/banner grabbing failed for {node.IpAddress}: {ex.Message}"); }
+                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Inline port scan/banner grabbing timed out for {node.IpAddress}"); }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Inline port scan/banner grabbing failed for {node.IpAddress}: {ex.Message}"); }
             }
         }
-        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution timed out for {node.IpAddress}"); }
-        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Metadata resolution timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
 
         // 2. Deep Fingerprinting Engine
         try
@@ -622,14 +626,14 @@ public class SubnetScanner
                 }
             }
         }
-        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Deep fingerprinting timed out for {node.IpAddress}"); }
-        catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Deep fingerprinting failed for {node.IpAddress}: {ex.Message}"); }
+        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting timed out for {node.IpAddress}"); }
+        catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting failed for {node.IpAddress}: {ex.Message}"); }
 
         // 3. Vulnerability Scoring
         VulnerabilityEngine.UpdateThreatLevel(node);
 
         // 4. UI Synchronization
-        if (string.IsNullOrEmpty(node.DeviceName) && node.Hostname != "Unknown Device")
+        if (string.IsNullOrEmpty(node.DeviceName) && node.Hostname != UnknownDevice)
             node.DeviceName = node.Hostname;
 
         if (string.IsNullOrEmpty(node.DeviceModel) && !string.IsNullOrEmpty(node.ExactModel))
@@ -646,7 +650,7 @@ public class SubnetScanner
 
     public static async Task<(bool IsOnline, string Mac, long LatencyMs)> QuickProbeAsync(string ip)
     {
-        string mac = "Unknown";
+        string mac = UnknownMac;
         long latency = -1;
         bool isOnline = false;
 
@@ -655,12 +659,12 @@ public class SubnetScanner
             mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, ""));
 
             // Fallback: Check full ARP table
-            if (mac == "Unknown")
+            if (mac == UnknownMac)
             {
                 if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
             }
 
-            if (mac != "Unknown") isOnline = true;
+            if (mac != UnknownMac) isOnline = true;
         }
         catch { }
 
@@ -672,10 +676,10 @@ public class SubnetScanner
             {
                 isOnline = true;
                 latency = reply.RoundtripTime;
-                if (mac == "Unknown")
+                if (mac == UnknownMac)
                 {
                     mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
-                    if (mac == "Unknown")
+                    if (mac == UnknownMac)
                     {
                         if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
                     }
@@ -700,10 +704,10 @@ public class SubnetScanner
                         if (tcp.Connected)
                         {
                             isOnline = true;
-                            if (mac == "Unknown")
+                            if (mac == UnknownMac)
                             {
                                 mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
-                                if (mac == "Unknown")
+                                if (mac == UnknownMac)
                                 {
                                     if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
                                 }
@@ -712,14 +716,14 @@ public class SubnetScanner
                         }
                     }
                     catch (OperationCanceledException) { }
-                    catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Port scan connection failed for {ip}:{port}: {ex.Message}"); }
+                    catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Port scan connection failed for {ip}:{port}: {ex.Message}"); }
                 }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, "SubnetScanner", $"Port scan setup failed for {ip}:{port}: {ex.Message}"); }
+                catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Port scan setup failed for {ip}:{port}: {ex.Message}"); }
             }
         }
 
         // Database correlation fallback for background monitor
-        if (isOnline && mac == "Unknown")
+        if (isOnline && mac == UnknownMac)
         {
             var existing = Data.LocalDatabase.Instance.GetRegisteredDeviceByIp(ip);
             if (existing != null) mac = existing.MacAddress;
@@ -786,7 +790,7 @@ public class SubnetScanner
         }
         catch (OperationCanceledException)
         {
-            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Hostname resolution cancelled for {ip}");
+            Logger.Log(LogLevel.Warning, LogSource, $"Hostname resolution cancelled for {ip}");
         }
         catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound)
         {
@@ -794,9 +798,9 @@ public class SubnetScanner
         }
         catch (Exception ex)
         {
-            Logger.Log(LogLevel.Warning, "SubnetScanner", $"Error resolving hostname for {ip}: {ex.Message}");
+            Logger.Log(LogLevel.Warning, LogSource, $"Error resolving hostname for {ip}: {ex.Message}");
         }
 
-        return "Unknown Device";
+        return UnknownDevice;
     }
 }

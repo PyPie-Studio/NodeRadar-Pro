@@ -90,7 +90,7 @@ public class SettingsPage : Border
             CornerRadius = new CornerRadius(8),
             HorizontalAlignment = HorizontalAlignment.Stretch,
             Padding = new Thickness(14, 10),
-            FontFamily = new FontFamily("Inter")
+            FontFamily = ThemeTokens.DefaultFont
         };
         ThemeTokens.SetToolTip(_interfaceSelector, "Choose the physical or virtual network adapter to use for scanning and monitoring.");
         PopulateNetworkInterfaces();
@@ -100,12 +100,12 @@ public class SettingsPage : Border
 
         _sweepFrequency = new Slider { Minimum = 5, Maximum = 120, Value = 30 };
         ThemeTokens.SetToolTip(_sweepFrequency, "Set how often the background monitor probes each registered device.");
-        _sweepFreqValue = new TextBlock { Text = "30s", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = new FontFamily("Inter") };
+        _sweepFreqValue = new TextBlock { Text = "30s", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont };
         _sweepFrequency.ValueChanged += (s, e) => _sweepFreqValue.Text = $"{(int)_sweepFrequency.Value}s";
 
         _responseTimeout = new Slider { Minimum = 100, Maximum = 5000, Value = 1500 };
         ThemeTokens.SetToolTip(_responseTimeout, "Maximum time to wait for a device to respond before marking it as potentially offline.");
-        _responseTimeoutValue = new TextBlock { Text = "1500ms", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = new FontFamily("Inter") };
+        _responseTimeoutValue = new TextBlock { Text = "1500ms", FontSize = 14, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont };
         _responseTimeout.ValueChanged += (s, e) => _responseTimeoutValue.Text = $"{(int)_responseTimeout.Value}ms";
 
         _synScanToggle = new CheckBox { IsChecked = false };
@@ -175,7 +175,7 @@ public class SettingsPage : Border
         _pruneBtn.FontSize = 13;
         _pruneBtn.Click += OnPruneClicked;
 
-        _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
+        _maintenanceStatus = new TextBlock { FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 4, 0, 8), TextWrapping = TextWrapping.Wrap };
 
         _backupBtn = ThemeTokens.SecondaryButton("Backup");
         ThemeTokens.SetToolTip(_backupBtn, "Export a manual copy of the database to your documents folder.");
@@ -226,7 +226,7 @@ public class SettingsPage : Border
             FontSize = 12,
             FontWeight = FontWeight.Bold,
             Foreground = ThemeTokens.NavAccentBorder,
-            FontFamily = new FontFamily("Inter"),
+            FontFamily = ThemeTokens.DefaultFont,
             LetterSpacing = 2.5,
             Margin = new Thickness(0, 0, 0, 8)
         };
@@ -244,8 +244,8 @@ public class SettingsPage : Border
         var generalTitle = ThemeTokens.Headline("General Settings", 22);
         var generalHeader = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new Thickness(0, 0, 0, 24), Children = { generalIcon, generalTitle } };
 
-        var interfaceLabel = new TextBlock { Text = "Primary Network Interface", FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 4) };
-        var interfaceDesc = new TextBlock { Text = "Select the interface for primary radar sweeps.", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 0, 0, 10) };
+        var interfaceLabel = new TextBlock { Text = "Primary Network Interface", FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 0, 0, 4) };
+        var interfaceDesc = new TextBlock { Text = "Select the interface for primary radar sweeps.", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 0, 0, 10) };
 
         var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
 
@@ -616,11 +616,11 @@ public class SettingsPage : Border
             VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") }
+                new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont }
             }
         };
         if (!string.IsNullOrEmpty(description))
-            textPanel.Children.Add(new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) });
+            textPanel.Children.Add(new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 2, 0, 0) });
         left.Children.Add(textPanel);
 
         var row = new Grid();
@@ -654,13 +654,13 @@ public class SettingsPage : Border
         var padding = compact ? new Thickness(16, 12) : new Thickness(16, 14);
         var margin = compact ? new Thickness(0, 0, 0, 8) : new Thickness(0);
 
-        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = fontWeight, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
+        var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = fontWeight, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont };
         Grid.SetColumn(titleTb, 0);
         Grid.SetColumn(valueLabel, 1);
         header.Children.Add(titleTb);
         header.Children.Add(valueLabel);
 
-        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = descMargin };
+        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = descMargin };
 
         return new Border
         {
@@ -682,8 +682,8 @@ public class SettingsPage : Border
             VerticalAlignment = VerticalAlignment.Center,
             Children =
             {
-                new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") },
-                new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = new Thickness(0, 2, 0, 0) }
+                new TextBlock { Text = title, FontSize = 14, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont },
+                new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 2, 0, 0) }
             }
         };
 

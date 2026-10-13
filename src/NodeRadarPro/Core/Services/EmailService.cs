@@ -14,6 +14,8 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class EmailService
 {
+    private const string LogSource = "EmailService";
+
     public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null, ISmtpClient? clientOverride = null)
     {
         if (!settings.EnableEmailAlerts || string.IsNullOrEmpty(settings.SmtpHost))
@@ -56,27 +58,27 @@ public static class EmailService
         }
         catch (AuthenticationException ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Authentication failed: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"SMTP Authentication failed: {ex.Message}");
         }
         catch (SmtpCommandException ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Command failed: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"SMTP Command failed: {ex.Message}");
         }
         catch (SmtpProtocolException ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"SMTP Protocol error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"SMTP Protocol error: {ex.Message}");
         }
         catch (SocketException ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"Network error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"Network error: {ex.Message}");
         }
         catch (IOException ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"I/O error: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"I/O error: {ex.Message}");
         }
         catch (Exception ex)
         {
-            targetDb.Log(LogLevel.Error, "EmailService", $"Failed to send email alert: {ex.Message}");
+            targetDb.Log(LogLevel.Error, LogSource, $"Failed to send email alert: {ex.Message}");
         }
     }
 }

@@ -5,30 +5,16 @@ using Moq.Protected;
 using NodeRadarPro.Core;
 using NodeRadarPro.UI;
 
+using NodeRadarPro.Tests.UI;
+
 namespace NodeRadarPro.Tests;
 
+[Collection("AvaloniaUIStaticState")]
 public class UptimeChartControlTests
 {
-    private static bool _appInitialized;
-
     public UptimeChartControlTests()
     {
-        if (!_appInitialized)
-        {
-            try
-            {
-                AppBuilder.Configure<Avalonia.Application>()
-                    .UsePlatformDetect()
-                    .WithInterFont()
-                    .SetupWithoutStarting();
-            }
-            catch (Exception ex)
-            {
-                // Avalonia platform may already be initialized by preceding test fixtures
-                _ = ex;
-            }
-            _appInitialized = true;
-        }
+        AvaloniaTestApp.EnsureInitialized();
     }
 
     [Fact]

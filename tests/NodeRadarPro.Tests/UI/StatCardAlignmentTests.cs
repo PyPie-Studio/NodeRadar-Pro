@@ -1,32 +1,16 @@
 using System.Reflection;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using NodeRadarPro.UI;
 
 namespace NodeRadarPro.Tests.UI;
 
+[Collection("AvaloniaUIStaticState")]
 public class StatCardAlignmentTests
 {
-    private static bool _appInitialized;
-
     public StatCardAlignmentTests()
     {
-        if (!_appInitialized)
-        {
-            try
-            {
-                AppBuilder.Configure<Avalonia.Application>()
-                    .UsePlatformDetect()
-                    .WithInterFont()
-                    .SetupWithoutStarting();
-            }
-            catch (Exception ex)
-            {
-                _ = ex;
-            }
-            _appInitialized = true;
-        }
+        AvaloniaTestApp.EnsureInitialized();
     }
 
     [Fact]

@@ -15,43 +15,47 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
     [DllImport("iphlpapi.dll", ExactSpelling = true)]
     private static extern int SendARP(int DestIP, int SrcIP, byte[] pMacAddr, ref uint PhyAddrLen);
 
+    private const string VendorApple = "Apple";
+    private const string VendorHuawei = "Huawei";
+    private const string VendorXiaomi = "Xiaomi";
+
     private static readonly Dictionary<string, string> BasicOuiDictionary = new(StringComparer.OrdinalIgnoreCase)
     {
         // Apple
-        { "00:1C:B3", "Apple" },
-        { "00:1F:5B", "Apple" },
-        { "00:25:00", "Apple" },
-        { "00:25:4B", "Apple" },
-        { "00:26:BB", "Apple" },
-        { "04:0C:CE", "Apple" },
-        { "04:15:F6", "Apple" },
-        { "04:26:65", "Apple" },
-        { "04:52:F3", "Apple" },
+        { "00:1C:B3", VendorApple },
+        { "00:1F:5B", VendorApple },
+        { "00:25:00", VendorApple },
+        { "00:25:4B", VendorApple },
+        { "00:26:BB", VendorApple },
+        { "04:0C:CE", VendorApple },
+        { "04:15:F6", VendorApple },
+        { "04:26:65", VendorApple },
+        { "04:52:F3", VendorApple },
         // Huawei
-        { "00:18:82", "Huawei" },
-        { "00:1E:10", "Huawei" },
-        { "00:22:A1", "Huawei" },
-        { "00:25:68", "Huawei" },
-        { "00:46:4B", "Huawei" },
-        { "20:0B:C7", "Huawei" },
-        { "20:2B:20", "Huawei" },
-        { "24:69:A5", "Huawei" },
-        { "30:87:30", "Huawei" },
-        { "40:4D:7F", "Huawei" },
-        { "4C:F2:BF", "Huawei" },
-        { "AC:E2:15", "Huawei" },
+        { "00:18:82", VendorHuawei },
+        { "00:1E:10", VendorHuawei },
+        { "00:22:A1", VendorHuawei },
+        { "00:25:68", VendorHuawei },
+        { "00:46:4B", VendorHuawei },
+        { "20:0B:C7", VendorHuawei },
+        { "20:2B:20", VendorHuawei },
+        { "24:69:A5", VendorHuawei },
+        { "30:87:30", VendorHuawei },
+        { "40:4D:7F", VendorHuawei },
+        { "4C:F2:BF", VendorHuawei },
+        { "AC:E2:15", VendorHuawei },
         // Xiaomi
-        { "00:EC:0A", "Xiaomi" },
-        { "18:59:36", "Xiaomi" },
-        { "28:6C:07", "Xiaomi" },
-        { "34:80:B3", "Xiaomi" },
-        { "3C:BD:3E", "Xiaomi" },
-        { "50:EC:50", "Xiaomi" },
-        { "64:09:80", "Xiaomi" },
-        { "7C:1D:D9", "Xiaomi" },
-        { "8C:BE:BE", "Xiaomi" },
-        { "98:FA:E3", "Xiaomi" },
-        { "AC:F1:DF", "Xiaomi" }
+        { "00:EC:0A", VendorXiaomi },
+        { "18:59:36", VendorXiaomi },
+        { "28:6C:07", VendorXiaomi },
+        { "34:80:B3", VendorXiaomi },
+        { "3C:BD:3E", VendorXiaomi },
+        { "50:EC:50", VendorXiaomi },
+        { "64:09:80", VendorXiaomi },
+        { "7C:1D:D9", VendorXiaomi },
+        { "8C:BE:BE", VendorXiaomi },
+        { "98:FA:E3", VendorXiaomi },
+        { "AC:F1:DF", VendorXiaomi }
     };
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)

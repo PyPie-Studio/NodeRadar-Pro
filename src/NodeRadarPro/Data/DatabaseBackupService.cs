@@ -12,6 +12,7 @@ namespace NodeRadarPro.Data;
 /// </summary>
 public class DatabaseBackupService
 {
+    private const string LogSource = "Database";
     private readonly LocalDatabase _database;
 
     public DatabaseBackupService(LocalDatabase database)
@@ -28,7 +29,7 @@ public class DatabaseBackupService
                 string sourcePath = _database.DbPath;
                 if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
                 {
-                    _database.Log(LogLevel.Info, "Database", "Backup skipped: Database file not found (new install?)");
+                    _database.Log(LogLevel.Info, LogSource, "Backup skipped: Database file not found (new install?)");
                     return "";
                 }
 
@@ -51,7 +52,7 @@ public class DatabaseBackupService
                     Directory.CreateDirectory(backupDir);
 
                 File.Copy(sourcePath, destPath, true);
-                _database.Log(LogLevel.Info, "Database", $"Database backed up to: {destPath}");
+                _database.Log(LogLevel.Info, LogSource, $"Database backed up to: {destPath}");
 
                 if (customPath == null) CleanupOldBackups(backupDir);
 
@@ -59,12 +60,12 @@ public class DatabaseBackupService
             }
             catch (IOException ex)
             {
-                _database.Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Backup failed: {ex.Message}");
                 return "";
             }
             catch (UnauthorizedAccessException ex)
             {
-                _database.Log(LogLevel.Error, "Database", $"Backup failed: {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Backup failed: {ex.Message}");
                 return "";
             }
         }
@@ -94,31 +95,31 @@ public class DatabaseBackupService
                 var newDb = new LiteDatabase(connectionString);
                 _database.ReplaceConnection(newDb);
 
-                _database.Log(LogLevel.Info, "Database", $"Database restored from: {backupPath}");
+                _database.Log(LogLevel.Info, LogSource, $"Database restored from: {backupPath}");
                 return true;
             }
             catch (IOException ex)
             {
                 _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, "Database", $"Database restore failed: File in use or I/O error. {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: File in use or I/O error. {ex.Message}");
                 return false;
             }
             catch (UnauthorizedAccessException ex)
             {
                 _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, "Database", $"Database restore failed: Permission denied when accessing file. {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: Permission denied when accessing file. {ex.Message}");
                 return false;
             }
             catch (LiteException ex)
             {
                 _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, "Database", $"Database restore failed: Database structure invalid/corrupted. {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: Database structure invalid/corrupted. {ex.Message}");
                 return false;
             }
             catch (Exception ex)
             {
                 _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, "Database", $"Restore failed: {ex.Message}");
+                _database.Log(LogLevel.Error, LogSource, $"Restore failed: {ex.Message}");
                 return false;
             }
         }
@@ -155,7 +156,7 @@ public class DatabaseBackupService
             foreach (var file in files)
             {
                 file.Delete();
-                _database.Log(LogLevel.Info, "Database", $"Cleaned up old backup: {file.Name}");
+                _database.Log(LogLevel.Info, LogSource, $"Cleaned up old backup: {file.Name}");
             }
         }
         catch

@@ -12,8 +12,8 @@ insert_final_newline = true
 # Roslyn Code Analysis Diagnostics (CA rules) enforced as warnings
 dotnet_analyzer_diagnostic.severity = warning
 
-# SonarLint Cognitive Complexity advisory suggestion
-dotnet_diagnostic.S3776.severity = suggestion
+# SonarLint Cognitive Complexity disabled to prevent false positives on UI wiring & binary packet decoders
+dotnet_diagnostic.S3776.severity = none
 
 # Promoted Analyzer Diagnostics enforced as error
 dotnet_diagnostic.CA1307.severity = error
@@ -28,6 +28,7 @@ dotnet_diagnostic.CA1860.severity = error
 dotnet_diagnostic.CA1866.severity = error
 dotnet_diagnostic.CA1859.severity = error
 dotnet_diagnostic.CA1068.severity = error
+dotnet_diagnostic.CA2016.severity = error
 dotnet_diagnostic.CA2263.severity = error
 dotnet_diagnostic.S107.severity = error
 dotnet_diagnostic.S1192.severity = suggestion

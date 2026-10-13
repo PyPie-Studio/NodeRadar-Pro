@@ -49,71 +49,15 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
                 {
                     var result = await udp.ReceiveAsync(ct);
                     string senderIp = result.RemoteEndPoint.Address.ToString();
-                    if (senderIp.StartsWith("169.254")) continue;
+                    if (senderIp.StartsWith("169.254", StringComparison.Ordinal)) continue;
                     string data = Encoding.UTF8.GetString(result.Buffer);
 
                     Logger.Log(LogLevel.Info, Name, $"Received response from {senderIp} ({result.Buffer.Length} bytes):\r\n{data}");
 
-                    // Parse SSDP response headers
-                    string server = string.Empty;
-                    string location = string.Empty;
-
-                    var lines = data.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
-                    foreach (var line in lines)
+                    var device = TryParseSsdpResponse(senderIp, data, Name);
+                    if (device != null)
                     {
-                        if (line.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase))
-                        {
-                            server = line.Substring(7).Trim();
-                        }
-                        else if (line.StartsWith("LOCATION:", StringComparison.OrdinalIgnoreCase))
-                        {
-                            location = line.Substring(9).Trim();
-                        }
-                    }
-
-                    if (!string.IsNullOrEmpty(server) || !string.IsNullOrEmpty(location))
-                    {
-                        string vendor = "Unknown Vendor";
-                        string deviceType = "Router / Gateway";
-                        string hostname = "Router / ONU";
-
-                        // Fingerprint ONU/Huawei HG8120C and routers from analysis guidelines
-                        if (server.Contains("Huawei", StringComparison.OrdinalIgnoreCase) ||
-                            location.Contains("huawei", StringComparison.OrdinalIgnoreCase))
-                        {
-                            vendor = "Huawei";
-                            hostname = "Huawei HG8120C ONU";
-                            deviceType = "Router / Gateway";
-                        }
-                        else if (server.Contains("TP-Link", StringComparison.OrdinalIgnoreCase) ||
-                                 location.Contains("tplink", StringComparison.OrdinalIgnoreCase))
-                        {
-                            vendor = "TP-Link";
-                            hostname = "TP-Link Router";
-                        }
-                        else if (server.Contains("MikroTik", StringComparison.OrdinalIgnoreCase))
-                        {
-                            vendor = "MikroTik";
-                            hostname = "MikroTik Router";
-                        }
-                        else if (!string.IsNullOrEmpty(server))
-                        {
-                            vendor = ParseVendorFromServerHeader(server);
-                            hostname = $"{vendor} Router";
-                        }
-
-                        var device = new NetworkDevice
-                        {
-                            IpAddress = senderIp,
-                            Hostname = hostname,
-                            Vendor = vendor,
-                            DeviceType = deviceType,
-                            SourceProtocol = Name,
-                            IsOnline = true,
-                            RawDetails = $"Server: {server} | Location: {location}"
-                        };
-
-                        Logger.Log(LogLevel.Info, Name, $"Discovered UPnP: IP={senderIp}, Host={hostname}, Vendor={vendor}");
+                        Logger.Log(LogLevel.Info, Name, $"Discovered UPnP: IP={senderIp}, Host={device.Hostname}, Vendor={device.Vendor}");
                         onDeviceDiscovered(device);
                     }
                 }
@@ -149,6 +93,71 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
             await Task.Delay(3000, ct);
         }
         catch (OperationCanceledException) { }
+    }
+
+    private static (string Vendor, string Hostname, string DeviceType) IdentifyDevice(string server, string location)
+    {
+        if (server.Contains("Huawei", StringComparison.OrdinalIgnoreCase) ||
+            location.Contains("huawei", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Huawei", "Huawei HG8120C ONU", "Router / Gateway");
+        }
+
+        if (server.Contains("TP-Link", StringComparison.OrdinalIgnoreCase) ||
+            location.Contains("tplink", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("TP-Link", "TP-Link Router", "Router / Gateway");
+        }
+
+        if (server.Contains("MikroTik", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("MikroTik", "MikroTik Router", "Router / Gateway");
+        }
+
+        if (!string.IsNullOrEmpty(server))
+        {
+            var vendor = ParseVendorFromServerHeader(server);
+            return (vendor, $"{vendor} Router", "Router / Gateway");
+        }
+
+        return ("Unknown Vendor", "Router / ONU", "Router / Gateway");
+    }
+
+    private static NetworkDevice? TryParseSsdpResponse(string senderIp, string data, string protocolName)
+    {
+        string server = string.Empty;
+        string location = string.Empty;
+
+        var lines = data.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var line in lines)
+        {
+            if (line.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase))
+            {
+                server = line.Substring(7).Trim();
+            }
+            else if (line.StartsWith("LOCATION:", StringComparison.OrdinalIgnoreCase))
+            {
+                location = line.Substring(9).Trim();
+            }
+        }
+
+        if (string.IsNullOrEmpty(server) && string.IsNullOrEmpty(location))
+        {
+            return null;
+        }
+
+        var (vendor, hostname, deviceType) = IdentifyDevice(server, location);
+
+        return new NetworkDevice
+        {
+            IpAddress = senderIp,
+            Hostname = hostname,
+            Vendor = vendor,
+            DeviceType = deviceType,
+            SourceProtocol = protocolName,
+            IsOnline = true,
+            RawDetails = $"Server: {server} | Location: {location}"
+        };
     }
 
     public static string ParseVendorFromServerHeader(string? serverHeader)

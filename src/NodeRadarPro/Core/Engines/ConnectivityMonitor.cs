@@ -59,7 +59,7 @@ public class ConnectivityMonitor
     {
         foreach (var device in devices)
         {
-            if (device.MacAddress == "Unknown") continue;
+            if (device.MacAddress == ArpResolver.UnknownMac) continue;
             _trackedDevices.AddOrUpdate(device.MacAddress, device, (_, existing) =>
             {
                 device.CustomName = string.IsNullOrEmpty(device.CustomName) ? existing.CustomName : device.CustomName;
@@ -77,7 +77,7 @@ public class ConnectivityMonitor
 
     public void AddDevice(NetworkNode device)
     {
-        if (device.MacAddress != "Unknown")
+        if (device.MacAddress != ArpResolver.UnknownMac)
             _trackedDevices.UpdateNode(device);
     }
 
@@ -130,7 +130,7 @@ public class ConnectivityMonitor
             int pingTimeout = Math.Min(TimeoutMs, 2000);
 
             // Fast ARP check using cached ARP table
-            if (arpTableDict.TryGetValue(device.IpAddress, out var arpMac) && !string.IsNullOrEmpty(arpMac) && arpMac != "Unknown")
+            if (arpTableDict.TryGetValue(device.IpAddress, out var arpMac) && !string.IsNullOrEmpty(arpMac) && arpMac != ArpResolver.UnknownMac)
             {
                 arpOnline = true;
             }
@@ -141,8 +141,8 @@ public class ConnectivityMonitor
                     await _arpSemaphore.WaitAsync(token);
                     try
                     {
-                        string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
-                        if (mac != "Unknown") arpOnline = true;
+                        string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress), token);
+                        if (mac != ArpResolver.UnknownMac) arpOnline = true;
                     }
                     finally
                     {

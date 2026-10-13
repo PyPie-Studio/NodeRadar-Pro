@@ -4,28 +4,16 @@ using Moq;
 using NodeRadarPro.Core;
 using NodeRadarPro.UI;
 
+using NodeRadarPro.Tests.UI;
+
 namespace NodeRadarPro.Tests;
 
+[Collection("AvaloniaUIStaticState")]
 public class RadarCanvasTests
 {
-    private static bool _appInitialized;
-
     public RadarCanvasTests()
     {
-        if (!_appInitialized)
-        {
-            try
-            {
-                AppBuilder.Configure<Avalonia.Application>()
-                    .UsePlatformDetect()
-                    .WithInterFont()
-                    .SetupWithoutStarting();
-            }
-            catch
-            {
-            }
-            _appInitialized = true;
-        }
+        AvaloniaTestApp.EnsureInitialized();
     }
 
     [Fact]

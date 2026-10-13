@@ -20,6 +20,20 @@ namespace NodeRadarPro.UI;
 /// </summary>
 public class DarkPurpleTheme
 {
+    private const string PageDashboard = "dashboard";
+    private const string PageRadar = "radar";
+    private const string PageTraceroute = "traceroute";
+    private const string PageInventory = "inventory";
+    private const string PageSettings = "settings";
+    private const string PagePortScans = "portscans";
+    private const string PageAlerts = "alerts";
+    private const string PageLogs = "logs";
+    private const string PageSupport = "support";
+
+    private const string LogSecurity = "Security";
+    private const string LogInventory = "Inventory";
+    private const string LogScanner = "Scanner";
+
     private static DispatcherTimer? _autoBackupTimer;
 
     public static void OnStartup(Window mainWindow)
@@ -98,20 +112,7 @@ public class DarkPurpleTheme
         var activeNodesMap = new ConcurrentDictionary<string, NetworkNode>();
 
         // Load registered devices from database (Issue: Inventory was empty on restart)
-        try
-        {
-            var registered = db.GetRegisteredDevices();
-            foreach (var node in registered)
-            {
-                node.IsOnline = false; // Initially offline until monitor probes them
-                activeNodesMap.TryAdd(node.MacAddress, node);
-                monitor.AddDevice(node);
-            }
-        }
-        catch (Exception ex)
-        {
-            db.Log(LogLevel.Error, "Database", $"Failed to load registered devices: {ex.Message}");
-        }
+        LoadRegisteredDevices(db, monitor, activeNodesMap);
 
         var cts = new CancellationTokenSource();
 
@@ -161,32 +162,18 @@ public class DarkPurpleTheme
         logsPage.IsVisible = false;
         supportPage.IsVisible = false;
 
-        void ShowPage(string name)
-        {
-            dashboardPage.IsVisible = name == "dashboard";
-            scannerPage.IsVisible = name == "radar";
-            traceroutePage.IsVisible = name == "traceroute";
-            inventoryPage.IsVisible = name == "inventory";
-            settingsPage.IsVisible = name == "settings";
-            portScansPage.IsVisible = name == "portscans";
-            alertsPage.IsVisible = name == "alerts";
-            logsPage.IsVisible = name == "logs";
-            supportPage.IsVisible = name == "support";
+        var pages = new ShellPages(
+            dashboardPage,
+            scannerPage,
+            traceroutePage,
+            inventoryPage,
+            settingsPage,
+            portScansPage,
+            alertsPage,
+            logsPage,
+            supportPage);
 
-            // Refresh active page data
-            if (name == "dashboard") dashboardPage.RefreshData();
-            if (name == "inventory") inventoryPage.RefreshData();
-            if (name == "settings") settingsPage.Refresh();
-            if (name == "alerts") alertsPage.RefreshAlerts();
-            if (name == "logs")
-            {
-                // Issue 9: Clear filters when navigating directly to logs page
-                logsPage.ClearAllFilters();
-                logsPage.RefreshLogs();
-            }
-        }
-
-        sideNav.PageChanged += ShowPage;
+        var showPage = SetupPageNavigation(sideNav, pages);
 
         // ═══════════════════════════════════════════
         // ██  LAYOUT: Sidebar + (TopNav / PageHost)
@@ -261,117 +248,7 @@ public class DarkPurpleTheme
             });
         }
 
-        // ── Scanner page data changes → refresh dashboard ──
-        scannerPage.DataChanged += () =>
-        {
-            Task.Run(() =>
-            {
-                int count = activeNodesMap.Values.Count(n => n.IsOnline);
-                try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
-                SyncGlobalStats();
-            });
-        };
-
-        alertsPage.AlertsChanged += () =>
-        {
-            Task.Run(() =>
-            {
-                db.Checkpoint();
-                SyncGlobalStats();
-            });
-        };
-
-        // ── Inventory page events ──
-        inventoryPage.DeviceSaved += (node) =>
-        {
-            monitor.AddDevice(node);
-            activeNodesMap.UpdateNode(node);
-            Task.Run(() =>
-            {
-                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
-                db.Checkpoint();
-                SyncGlobalStats();
-            });
-        };
-
-        inventoryPage.DeviceDeleted += (node) =>
-        {
-            activeNodesMap.TryRemove(node.MacAddress, out _);
-            Task.Run(() =>
-            {
-                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
-                db.Checkpoint();
-                SyncGlobalStats();
-            });
-        };
-
-        inventoryPage.DevicesDeleted += (nodes) =>
-        {
-            foreach (var node in nodes)
-            {
-                activeNodesMap.TryRemove(node.MacAddress, out _);
-            }
-            Task.Run(() =>
-            {
-                try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
-                db.Checkpoint();
-                SyncGlobalStats();
-            });
-        };
-
-        inventoryPage.DeviceStatusChanged += (node) =>
-        {
-            activeNodesMap.UpdateNode(node);
-            SyncGlobalStats();
-        };
-
-        // ── Dashboard device selection → switch to inventory ──
-        dashboardPage.DeviceSelected += (node) =>
-        {
-            sideNav.SetActive("inventory");
-            ShowPage("inventory");
-            inventoryPage.ShowDevice(node);
-        };
-
-        // ── Dashboard View Logs → navigate to alerts page (B6) ──
-        dashboardPage.ViewLogsRequested += () =>
-        {
-            sideNav.SetActive("alerts");
-            ShowPage("alerts");
-        };
-
-        // ── Inventory View Logs → navigate to logs page with device filter (B7/U12) ──
-        inventoryPage.ViewLogsRequested += (mac) =>
-        {
-            logsPage.ClearDeviceFilter(); // Reset first to ensure clean state
-            logsPage.FilterByDevice(mac);
-            sideNav.SetActive("logs");
-            ShowPage("logs");
-        };
-
-        inventoryPage.DeviceSelected += (node) =>
-        {
-            // Fix Issue 4: Fetch history when device is selected in inventory
-            Task.Run(() =>
-            {
-                var history = db.GetUptimeHistory(node.MacAddress, 24);
-                Dispatcher.UIThread.Post(() => inventoryPage.UpdateUptimeChart(history));
-            });
-        };
-
-        // ── Scanner device save → register device (I9) ──
-        scannerPage.DeviceSaved += (node) =>
-        {
-            monitor.AddDevice(node);
-            activeNodesMap.UpdateNode(node);
-            Task.Run(() =>
-            {
-                db.UpdateRegistration(node);
-                try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
-                db.Checkpoint();
-                SyncGlobalStats();
-            });
-        };
+        WirePageEvents(sideNav, pages, monitor, activeNodesMap, db, showPage, SyncGlobalStats);
 
         // ── Settings saved → push to services ──
         settingsPage.SettingsSaved += (newSettings) =>
@@ -386,51 +263,7 @@ public class DarkPurpleTheme
             });
         };
 
-        // ── Monitor alert events → update alerts page ──
-        monitor.AlertTriggered += (alert) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (alertsPage.IsVisible) alertsPage.RefreshAlerts();
-                SyncGlobalStats();
-            });
-        };
-
-        // ═══════════════════════════════════════════
-        // ██  CONNECTIVITY MONITOR EVENTS
-        // ═══════════════════════════════════════════
-
-        monitor.DeviceWentOffline += (node) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                IntrusionAlerter.AlertDeviceOffline(node);
-                activeNodesMap.UpdateNode(node);
-                SyncGlobalStats();
-            });
-        };
-
-        monitor.DeviceCameOnline += (node) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                IntrusionAlerter.AlertDeviceReconnected(node);
-                activeNodesMap.UpdateNode(node);
-                SyncGlobalStats();
-            });
-        };
-
-        monitor.StatusUpdated += (updatedNodes) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                foreach (var updated in updatedNodes)
-                {
-                    activeNodesMap.UpdateNode(updated);
-                }
-                SyncGlobalStats();
-            });
-        };
+        WireMonitorEvents(monitor, activeNodesMap, alertsPage, SyncGlobalStats);
 
         // ═══════════════════════════════════════════
         // ██  STARTUP
@@ -520,6 +353,238 @@ public class DarkPurpleTheme
         detector.Configure(settings);
     }
 
+    private static void LoadRegisteredDevices(LocalDatabase db, ConnectivityMonitor monitor, ConcurrentDictionary<string, NetworkNode> activeNodesMap)
+    {
+        try
+        {
+            var registered = db.GetRegisteredDevices();
+            foreach (var node in registered)
+            {
+                node.IsOnline = false; // Initially offline until monitor probes them
+                activeNodesMap.TryAdd(node.MacAddress, node);
+                monitor.AddDevice(node);
+            }
+        }
+        catch (Exception ex)
+        {
+            db.Log(LogLevel.Error, "Database", $"Failed to load registered devices: {ex.Message}");
+        }
+    }
+
+    private sealed record ShellPages(
+        DashboardPage Dashboard,
+        ScannerPage Scanner,
+        TraceroutePage Traceroute,
+        InventoryPage Inventory,
+        SettingsPage Settings,
+        PortScansPage PortScans,
+        AlertsPage Alerts,
+        SystemLogsPage Logs,
+        SupportPage Support);
+
+    private static Action<string> SetupPageNavigation(
+        SideNavBar sideNav,
+        ShellPages pages)
+    {
+        void ShowPage(string name)
+        {
+            pages.Dashboard.IsVisible = name == PageDashboard;
+            pages.Scanner.IsVisible = name == PageRadar;
+            pages.Traceroute.IsVisible = name == PageTraceroute;
+            pages.Inventory.IsVisible = name == PageInventory;
+            pages.Settings.IsVisible = name == PageSettings;
+            pages.PortScans.IsVisible = name == PagePortScans;
+            pages.Alerts.IsVisible = name == PageAlerts;
+            pages.Logs.IsVisible = name == PageLogs;
+            pages.Support.IsVisible = name == PageSupport;
+
+            // Refresh active page data
+            if (name == PageDashboard) pages.Dashboard.RefreshData();
+            if (name == PageInventory) pages.Inventory.RefreshData();
+            if (name == PageSettings) pages.Settings.Refresh();
+            if (name == PageAlerts) pages.Alerts.RefreshAlerts();
+            if (name == PageLogs)
+            {
+                // Issue 9: Clear filters when navigating directly to logs page
+                pages.Logs.ClearAllFilters();
+                pages.Logs.RefreshLogs();
+            }
+        }
+
+        sideNav.PageChanged += ShowPage;
+        return ShowPage;
+    }
+
+    private static void WirePageEvents(
+        SideNavBar sideNav,
+        ShellPages pages,
+        ConnectivityMonitor monitor,
+        ConcurrentDictionary<string, NetworkNode> activeNodesMap,
+        LocalDatabase db,
+        Action<string> showPage,
+        Action syncGlobalStats)
+    {
+        // ── Scanner page data changes → refresh dashboard ──
+        pages.Scanner.DataChanged += () =>
+        {
+            Task.Run(() =>
+            {
+                int count = activeNodesMap.Values.Count(n => n.IsOnline);
+                try { db.Log(LogLevel.Info, LogScanner, $"Scan discovered {count} devices"); } catch { }
+                syncGlobalStats();
+            });
+        };
+
+        pages.Alerts.AlertsChanged += () =>
+        {
+            Task.Run(() =>
+            {
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+
+        // ── Inventory page events ──
+        pages.Inventory.DeviceSaved += (node) =>
+        {
+            monitor.AddDevice(node);
+            activeNodesMap.UpdateNode(node);
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, LogInventory, $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+
+        pages.Inventory.DeviceDeleted += (node) =>
+        {
+            activeNodesMap.TryRemove(node.MacAddress, out _);
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, LogInventory, $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+
+        pages.Inventory.DevicesDeleted += (nodes) =>
+        {
+            foreach (var node in nodes)
+            {
+                activeNodesMap.TryRemove(node.MacAddress, out _);
+            }
+            Task.Run(() =>
+            {
+                try { db.Log(LogLevel.Info, LogInventory, $"Bulk deleted {nodes.Count()} devices"); } catch { }
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+
+        pages.Inventory.DeviceStatusChanged += (node) =>
+        {
+            activeNodesMap.UpdateNode(node);
+            syncGlobalStats();
+        };
+
+        // ── Dashboard device selection → switch to inventory ──
+        pages.Dashboard.DeviceSelected += (node) =>
+        {
+            sideNav.SetActive(PageInventory);
+            showPage(PageInventory);
+            pages.Inventory.ShowDevice(node);
+        };
+
+        // ── Dashboard View Logs → navigate to alerts page (B6) ──
+        pages.Dashboard.ViewLogsRequested += () =>
+        {
+            sideNav.SetActive(PageAlerts);
+            showPage(PageAlerts);
+        };
+
+        // ── Inventory View Logs → navigate to logs page with device filter (B7/U12) ──
+        pages.Inventory.ViewLogsRequested += (mac) =>
+        {
+            pages.Logs.ClearDeviceFilter(); // Reset first to ensure clean state
+            pages.Logs.FilterByDevice(mac);
+            sideNav.SetActive(PageLogs);
+            showPage(PageLogs);
+        };
+
+        pages.Inventory.DeviceSelected += (node) =>
+        {
+            // Fix Issue 4: Fetch history when device is selected in inventory
+            Task.Run(() =>
+            {
+                var history = db.GetUptimeHistory(node.MacAddress, 24);
+                Dispatcher.UIThread.Post(() => pages.Inventory.UpdateUptimeChart(history));
+            });
+        };
+
+        // ── Scanner device save → register device (I9) ──
+        pages.Scanner.DeviceSaved += (node) =>
+        {
+            monitor.AddDevice(node);
+            activeNodesMap.UpdateNode(node);
+            Task.Run(() =>
+            {
+                db.UpdateRegistration(node);
+                try { db.Log(LogLevel.Info, LogScanner, $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
+                db.Checkpoint();
+                syncGlobalStats();
+            });
+        };
+    }
+
+    private static void WireMonitorEvents(
+        ConnectivityMonitor monitor,
+        ConcurrentDictionary<string, NetworkNode> activeNodesMap,
+        AlertsPage alertsPage,
+        Action syncGlobalStats)
+    {
+        monitor.AlertTriggered += (alert) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (alertsPage.IsVisible) alertsPage.RefreshAlerts();
+                syncGlobalStats();
+            });
+        };
+
+        monitor.DeviceWentOffline += (node) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                IntrusionAlerter.AlertDeviceOffline(node);
+                activeNodesMap.UpdateNode(node);
+                syncGlobalStats();
+            });
+        };
+
+        monitor.DeviceCameOnline += (node) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                IntrusionAlerter.AlertDeviceReconnected(node);
+                activeNodesMap.UpdateNode(node);
+                syncGlobalStats();
+            });
+        };
+
+        monitor.StatusUpdated += (updatedNodes) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var updated in updatedNodes)
+                {
+                    activeNodesMap.UpdateNode(updated);
+                }
+                syncGlobalStats();
+            });
+        };
+    }
+
     /// <summary>
     /// Verifies the system integrity by checking the binary file hash against the last known good hash.
     /// </summary>
@@ -545,20 +610,20 @@ public class DarkPurpleTheme
             {
                 settings.LastKnownGoodHash = currentHash;
                 db.SaveSettings(settings);
-                db.Log(LogLevel.Info, "Security", "System integrity signature locked.");
+                db.Log(LogLevel.Info, LogSecurity, "System integrity signature locked.");
             }
             else if (!SecurityService.VerifyHash(settings.LastKnownGoodHash, currentHash))
             {
-                db.Log(LogLevel.Warning, "Security", "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
+                db.Log(LogLevel.Warning, LogSecurity, "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
             }
             else
             {
-                db.Log(LogLevel.Info, "Security", "System integrity verified (SHA256).");
+                db.Log(LogLevel.Info, LogSecurity, "System integrity verified (SHA256).");
             }
         }
         catch (Exception ex)
         {
-            db.Log(LogLevel.Warning, "Security", $"Integrity check deferred: {ex.Message}");
+            db.Log(LogLevel.Warning, LogSecurity, $"Integrity check deferred: {ex.Message}");
         }
     }
 }

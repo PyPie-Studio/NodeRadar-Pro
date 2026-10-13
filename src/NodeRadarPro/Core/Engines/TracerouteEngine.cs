@@ -36,7 +36,7 @@ public class TracerouteEngine
         {
             if (!IPAddress.TryParse(destination, out IPAddress? destAddr))
             {
-                var hostEntry = await Dns.GetHostEntryAsync(destination);
+                var hostEntry = await Dns.GetHostEntryAsync(destination, token);
                 destAddr = hostEntry.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
             }
 

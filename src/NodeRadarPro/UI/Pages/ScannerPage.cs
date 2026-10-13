@@ -675,60 +675,10 @@ public class ScannerPage : Border
         ThemeTokens.AddCopyAction(macText);
 
         // Device identity with icon and OS/Vendor details
-        string iconPath = ThemeTokens.GetDeviceSvg(node.IconPath);
-        var iconControl = ThemeTokens.VectorIcon(iconPath, 16, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
-        iconControl.VerticalAlignment = VerticalAlignment.Center;
-
-        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
-        string identitySubtitle = node.SubtitleText;
-        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess, StringComparison.OrdinalIgnoreCase))
-            identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
-
-        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor", StringComparison.OrdinalIgnoreCase))
-            identitySubtitle = "Unknown Device";
-
-        var devPanel = new StackPanel
-        {
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(16, 0),
-            Children =
-            {
-                new StackPanel
-                {
-                    Orientation = Orientation.Horizontal,
-                    Spacing = 8,
-                    Children =
-                    {
-                        iconControl,
-                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
-                    }
-                },
-                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Opacity = 0.7 }
-            }
-        };
+        var devPanel = MakeDeviceIdentityCell(node);
 
         // Open Ports — show actual discovered open ports as badges
-        var portsPanel = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 4,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(16, 0)
-        };
-        if (node.OpenPorts != null && node.OpenPorts.Count > 0)
-        {
-            int shown = 0;
-            foreach (var port in node.OpenPorts)
-            {
-                if (shown >= 4) { portsPanel.Children.Add(new TextBlock { Text = $"+{node.OpenPorts.Count - shown}", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center }); break; }
-                portsPanel.Children.Add(MakePortBadge(port, port == 80 || port == 443 || port == 3389));
-                shown++;
-            }
-        }
-        else
-        {
-            portsPanel.Children.Add(new TextBlock { Text = "—", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center });
-        }
+        var portsPanel = MakePortsCell(node);
 
         // I9: Action column — Save button to register device
         var saveBtn = new Button
@@ -778,6 +728,71 @@ public class ScannerPage : Border
             Padding = new Thickness(0, 14),
             Child = grid
         };
+    }
+
+    private static StackPanel MakeDeviceIdentityCell(NetworkNode node)
+    {
+        string iconPath = ThemeTokens.GetDeviceSvg(node.IconPath);
+        var iconControl = ThemeTokens.VectorIcon(iconPath, 16, node.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
+        iconControl.VerticalAlignment = VerticalAlignment.Center;
+
+        // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
+        string identitySubtitle = node.SubtitleText;
+        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess, StringComparison.OrdinalIgnoreCase))
+            identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
+
+        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor", StringComparison.OrdinalIgnoreCase))
+            identitySubtitle = "Unknown Device";
+
+        return new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0),
+            Children =
+            {
+                new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 8,
+                    Children =
+                    {
+                        iconControl,
+                        new TextBlock { Text = node.DisplayName, FontSize = 13, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium, TextTrimming = TextTrimming.CharacterEllipsis }
+                    }
+                },
+                new TextBlock { Text = identitySubtitle, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Opacity = 0.7 }
+            }
+        };
+    }
+
+    private static StackPanel MakePortsCell(NetworkNode node)
+    {
+        var portsPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 4,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(16, 0)
+        };
+        if (node.OpenPorts != null && node.OpenPorts.Count > 0)
+        {
+            int shown = 0;
+            foreach (var port in node.OpenPorts)
+            {
+                if (shown >= 4)
+                {
+                    portsPanel.Children.Add(new TextBlock { Text = $"+{node.OpenPorts.Count - shown}", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center });
+                    break;
+                }
+                portsPanel.Children.Add(MakePortBadge(port, port == 80 || port == 443 || port == 3389));
+                shown++;
+            }
+        }
+        else
+        {
+            portsPanel.Children.Add(new TextBlock { Text = "—", FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, VerticalAlignment = VerticalAlignment.Center });
+        }
+        return portsPanel;
     }
 
     /// <summary>Helper: creates a port badge pill</summary>

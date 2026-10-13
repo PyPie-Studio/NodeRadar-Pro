@@ -18,11 +18,16 @@ public static class ThemeTokens
     // ═══════════════════════════════════════════
     // ██  RAW PALETTE STRUCT COLORS
     // ═══════════════════════════════════════════
+    private const string HexPrimaryContainer = "#6B21A8";
+    private const string HexError = "#FFB4AB";
+    private const string HexOutlineVariant = "#4C4452";
+
     public static readonly Color ColorTertiary = Color.Parse("#4CD7F6");
     public static readonly Color ColorPrimary = Color.Parse("#DFB7FF");
     public static readonly Color ColorPrimaryPurple = Color.Parse("#7C3AED");
-    public static readonly Color ColorPrimaryContainer = Color.Parse("#6B21A8");
-    public static readonly Color ColorError = Color.Parse("#FFB4AB");
+    public static readonly Color ColorPrimaryContainer = Color.Parse(HexPrimaryContainer);
+    public static readonly Color ColorError = Color.Parse(HexError);
+    public static readonly Color ColorOutlineVariant = Color.Parse(HexOutlineVariant);
 
     // ═══════════════════════════════════════════
     // ██  SURFACE HIERARCHY (dark → light)
@@ -41,7 +46,7 @@ public static class ThemeTokens
     // ██  PRIMARY (Purple)
     // ═══════════════════════════════════════════
     public static readonly IBrush Primary = SolidColorBrush.Parse("#DFB7FF");
-    public static readonly IBrush PrimaryContainer = SolidColorBrush.Parse("#6B21A8");
+    public static readonly IBrush PrimaryContainer = new SolidColorBrush(ColorPrimaryContainer);
     public static readonly IBrush OnPrimary = SolidColorBrush.Parse("#4A007F");
     public static readonly IBrush OnPrimaryContainer = SolidColorBrush.Parse("#D7A8FF");
     public static readonly IBrush InversePrimary = SolidColorBrush.Parse("#803ABD");
@@ -63,11 +68,11 @@ public static class ThemeTokens
     // ═══════════════════════════════════════════
     // ██  ERROR (Soft red — "Offline" accent)
     // ═══════════════════════════════════════════
-    public static readonly IBrush Error = SolidColorBrush.Parse("#FFB4AB");
+    public static readonly IBrush Error = new SolidColorBrush(ColorError);
     public static readonly IBrush ErrorContainer = SolidColorBrush.Parse("#93000A");
     public static readonly IBrush ErrorContainerSubtle = new SolidColorBrush(Color.Parse("#93000A"), 0.30);
-    public static readonly IBrush ErrorBorderSubtle = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.30);
-    public static readonly IBrush ErrorBorderFaint = new SolidColorBrush(Color.Parse("#FFB4AB"), 0.15);
+    public static readonly IBrush ErrorBorderSubtle = new SolidColorBrush(ColorError, 0.30);
+    public static readonly IBrush ErrorBorderFaint = new SolidColorBrush(ColorError, 0.15);
 
     // ═══════════════════════════════════════════
     // ██  WARNING & THREAT ACCENTS
@@ -83,8 +88,8 @@ public static class ThemeTokens
     public static readonly IBrush GlassBorder = new SolidColorBrush(Color.Parse("#FFFFFF"), 0.08);
     public static readonly IBrush TertiaryContainerSubtle = new SolidColorBrush(Color.Parse("#005362"), 0.30);
     public static readonly IBrush TertiaryContainerFaint = new SolidColorBrush(Color.Parse("#005362"), 0.20);
-    public static readonly IBrush PrimaryContainerSubtle = new SolidColorBrush(Color.Parse("#6B21A8"), 0.30);
-    public static readonly IBrush PrimaryContainerActive = new SolidColorBrush(Color.Parse("#6B21A8"), 0.40);
+    public static readonly IBrush PrimaryContainerSubtle = new SolidColorBrush(ColorPrimaryContainer, 0.30);
+    public static readonly IBrush PrimaryContainerActive = new SolidColorBrush(ColorPrimaryContainer, 0.40);
     public static readonly IBrush SurfaceTableRow = SolidColorBrush.Parse("#0D1425");
 
     // ═══════════════════════════════════════════
@@ -93,7 +98,7 @@ public static class ThemeTokens
     public static readonly IBrush OnSurface = SolidColorBrush.Parse("#DCE2F7");
     public static readonly IBrush OnSurfaceVariant = SolidColorBrush.Parse("#CFC2D4");
     public static readonly IBrush Outline = SolidColorBrush.Parse("#988D9E");
-    public static readonly IBrush OutlineVariant = SolidColorBrush.Parse("#4C4452");
+    public static readonly IBrush OutlineVariant = new SolidColorBrush(ColorOutlineVariant);
 
     // ═══════════════════════════════════════════
     // ██  TYPOGRAPHY
@@ -115,9 +120,9 @@ public static class ThemeTokens
     // ═══════════════════════════════════════════
     // ██  GHOST BORDER (10% opacity)
     // ═══════════════════════════════════════════
-    public static readonly IBrush GhostBorder = new SolidColorBrush(Color.Parse("#4C4452"), 0.10);
-    public static readonly IBrush GhostBorder20 = new SolidColorBrush(Color.Parse("#4C4452"), 0.20);
-    public static readonly IBrush GhostBorder30 = new SolidColorBrush(Color.Parse("#4C4452"), 0.30);
+    public static readonly IBrush GhostBorder = new SolidColorBrush(ColorOutlineVariant, 0.10);
+    public static readonly IBrush GhostBorder20 = new SolidColorBrush(ColorOutlineVariant, 0.20);
+    public static readonly IBrush GhostBorder30 = new SolidColorBrush(ColorOutlineVariant, 0.30);
 
     // ═══════════════════════════════════════════
     // ██  STANDARD DIMENSIONS
@@ -349,7 +354,7 @@ public static class ThemeTokens
         {
             StartPoint = new RelativePoint(0, 0.5, RelativeUnit.Relative),
             EndPoint = new RelativePoint(1, 0.5, RelativeUnit.Relative),
-            GradientStops = { new GradientStop(Color.Parse("#7C3AED"), 0), new GradientStop(Color.Parse("#6B21A8"), 1) }
+            GradientStops = { new GradientStop(ColorPrimaryPurple, 0), new GradientStop(ColorPrimaryContainer, 1) }
         },
         Foreground = Brushes.White,
         FontSize = 15,

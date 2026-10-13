@@ -10,6 +10,7 @@ namespace NodeRadarPro.Core.Discovery;
 
 public class DiscoveryEngine
 {
+    private const string LogSource = "DiscoveryEngine";
     private readonly List<IDiscoveryMethod> _methods;
 
     public DiscoveryEngine()
@@ -58,45 +59,7 @@ public class DiscoveryEngine
         {
             if (string.IsNullOrEmpty(device.IpAddress)) return;
 
-            var merged = aggregatedDevices.AddOrUpdate(device.IpAddress, device, (ip, existing) =>
-            {
-                // MAC address resolution update
-                if ((existing.MacAddress == "Unknown" || existing.MacAddress.StartsWith("L3-ROUTED-")) &&
-                    device.MacAddress != "Unknown" && !device.MacAddress.StartsWith("L3-ROUTED-"))
-                {
-                    existing.MacAddress = device.MacAddress;
-                }
-
-                // Vendor resolution update (overwrite if previous was unknown or privacy MAC and we got a real vendor)
-                if ((existing.Vendor == "Unknown Vendor" || existing.Vendor == "Privacy MAC") &&
-                    device.Vendor != "Unknown Vendor")
-                {
-                    existing.Vendor = device.Vendor;
-                }
-
-                // Hostname resolution update
-                if ((existing.Hostname == "Unknown Device" || existing.Hostname == "Unknown mDNS Device") &&
-                    device.Hostname != "Unknown Device" && device.Hostname != "Unknown mDNS Device")
-                {
-                    existing.Hostname = device.Hostname;
-                }
-
-                // Device Type resolution update
-                if (existing.DeviceType == "Generic Device" && device.DeviceType != "Generic Device")
-                {
-                    existing.DeviceType = device.DeviceType;
-                }
-
-                // Track protocols and log details
-                if (!existing.SourceProtocol.Contains(device.SourceProtocol, StringComparison.OrdinalIgnoreCase))
-                {
-                    existing.SourceProtocol += $", {device.SourceProtocol}";
-                }
-                existing.RawDetails += $"\r\n[{device.SourceProtocol}] {device.RawDetails}";
-
-                return existing;
-            });
-
+            var merged = aggregatedDevices.AddOrUpdate(device.IpAddress, device, (ip, existing) => MergeDevice(existing, device));
             onDeviceDiscovered(merged);
         }
 
@@ -107,17 +70,17 @@ public class DiscoveryEngine
             {
                 try
                 {
-                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Starting discovery method: {method.Name}...");
+                    Logger.Log(LogLevel.Info, LogSource, $"Starting discovery method: {method.Name}...");
                     await method.DiscoverAsync(baseIp, targetIps, HandleDiscoveredDevice, ct);
-                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Completed discovery method: {method.Name}.");
+                    Logger.Log(LogLevel.Info, LogSource, $"Completed discovery method: {method.Name}.");
                 }
                 catch (OperationCanceledException)
                 {
-                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Discovery method cancelled: {method.Name}.");
+                    Logger.Log(LogLevel.Info, LogSource, $"Discovery method cancelled: {method.Name}.");
                 }
                 catch (Exception ex)
                 {
-                    Logger.Log(LogLevel.Info, "DiscoveryEngine", $"Error in discovery method {method.Name}: {ex.Message}");
+                    Logger.Log(LogLevel.Info, LogSource, $"Error in discovery method {method.Name}: {ex.Message}");
                 }
             }, ct);
         });
@@ -125,5 +88,44 @@ public class DiscoveryEngine
         await Task.WhenAll(tasks);
 
         return aggregatedDevices.Values.ToList();
+    }
+
+    private static NetworkDevice MergeDevice(NetworkDevice existing, NetworkDevice incoming)
+    {
+        // MAC address resolution update
+        if ((existing.MacAddress == "Unknown" || existing.MacAddress.StartsWith("L3-ROUTED-", StringComparison.Ordinal)) &&
+            incoming.MacAddress != "Unknown" && !incoming.MacAddress.StartsWith("L3-ROUTED-", StringComparison.Ordinal))
+        {
+            existing.MacAddress = incoming.MacAddress;
+        }
+
+        // Vendor resolution update (overwrite if previous was unknown or privacy MAC and we got a real vendor)
+        if ((existing.Vendor == "Unknown Vendor" || existing.Vendor == "Privacy MAC") &&
+            incoming.Vendor != "Unknown Vendor")
+        {
+            existing.Vendor = incoming.Vendor;
+        }
+
+        // Hostname resolution update
+        if ((existing.Hostname == "Unknown Device" || existing.Hostname == "Unknown mDNS Device") &&
+            incoming.Hostname != "Unknown Device" && incoming.Hostname != "Unknown mDNS Device")
+        {
+            existing.Hostname = incoming.Hostname;
+        }
+
+        // Device Type resolution update
+        if (existing.DeviceType == "Generic Device" && incoming.DeviceType != "Generic Device")
+        {
+            existing.DeviceType = incoming.DeviceType;
+        }
+
+        // Track protocols and log details
+        if (!existing.SourceProtocol.Contains(incoming.SourceProtocol, StringComparison.OrdinalIgnoreCase))
+        {
+            existing.SourceProtocol += $", {incoming.SourceProtocol}";
+        }
+        existing.RawDetails += $"\r\n[{incoming.SourceProtocol}] {incoming.RawDetails}";
+
+        return existing;
     }
 }

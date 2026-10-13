@@ -24,7 +24,8 @@ public class AlertsPage : Border
     private readonly Button _resolveAllBtn;
     private readonly Button _clearResolvedBtn;
     private readonly Button _clearAllBtn;
-    private string _filterMode = "active";
+    private const string FilterModeActive = "active";
+    private string _filterMode = FilterModeActive;
 
     public event Action? AlertsChanged;
 
@@ -121,7 +122,7 @@ public class AlertsPage : Border
 
         // Rebuild filter chips with current active state (B3 fix)
         _filterRow.Children.Clear();
-        _filterRow.Children.Add(MakeFilterChip("Active", "active", _filterMode == "active"));
+        _filterRow.Children.Add(MakeFilterChip("Active", FilterModeActive, _filterMode == FilterModeActive));
         _filterRow.Children.Add(MakeFilterChip("Resolved", "resolved", _filterMode == "resolved"));
         _filterRow.Children.Add(MakeFilterChip("All", "all", _filterMode == "all"));
 
@@ -141,7 +142,7 @@ public class AlertsPage : Border
             else
             {
                 activeCount++;
-                if (_filterMode == "active") filtered.Add(a);
+                if (_filterMode == FilterModeActive) filtered.Add(a);
             }
         }
 
@@ -160,7 +161,7 @@ public class AlertsPage : Border
 
         if (filtered.Count == 0)
         {
-            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == "active" ? "No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = ThemeTokens.DefaultFont });
+            _alertListBody.Children.Add(new TextBlock { Text = _filterMode == FilterModeActive ? "No active alerts. Your network is healthy." : "No alerts in this category.", FontSize = 16, Foreground = ThemeTokens.OnSurfaceVariant, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 40), FontFamily = ThemeTokens.DefaultFont });
             return;
         }
 

@@ -359,70 +359,75 @@ public class RadarCanvas : Control
             Point nodePoint = GetNodePosition(node, center, baseRadius);
             if (nodePoint == (center + _panOffset)) continue;
 
-            bool isSelected = node.MacAddress == _selectedMac;
-            double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * nodeScale;
-
-            if (node.IsOnline)
-            {
-                // Outer glow
-                double glowRadius = nodeBaseRadius + (5 * nodeScale) * pulseScale;
-
-                var glowBrush = node.ThreatLevel switch
-                {
-                    ThreatLevel.Critical => _errorGlowBrush,
-                    ThreatLevel.Warning => _warningGlowBrush,
-                    _ => _cyanGlowBrush
-                };
-
-                context.DrawEllipse(glowBrush, null, nodePoint, glowRadius, glowRadius);
-
-                // Core dot
-                var coreBrush = node.ThreatLevel switch
-                {
-                    ThreatLevel.Critical => _errorCoreBrush,
-                    ThreatLevel.Warning => _warningCoreBrush,
-                    _ => _cyanCoreBrush
-                };
-                context.DrawEllipse(coreBrush, null, nodePoint, nodeBaseRadius, nodeBaseRadius);
-            }
-            else
-            {
-                double offRadius = nodeBaseRadius * 0.7;
-                context.DrawEllipse(_offBrush, null, nodePoint, offRadius, offRadius);
-            }
-
-            // Registered ring
-            if (node.IsRegistered)
-            {
-                var ringPen = node.IsOnline ? _registeredOnlinePen : _registeredOfflinePen;
-                context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * nodeScale), nodeBaseRadius + (4 * nodeScale));
-            }
-
-            // Selection highlight
-            if (isSelected)
-            {
-                context.DrawEllipse(null, _selectPen, nodePoint, nodeBaseRadius + (7 * nodeScale), nodeBaseRadius + (7 * nodeScale));
-            }
-
-            // Label
-            var textColor = node.IsOnline ? _onlineTextColor : _offlineTextColor;
-            var typeface = isSelected ? _typefaceBold : _typefaceNormal;
-
-            string cacheKey = $"{node.MacAddress}|{node.DisplayName}|{node.IsOnline}|{isSelected}|{(int)(textScale * 100)}";
-            if (!_textCache.TryGetValue(cacheKey, out var formattedText))
-            {
-                formattedText = new FormattedText(
-                    node.DisplayName,
-                    System.Globalization.CultureInfo.InvariantCulture,
-                    FlowDirection.LeftToRight,
-                    typeface, 11 * textScale, textColor
-                );
-                _textCache[cacheKey] = formattedText;
-            }
-
-            double textYOffset = nodePoint.Y > center.Y ? -(24 * nodeScale) : (18 * nodeScale);
-            context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
+            DrawSingleNode(context, node, center, nodePoint, nodeScale, textScale, pulseScale);
         }
+    }
+
+    private void DrawSingleNode(DrawingContext context, NetworkNode node, Point center, Point nodePoint, double nodeScale, double textScale, double pulseScale)
+    {
+        bool isSelected = node.MacAddress == _selectedMac;
+        double nodeBaseRadius = (node.IsRegistered ? 7 : 5) * nodeScale;
+
+        if (node.IsOnline)
+        {
+            // Outer glow
+            double glowRadius = nodeBaseRadius + (5 * nodeScale) * pulseScale;
+
+            var glowBrush = node.ThreatLevel switch
+            {
+                ThreatLevel.Critical => _errorGlowBrush,
+                ThreatLevel.Warning => _warningGlowBrush,
+                _ => _cyanGlowBrush
+            };
+
+            context.DrawEllipse(glowBrush, null, nodePoint, glowRadius, glowRadius);
+
+            // Core dot
+            var coreBrush = node.ThreatLevel switch
+            {
+                ThreatLevel.Critical => _errorCoreBrush,
+                ThreatLevel.Warning => _warningCoreBrush,
+                _ => _cyanCoreBrush
+            };
+            context.DrawEllipse(coreBrush, null, nodePoint, nodeBaseRadius, nodeBaseRadius);
+        }
+        else
+        {
+            double offRadius = nodeBaseRadius * 0.7;
+            context.DrawEllipse(_offBrush, null, nodePoint, offRadius, offRadius);
+        }
+
+        // Registered ring
+        if (node.IsRegistered)
+        {
+            var ringPen = node.IsOnline ? _registeredOnlinePen : _registeredOfflinePen;
+            context.DrawEllipse(null, ringPen, nodePoint, nodeBaseRadius + (4 * nodeScale), nodeBaseRadius + (4 * nodeScale));
+        }
+
+        // Selection highlight
+        if (isSelected)
+        {
+            context.DrawEllipse(null, _selectPen, nodePoint, nodeBaseRadius + (7 * nodeScale), nodeBaseRadius + (7 * nodeScale));
+        }
+
+        // Label
+        var textColor = node.IsOnline ? _onlineTextColor : _offlineTextColor;
+        var typeface = isSelected ? _typefaceBold : _typefaceNormal;
+
+        string cacheKey = $"{node.MacAddress}|{node.DisplayName}|{node.IsOnline}|{isSelected}|{(int)(textScale * 100)}";
+        if (!_textCache.TryGetValue(cacheKey, out var formattedText))
+        {
+            formattedText = new FormattedText(
+                node.DisplayName,
+                System.Globalization.CultureInfo.InvariantCulture,
+                FlowDirection.LeftToRight,
+                typeface, 11 * textScale, textColor
+            );
+            _textCache[cacheKey] = formattedText;
+        }
+
+        double textYOffset = nodePoint.Y > center.Y ? -(24 * nodeScale) : (18 * nodeScale);
+        context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
     }
 
     private void RenderZoomOverlay(DrawingContext context, Rect bounds)
