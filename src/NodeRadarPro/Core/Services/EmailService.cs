@@ -14,7 +14,7 @@ namespace NodeRadarPro.Core;
 /// </summary>
 public static class EmailService
 {
-    public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null)
+    public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null, ISmtpClient? clientOverride = null)
     {
         if (!settings.EnableEmailAlerts || string.IsNullOrEmpty(settings.SmtpHost))
             return;
@@ -33,7 +33,7 @@ public static class EmailService
                 Text = body
             };
 
-            using var client = new SmtpClient();
+            using var client = clientOverride ?? new SmtpClient();
 
             await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, MailKit.Security.SecureSocketOptions.Auto);
 
