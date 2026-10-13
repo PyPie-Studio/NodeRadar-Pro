@@ -250,9 +250,8 @@ public class SubnetScanner
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
-                    if (discoveredMacs.ContainsKey(mac)) continue;
-
                     if (!IsIpInSubnetAndRange(ip.AsSpan(), baseIp, startIp, endIp)) continue;
+                    if (!discoveredMacs.TryAdd(mac, true)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
@@ -397,9 +396,8 @@ public class SubnetScanner
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
-                    if (discoveredMacs.ContainsKey(mac)) continue;
-
                     if (!IsIpInAnySubnet(ip.AsSpan(), allSubnetsSet)) continue;
+                    if (!discoveredMacs.TryAdd(mac, true)) continue;
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
