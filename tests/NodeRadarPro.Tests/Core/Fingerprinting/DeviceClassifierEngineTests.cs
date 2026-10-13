@@ -119,4 +119,45 @@ public class DeviceClassifierEngineTests
         Assert.Equal(DeviceTypeCategory.Router, result.Type);
         Assert.Equal("Infrastructure", result.Os);
     }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void IsValidModel_NullOrEmpty_ReturnsFalse(string? model)
+    {
+        Assert.False(DeviceClassifierEngine.IsValidModel(model!));
+    }
+
+    [Theory]
+    [InlineData("iPhone 13 Pro")]
+    [InlineData("Raspberry Pi 4 Model B")]
+    [InlineData("DiskStation DS220+")]
+    [InlineData("Cisco Catalyst 2960")]
+    [InlineData("HP LaserJet Pro M404dn")]
+    public void IsValidModel_ValidModelNames_ReturnsTrue(string model)
+    {
+        Assert.True(DeviceClassifierEngine.IsValidModel(model));
+    }
+
+    [Theory]
+    [InlineData("HTTP/1.1 500 Internal Server Error")]
+    [InlineData("HTTP/1.0 404 Not Found")]
+    [InlineData("400 Bad Request")]
+    [InlineData("403 Forbidden")]
+    [InlineData("503 Service Unavailable")]
+    [InlineData("Server: nginx/1.18.0")]
+    [InlineData("apache/2.4.41")]
+    [InlineData("lighttpd/1.4.55")]
+    [InlineData("microhttpd")]
+    [InlineData("RomPager/4.07 UPnP/1.0")]
+    [InlineData("gws")]
+    [InlineData("Error: Connection Refused")]
+    [InlineData("Request Timed Out")]
+    [InlineData("No route to host")]
+    [InlineData("Too Many Connections")]
+    [InlineData("Please try later")]
+    public void IsValidModel_InvalidOrErrorStrings_ReturnsFalse(string model)
+    {
+        Assert.False(DeviceClassifierEngine.IsValidModel(model));
+    }
 }
