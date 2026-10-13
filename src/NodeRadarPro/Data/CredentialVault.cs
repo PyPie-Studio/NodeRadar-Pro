@@ -199,10 +199,63 @@ public static class CredentialVault
 
     // ── Internal Key Derivation ──
 
-    internal static byte[] DeriveKeyPbkdf2(byte[] salt)
+    private static readonly object _masterKeyLock = new();
+
+    internal static byte[] GetOrCreateMasterKey(string? folder = null)
     {
-        string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
-        return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);
+        lock (_masterKeyLock)
+        {
+            folder ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
+            try
+            {
+                Directory.CreateDirectory(folder);
+            }
+            catch
+            {
+                // Ignore directory creation failure
+            }
+
+            string masterKeyPath = Path.Combine(folder, "vault_master.key");
+
+            if (File.Exists(masterKeyPath))
+            {
+                try
+                {
+                    byte[] key = File.ReadAllBytes(masterKeyPath);
+                    if (key.Length == 32)
+                    {
+                        return key;
+                    }
+                }
+                catch
+                {
+                    // Ignore and regenerate if corrupted or unreadable
+                }
+            }
+
+            byte[] newKey = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(newKey);
+            }
+
+            try
+            {
+                File.WriteAllBytes(masterKeyPath, newKey);
+            }
+            catch
+            {
+                // Fallback ignore if write fails
+            }
+
+            return newKey;
+        }
+    }
+
+    internal static byte[] DeriveKeyPbkdf2(byte[] salt, string? folder = null)
+    {
+        byte[] masterKey = GetOrCreateMasterKey(folder);
+        return Rfc2898DeriveBytes.Pbkdf2(masterKey, salt, 100000, HashAlgorithmName.SHA256, 32);
     }
 
     internal static byte[] GetFallbackEncryptionKeyLegacy()

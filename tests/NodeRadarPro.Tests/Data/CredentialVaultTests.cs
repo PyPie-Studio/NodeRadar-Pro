@@ -201,4 +201,38 @@ public class CredentialVaultTests : IDisposable
         byte[] result = CredentialVault.UnprotectData(corruptPayload);
         Assert.Equal(corruptPayload, result);
     }
+
+    [Fact]
+    public void GetOrCreateMasterKey_PersistsAndReloadsKeyCorrectly()
+    {
+        byte[] masterKey1 = CredentialVault.GetOrCreateMasterKey(_tempFolder);
+        Assert.NotNull(masterKey1);
+        Assert.Equal(32, masterKey1.Length);
+
+        string masterKeyPath = Path.Combine(_tempFolder, "vault_master.key");
+        Assert.True(File.Exists(masterKeyPath));
+
+        byte[] masterKey2 = CredentialVault.GetOrCreateMasterKey(_tempFolder);
+        Assert.Equal(masterKey1, masterKey2);
+    }
+
+    [Fact]
+    public void DeriveKeyPbkdf2_UsesRandomMasterKey_NotPredictableString()
+    {
+        byte[] salt = new byte[16];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+        }
+
+        byte[] derivedKey = CredentialVault.DeriveKeyPbkdf2(salt, _tempFolder);
+        Assert.NotNull(derivedKey);
+        Assert.Equal(32, derivedKey.Length);
+
+        // Derive key from old predictable string
+        string predictablePassword = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
+        byte[] predictableKey = Rfc2898DeriveBytes.Pbkdf2(predictablePassword, salt, 100000, HashAlgorithmName.SHA256, 32);
+
+        Assert.NotEqual(predictableKey, derivedKey);
+    }
 }
