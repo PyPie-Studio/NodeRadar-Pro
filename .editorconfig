@@ -14,8 +14,7 @@ dotnet_analyzer_diagnostic.severity = warning
 
 # SonarLint Cognitive Complexity disabled to prevent false positives on UI wiring & binary packet decoders
 dotnet_diagnostic.S3776.severity = none
-
-# Promoted Analyzer Diagnostics enforced as error
+dotnet_diagnostic.S1192.severity = error
 dotnet_diagnostic.CA1307.severity = error
 dotnet_diagnostic.CA5398.severity = error
 dotnet_diagnostic.CA1867.severity = error
@@ -31,7 +30,6 @@ dotnet_diagnostic.CA1068.severity = error
 dotnet_diagnostic.CA2016.severity = error
 dotnet_diagnostic.CA2263.severity = error
 dotnet_diagnostic.S107.severity = error
-dotnet_diagnostic.S1192.severity = suggestion
 
 # Remove unused usings - enforced by gate + CI via dotnet format analyzers
 dotnet_diagnostic.IDE0005.severity = warning
@@ -116,6 +114,7 @@ dotnet_diagnostic.CA1001.severity = none
 dotnet_diagnostic.xUnit2032.severity = none
 dotnet_diagnostic.S1192.severity = none
 dotnet_diagnostic.S107.severity = none
+dotnet_diagnostic.S3776.severity = none
 
 [*.{axaml,xml,json,md,yml,yaml}]
 indent_style = space

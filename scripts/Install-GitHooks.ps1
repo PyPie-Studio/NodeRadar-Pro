@@ -78,7 +78,7 @@ else
     PS_EXEC="powershell"
 fi
 
-$PS_EXEC -NoProfile -ExecutionPolicy Bypass -File "scripts/Test-MasterGate.ps1"
+$PS_EXEC -NoProfile -ExecutionPolicy Bypass -File "scripts/Test-MasterGate.ps1" -WithTests
 RESULT=$?
 
 if [ $RESULT -ne 0 ]; then
