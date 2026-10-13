@@ -47,5 +47,6 @@
     <PackageReference Include="System.Windows.Extensions" />
     <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 </Project>

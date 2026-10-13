@@ -33,17 +33,26 @@ public static class EmailService
                 Text = body
             };
 
-            using var client = clientOverride ?? new SmtpClient();
-
-            await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, MailKit.Security.SecureSocketOptions.Auto);
-
-            if (!string.IsNullOrEmpty(settings.SmtpUser))
+            var client = clientOverride ?? new SmtpClient();
+            try
             {
-                await client.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword);
-            }
+                await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, MailKit.Security.SecureSocketOptions.Auto);
 
-            await client.SendAsync(message);
-            await client.DisconnectAsync(true);
+                if (!string.IsNullOrEmpty(settings.SmtpUser))
+                {
+                    await client.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword);
+                }
+
+                await client.SendAsync(message);
+                await client.DisconnectAsync(true);
+            }
+            finally
+            {
+                if (clientOverride == null)
+                {
+                    client.Dispose();
+                }
+            }
         }
         catch (AuthenticationException ex)
         {
