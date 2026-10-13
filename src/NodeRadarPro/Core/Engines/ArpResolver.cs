@@ -245,16 +245,16 @@ public static class ArpResolver
 
     // ── Windows: Full ARP table via native Win32 P/Invoke with CLI fallback ──
 
-    private static List<(string Ip, string Mac)> GetWindowsArpTable()
+    internal static List<(string Ip, string Mac)> GetWindowsArpTable(Func<List<(string Ip, string Mac)>>? fetchNative = null)
     {
         try
         {
-            return GetWindowsArpTableNative();
+            return fetchNative != null ? fetchNative() : GetWindowsArpTableNative();
         }
         catch (Exception ex)
         {
             Logger.Log(LogLevel.Error, "ArpResolver", $"Exception in GetWindowsArpTable: {ex.Message}");
-            return new List<(string, string)>();
+            return new List<(string Ip, string Mac)>();
         }
     }
 
