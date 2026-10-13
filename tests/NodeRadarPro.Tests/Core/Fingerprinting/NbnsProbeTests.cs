@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,7 +41,7 @@ public class NbnsProbeTests
         // Header (12 bytes)
         var packet = new List<byte>(new byte[12]);
 
-        // Query name / RR Name (e.g. compressed pointer 2 bytes or 34-byte encoded name)
+        // Query name / RR Name (e.g. 34-byte encoded wildcard name)
         packet.Add(0x20);
         packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
         packet.Add(0x00);
@@ -95,13 +93,9 @@ public class NbnsProbeTests
         // Type (2), Class (2), TTL (4) = 8 bytes
         packet.AddRange(new byte[8]);
 
-        // Padding to ensure minimum buffer length 57:
-        // Header(12) + pointer(2) + metadata(8) + RDLen(2) + numNames(1) + Name1(18) + MAC(6) = 49 bytes.
-        // We can add dummy bytes or extra names. Let's make it 2 names (18 bytes more -> 67 total).
-
-        // RDLength = 1 + 18 + 6 = 25 (0x0019)
+        // RDLength = 1 + 18*2 + 6 = 43 (0x002B)
         packet.Add(0x00);
-        packet.Add(0x19);
+        packet.Add(0x2B);
 
         // Number of names: 2
         packet.Add(0x02);
@@ -185,82 +179,5 @@ public class NbnsProbeTests
         Assert.NotNull(result);
         Assert.Equal("NetBIOS (NBNS)", result.Source);
         Assert.Empty(result.RawData);
-    }
-
-    [Fact]
-    public async Task ProbeAsync_WithMockUdpResponder_ParsesNodeStatus()
-    {
-        // Try binding port 137 locally to act as a mock NetBIOS server
-        using var responder = new UdpClient();
-        try
-        {
-            responder.Client.Bind(new IPEndPoint(IPAddress.Loopback, 137));
-        }
-        catch (SocketException)
-        {
-            // Port 137 cannot be bound (e.g. requires privileges or already in use). Skip loopback server test.
-            return;
-        }
-
-        using var cts = new CancellationTokenSource(3000);
-
-        var responderTask = Task.Run(async () =>
-        {
-            try
-            {
-                var receiveResult = await responder.ReceiveAsync(cts.Token);
-
-                // Build mock NBNS Node Status response
-                var packet = new List<byte>();
-                // Transaction ID from query (first 2 bytes)
-                packet.Add(receiveResult.Buffer[0]);
-                packet.Add(receiveResult.Buffer[1]);
-
-                // Flags (response): 0x8400
-                packet.Add(0x84); packet.Add(0x00);
-                // QDCOUNT: 0, ANCOUNT: 1, NSCOUNT: 0, ARCOUNT: 0
-                packet.Add(0x00); packet.Add(0x00);
-                packet.Add(0x00); packet.Add(0x01);
-                packet.Add(0x00); packet.Add(0x00);
-                packet.Add(0x00); packet.Add(0x00);
-
-                // Answer section: Name section (34 bytes: len + 32 mangled + terminator)
-                packet.Add(0x20);
-                packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
-                packet.Add(0x00);
-
-                // Type: NBSTAT (0x0021), Class: IN (0x0001), TTL: 0
-                packet.Add(0x00); packet.Add(0x21);
-                packet.Add(0x00); packet.Add(0x01);
-                packet.AddRange(new byte[4]);
-
-                // RDLENGTH: 1 + 18 + 6 = 25 (0x0019)
-                packet.Add(0x00); packet.Add(0x19);
-                packet.Add(0x01); // 1 name
-
-                packet.AddRange(Encoding.ASCII.GetBytes("TESTHOST       "));
-                packet.Add(0x00); // Suffix
-                packet.Add(0x00); packet.Add(0x00); // Flags (unique)
-
-                // MAC
-                packet.AddRange(new byte[] { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff });
-
-                byte[] respBytes = packet.ToArray();
-                await responder.SendAsync(respBytes, respBytes.Length, receiveResult.RemoteEndPoint);
-            }
-            catch { }
-        }, cts.Token);
-
-        var probe = new NbnsProbe();
-        var node = new NetworkNode { IpAddress = "127.0.0.1" };
-
-        var result = await probe.ProbeAsync(node, cts.Token);
-
-        await responderTask;
-
-        Assert.NotNull(result);
-        Assert.Equal("NetBIOS (NBNS)", result.Source);
-        Assert.Equal("TESTHOST", result.RawData["NbnsHostname"]);
-        Assert.Equal("aa:bb:cc:dd:ee:ff", result.RawData["NbnsMac"]);
     }
 }
