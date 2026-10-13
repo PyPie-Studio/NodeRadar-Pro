@@ -1,6 +1,5 @@
 using System.Text;
 using NodeRadarPro.Core;
-using NodeRadarPro.Core.Fingerprinting;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
