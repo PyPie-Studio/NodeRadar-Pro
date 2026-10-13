@@ -13,12 +13,12 @@ namespace NodeRadarPro.Core
         public OperationalStatus OperationalStatus { get; set; } = OperationalStatus.Unknown;
         public NetworkInterfaceType NetworkInterfaceType { get; set; } = NetworkInterfaceType.Unknown;
         public byte[] PhysicalAddressBytes { get; set; } = Array.Empty<byte>();
-        public List<IPAddress> UnicastAddresses { get; set; } = new();
+        public System.Collections.Generic.List<IPAddress> UnicastAddresses { get; set; } = new();
     }
 
     public static class AppUtils
     {
-        public static string GetMacAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
+        public static string GetMacAddress(Func<System.Collections.Generic.IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
         {
             try
             {
@@ -43,7 +43,7 @@ namespace NodeRadarPro.Core
             return "Unknown";
         }
 
-        public static string GetLocalIpAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
+        public static string GetLocalIpAddress(Func<System.Collections.Generic.IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
         {
             try
             {
@@ -68,14 +68,14 @@ namespace NodeRadarPro.Core
             return "127.0.0.1";
         }
 
-        private static IEnumerable<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
+        private static System.Collections.Generic.IEnumerable<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
         {
-            var list = new List<NetworkInterfaceInfo>();
+            var list = new System.Collections.Generic.List<NetworkInterfaceInfo>();
             try
             {
                 foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    var unicast = new List<IPAddress>();
+                    var unicast = new System.Collections.Generic.List<IPAddress>();
                     try
                     {
                         var ipProps = ni.GetIPProperties();
