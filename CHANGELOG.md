@@ -1,4 +1,21 @@
 # NodeRadar Pro Changelog
+ 
+## NodeRadar Pro v2.0.9 (2026-10-14)
+
+### Core Engine and Network Performance
+- **Non-Blocking Asynchronous NetBIOS Discovery (`ArpResolver.cs`, `ISubnetScannerDependencies.cs`, `SubnetScanner.cs`)**: Replaced blocking threadpool execution with native non-blocking `UdpClient.ReceiveAsync` I/O with explicit timeout and cancellation token propagation.
+- **ARP Sweep Deduplication (`SubnetScanner.cs`)**: Checked IP subnet bounds before atomic `discoveredMacs.TryAdd` calls, preventing redundant device allocations during sweep passes.
+- **HTTP Client Connection Pooling (`BannerGrabProbe.cs`, `SsdpProbe.cs`)**: Initialized static probe `HttpClient` instances with `SocketsHttpHandler` and a 15-minute `PooledConnectionLifetime`.
+- **Email Service Test Seam and Disposal Guard (`EmailService.cs`)**: Added mockable `ISmtpClient` dependency injection seam while ensuring injected client overrides are not prematurely disposed.
+
+### User Interface and Rendering
+- **Modular Canvas Drawing Routines (`RadarCanvas.cs`)**: Decomposed the monolithic `Render` drawing method into discrete static and instance helpers (`RenderBackgroundAndGrid`, `RenderRadarSweep`, `RenderNetworkNodes` and `RenderZoomOverlay`) while preserving zero-allocation 60 FPS drawing loops.
+
+### Security and Package Hardening
+- **Transitive Cryptography Dependency Remediation (`Directory.Packages.props`, `NodeRadarPro.csproj`, `NodeRadarPro.Tests.csproj`)**: Pinned `System.Security.Cryptography.Pkcs` to version 10.0.13, resolving vulnerability advisories GHSA-846f-f764-76mx and GHSA-2fmv-rv2c-59x7.
+
+### Test Suite Coverage
+- **Comprehensive Subsystem and Probe Test Expansion (`tests/NodeRadarPro.Tests/`)**: Added 119 unit tests across models (`UptimeSnapshotTests.cs`, `AlertEventTests.cs`, `NetworkDeviceTests.cs`, `FingerprintResultTests.cs`, `LogEntryTests.cs`), fingerprinting probes (`MacOuiProbeTests.cs`, `NbnsProbeTests.cs`, `MdnsProbeTests.cs`, `SsdpProbeTests.cs`, `SnmpProbeTests.cs`, `BannerGrabProbeTests.cs`), diagnostics (`AppUtilsTests.cs`, `LoggerTests.cs`, `EmailServiceTests.cs`) and UI controls (`RadarCanvasTests.cs`), bringing total passing test count to 539 tests.
 
 ## NodeRadar Pro v2.0.8 (2026-10-06)
 
