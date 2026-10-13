@@ -34,6 +34,8 @@ namespace NodeRadarPro.Core
         string ResolveMacAddress(string ip, string sourceIp = "");
         List<(string Ip, string Mac)> GetFullArpTable();
         string TryResolveNetBiosName(string ipAddress);
+        Task<string> TryResolveNetBiosNameAsync(string ipAddress, System.Threading.CancellationToken cancellationToken = default)
+            => ArpResolver.TryResolveNetBiosNameAsync(ipAddress, cancellationToken: cancellationToken);
         bool TryGetMacFromArpTable(string ip, out string mac)
         {
             var list = GetFullArpTable();
@@ -53,6 +55,8 @@ namespace NodeRadarPro.Core
         public string ResolveMacAddress(string ip, string sourceIp = "") => ArpResolver.ResolveMacAddress(ip, sourceIp);
         public List<(string Ip, string Mac)> GetFullArpTable() => ArpResolver.GetFullArpTable();
         public string TryResolveNetBiosName(string ipAddress) => ArpResolver.TryResolveNetBiosName(ipAddress);
+        public Task<string> TryResolveNetBiosNameAsync(string ipAddress, System.Threading.CancellationToken cancellationToken = default)
+            => ArpResolver.TryResolveNetBiosNameAsync(ipAddress, cancellationToken: cancellationToken);
         public bool TryGetMacFromArpTable(string ip, out string mac) => ArpResolver.TryGetMacFromArpTable(ip, out mac);
     }
 }
