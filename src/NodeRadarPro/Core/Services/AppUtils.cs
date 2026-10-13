@@ -88,14 +88,20 @@ namespace NodeRadarPro.Core
                             }
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Warning, "AppUtils", $"Failed to retrieve IP properties for network interface '{ni.Name}': {ex.Message}");
+                    }
 
                     byte[] macBytes = Array.Empty<byte>();
                     try
                     {
                         macBytes = ni.GetPhysicalAddress()?.GetAddressBytes() ?? Array.Empty<byte>();
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Warning, "AppUtils", $"Failed to retrieve physical address for network interface '{ni.Name}': {ex.Message}");
+                    }
 
                     list.Add(new NetworkInterfaceInfo
                     {
@@ -107,7 +113,10 @@ namespace NodeRadarPro.Core
                     });
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to retrieve system network interfaces: {ex.Message}");
+            }
 
             return list;
         }
