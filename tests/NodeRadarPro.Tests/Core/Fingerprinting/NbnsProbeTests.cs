@@ -1,11 +1,7 @@
-using System.Collections.Generic;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting;
 using NodeRadarPro.Core.Fingerprinting.Probes;
-using Xunit;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
