@@ -145,7 +145,10 @@ public class ArpResolverTests
     public void GetWindowsArpTable_WhenExceptionThrown_LogsErrorAndReturnsEmptyList()
     {
         // Arrange
-        static List<(string Ip, string Mac)> failingFetch() => throw new Exception("Simulated GetWindowsArpTable failure");
+        static List<(string Ip, string Mac)> failingFetch()
+        {
+            throw new Exception("Simulated GetWindowsArpTable failure");
+        }
 
         // Act
         var result = ArpResolver.GetWindowsArpTable(failingFetch);
