@@ -222,7 +222,7 @@ public class MdnsProbe : IFingerprintProbe
                     if (buffer[localIdx - 1 - len] == len)
                     {
                         string name = Encoding.UTF8.GetString(buffer, localIdx - len, len);
-                        if (!name.StartsWith("_") && name.Length > 2) return name;
+                        if (!name.StartsWith('_') && name.Length > 2) return name;
                     }
                 }
             }

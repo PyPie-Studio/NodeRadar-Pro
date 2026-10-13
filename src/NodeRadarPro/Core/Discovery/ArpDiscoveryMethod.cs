@@ -56,10 +56,10 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, null, ct);
     }
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<IPAddress, string>? resolveMac)
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<IPAddress, string>? resolveMac = null, CancellationToken ct = default)
     {
         // Limit concurrency to avoid overloading the network stack
         using var semaphore = new SemaphoreSlim(16);

@@ -27,6 +27,7 @@ public class AudioServiceTests : IDisposable
                 Directory.Delete(_testLogDir, true);
         }
         catch { }
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

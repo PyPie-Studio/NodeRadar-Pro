@@ -29,7 +29,7 @@ public class TracerouteEngine
     public event Action<RouteHop>? HopDiscovered;
     public event Action<bool>? TracerouteCompleted;
 
-    public async Task RunTracerouteAsync(string destination, int maxHops = 30, int timeoutMs = 2000, CancellationToken token = default, Func<IPingClient>? pingClientFactory = null)
+    public async Task RunTracerouteAsync(string destination, int maxHops = 30, int timeoutMs = 2000, Func<IPingClient>? pingClientFactory = null, CancellationToken token = default)
     {
         pingClientFactory ??= () => new PingClientWrapper();
         try
@@ -149,5 +149,6 @@ public class PingClientWrapper : IPingClient
     public void Dispose()
     {
         _ping.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

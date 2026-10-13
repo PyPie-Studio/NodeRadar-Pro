@@ -366,19 +366,7 @@ public class DarkPurpleTheme
             activeNodesMap.UpdateNode(node);
             Task.Run(() =>
             {
-                db.UpdateRegistration(
-                    node.MacAddress,
-                    node.CustomName,
-                    node.Notes,
-                    node.Location,
-                    node.DeviceName,
-                    node.DeviceModel,
-                    node.IconPath,
-                    node.IpAddress,
-                    node.VulnerabilityScore,
-                    node.ThreatLevel,
-                    node.ExactModel
-                );
+                db.UpdateRegistration(node);
                 try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
                 db.Checkpoint();
                 SyncGlobalStats();
@@ -475,7 +463,7 @@ public class DarkPurpleTheme
                 SyncGlobalStats();
 
                 // Start services
-                if (activeNodesMap.Count > 0)
+                if (!activeNodesMap.IsEmpty)
                 {
                     _ = Task.Run(() => monitor.StartMonitoringAsync(cts.Token), cts.Token);
                 }

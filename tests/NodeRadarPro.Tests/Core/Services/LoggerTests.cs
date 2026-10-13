@@ -25,6 +25,8 @@ public class LoggerTests : IDisposable
                 Directory.Delete(_testLogDir, true);
         }
         catch { }
+
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

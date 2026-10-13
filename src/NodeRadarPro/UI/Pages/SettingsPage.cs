@@ -238,7 +238,7 @@ public class SettingsPage : Border
         return new StackPanel { Margin = new Thickness(0, 0, 0, 28), Children = { topLabel, title, subtitle } };
     }
 
-    private Control BuildGeneralSettingsCard()
+    private Border BuildGeneralSettingsCard()
     {
         var generalIcon = new TextBlock { Text = "<>", FontSize = 16, Foreground = ThemeTokens.Primary, VerticalAlignment = VerticalAlignment.Center };
         var generalTitle = ThemeTokens.Headline("General Settings", 22);
@@ -253,7 +253,7 @@ public class SettingsPage : Border
         return ThemeTokens.Card(generalContent, ThemeTokens.SurfaceContainerLow, 32);
     }
 
-    private Control BuildScanParametersCard()
+    private Border BuildScanParametersCard()
     {
         var scanIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgRadar, 18, ThemeTokens.Primary);
         scanIcon.VerticalAlignment = VerticalAlignment.Center;
@@ -284,7 +284,7 @@ public class SettingsPage : Border
         return scanCard;
     }
 
-    private Control BuildNotificationCenterCard()
+    private Border BuildNotificationCenterCard()
     {
         var notifIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgBell, 18, ThemeTokens.Primary);
         notifIcon.VerticalAlignment = VerticalAlignment.Center;
@@ -301,8 +301,8 @@ public class SettingsPage : Border
         var separator2 = new Border { Height = 1, Background = ThemeTokens.GhostBorder, Margin = new Thickness(0, 12, 0, 8) };
         var thresholdLabel = ThemeTokens.SectionLabel("CRITICAL THRESHOLDS");
 
-        var latencyCard = MakeSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
-        var packetCard = MakeSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue, FontWeight.SemiBold, new Thickness(0, 2, 0, 8), new Thickness(16, 12), new Thickness(0, 0, 0, 8));
+        var latencyCard = MakeSliderCard("Latency Warning", "> Threshold", _latencyThresholdSlider, _latencyThresholdValue, compact: true);
+        var packetCard = MakeSliderCard("Packet Loss Alert", "> Threshold", _packetLossThresholdSlider, _packetLossThresholdValue, compact: true);
 
         var maintenanceLabel = ThemeTokens.SectionLabel("MAINTENANCE & LIFECYCLE");
         var autoBackupRow = MakeCheckboxCard("Auto-Backup Database", "Create periodic snapshots of local DB.", _enableAutoBackupToggle);
@@ -643,11 +643,16 @@ public class SettingsPage : Border
         };
     }
 
-    private static Border MakeSliderCard(string title, string description, Slider slider, TextBlock valueLabel, FontWeight fontWeight = FontWeight.Medium, Thickness? descMargin = null, Thickness? padding = null, Thickness? margin = null)
+    private static Border MakeSliderCard(string title, string description, Slider slider, TextBlock valueLabel, bool compact = false)
     {
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         header.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+
+        var fontWeight = compact ? FontWeight.SemiBold : FontWeight.Medium;
+        var descMargin = compact ? new Thickness(0, 2, 0, 8) : new Thickness(0, 4, 0, 10);
+        var padding = compact ? new Thickness(16, 12) : new Thickness(16, 14);
+        var margin = compact ? new Thickness(0, 0, 0, 8) : new Thickness(0);
 
         var titleTb = new TextBlock { Text = title, FontSize = 14, FontWeight = fontWeight, Foreground = ThemeTokens.OnSurface, FontFamily = new FontFamily("Inter") };
         Grid.SetColumn(titleTb, 0);
@@ -655,14 +660,14 @@ public class SettingsPage : Border
         header.Children.Add(titleTb);
         header.Children.Add(valueLabel);
 
-        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = descMargin ?? new Thickness(0, 4, 0, 10) };
+        var desc = new TextBlock { Text = description, FontSize = 11, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = new FontFamily("Inter"), Margin = descMargin };
 
         return new Border
         {
             Background = ThemeTokens.SurfaceContainerLowest,
             CornerRadius = new CornerRadius(10),
-            Padding = padding ?? new Thickness(16, 14),
-            Margin = margin ?? new Thickness(0),
+            Padding = padding,
+            Margin = margin,
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
             Child = new StackPanel { Children = { header, desc, slider } }

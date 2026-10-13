@@ -91,7 +91,7 @@ public class ConnectivityMonitor
 
         try
         {
-            if (_trackedDevices.Count > 0 && !token.IsCancellationRequested)
+            if (!_trackedDevices.IsEmpty && !token.IsCancellationRequested)
                 await CheckAllDevicesAsync(token);
 
             while (!token.IsCancellationRequested)
@@ -308,7 +308,7 @@ public class ConnectivityMonitor
         await Task.WhenAll(tasks);
 
         // Bulk insert generated alerts
-        if (alertsToInsert.Count > 0)
+        if (!alertsToInsert.IsEmpty)
         {
             try { _db?.InsertAlerts(alertsToInsert); } catch { }
         }

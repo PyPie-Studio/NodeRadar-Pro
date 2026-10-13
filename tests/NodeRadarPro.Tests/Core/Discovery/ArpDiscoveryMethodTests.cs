@@ -43,10 +43,10 @@ public class ArpDiscoveryMethodTests
         };
         var discovered = new List<NetworkDevice>();
 
-        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), CancellationToken.None, ip =>
+        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), ip =>
         {
             return ip.ToString() == "192.168.1.10" ? "00:1C:B3:00:11:22" : "Unknown";
-        });
+        }, CancellationToken.None);
 
         Assert.Single(discovered);
         var device = discovered[0];
@@ -66,7 +66,7 @@ public class ArpDiscoveryMethodTests
         cts.Cancel();
         var discovered = new List<NetworkDevice>();
 
-        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), cts.Token, _ => "00:1C:B3:00:11:22");
+        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), _ => "00:1C:B3:00:11:22", cts.Token);
 
         Assert.Empty(discovered);
     }
@@ -78,7 +78,7 @@ public class ArpDiscoveryMethodTests
         var targetIps = new List<IPAddress> { IPAddress.Parse("192.168.1.10") };
         var discovered = new List<NetworkDevice>();
 
-        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), CancellationToken.None, _ => throw new InvalidOperationException("ARP failure"));
+        await arp.DiscoverAsync("192.168.1", targetIps, dev => discovered.Add(dev), _ => throw new InvalidOperationException("ARP failure"), CancellationToken.None);
 
         Assert.Empty(discovered);
     }

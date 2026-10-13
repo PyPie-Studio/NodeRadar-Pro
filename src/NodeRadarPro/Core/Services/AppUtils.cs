@@ -19,6 +19,8 @@ namespace NodeRadarPro.Core
 
     public static class AppUtils
     {
+        private const string LogSource = "AppUtils";
+
         public static string GetMacAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
         {
             try
@@ -38,7 +40,7 @@ namespace NodeRadarPro.Core
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to retrieve MAC address: {ex.Message}");
+                Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve MAC address: {ex.Message}");
             }
 
             return "Unknown";
@@ -63,13 +65,13 @@ namespace NodeRadarPro.Core
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to retrieve local IP address: {ex.Message}");
+                Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve local IP address: {ex.Message}");
             }
 
             return "127.0.0.1";
         }
 
-        private static IEnumerable<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
+        private static List<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
         {
             var list = new List<NetworkInterfaceInfo>();
             try
@@ -158,7 +160,7 @@ namespace NodeRadarPro.Core
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to open safe URL {url}: {ex.Message}");
+                Logger.Log(LogLevel.Error, LogSource, $"Failed to open safe URL {url}: {ex.Message}");
             }
         }
 
@@ -201,7 +203,7 @@ namespace NodeRadarPro.Core
             }
             catch (Exception ex)
             {
-                Logger.Log(LogLevel.Error, "AppUtils", $"Failed to open folder {folderPath}: {ex.Message}");
+                Logger.Log(LogLevel.Error, LogSource, $"Failed to open folder {folderPath}: {ex.Message}");
             }
         }
     }

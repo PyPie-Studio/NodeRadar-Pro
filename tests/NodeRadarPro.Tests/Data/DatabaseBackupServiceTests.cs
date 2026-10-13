@@ -34,6 +34,7 @@ public class DatabaseBackupServiceTests : IDisposable
             }
         }
         catch { }
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

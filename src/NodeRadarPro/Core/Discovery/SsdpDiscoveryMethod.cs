@@ -14,10 +14,10 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, null, ct);
     }
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<UdpClient>? udpClientFactory = null, CancellationToken ct = default)
     {
         using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
         try

@@ -24,7 +24,7 @@ public class MdnsDiscoveryMethodTests
         var discoveredDevices = new List<NetworkDevice>();
 
         // Act & Assert
-        await mdns.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), cts.Token, CustomUdpFactory);
+        await mdns.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), CustomUdpFactory, cts.Token);
         Assert.Empty(discoveredDevices);
     }
 

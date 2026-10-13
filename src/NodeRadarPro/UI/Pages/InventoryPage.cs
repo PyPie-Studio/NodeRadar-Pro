@@ -1143,7 +1143,7 @@ public class InventoryPage : Border
         _currentNode.Notes = _notesInput.Text ?? "";
         _currentNode.IsRegistered = true;
 
-        _db.UpdateRegistration(_currentNode.MacAddress, _currentNode.CustomName, _currentNode.Notes, _currentNode.Location, _currentNode.DeviceName, _currentNode.DeviceModel, _currentNode.IconPath, _currentNode.IpAddress, _currentNode.VulnerabilityScore, _currentNode.ThreatLevel, _currentNode.ExactModel);
+        _db.UpdateRegistration(_currentNode);
         _detailName.Text = _currentNode.DisplayName;
 
         _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Saved!", 16, Brushes.White, Brushes.White);

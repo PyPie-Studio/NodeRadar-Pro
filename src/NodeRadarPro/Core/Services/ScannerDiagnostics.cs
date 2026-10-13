@@ -240,13 +240,13 @@ public static class ScannerDiagnostics
             var duplicateMacsInResults = results.GroupBy(n => n.MacAddress).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             var duplicateMacsInEvents = discoveredNodes.GroupBy(n => n.MacAddress).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
 
-            if (duplicateMacsInResults.Any())
+            if (duplicateMacsInResults.Count > 0)
             {
                 Console.WriteLine($"  FAIL: Duplicate MACs found in results: {string.Join(", ", duplicateMacsInResults)}");
                 return false;
             }
 
-            if (duplicateMacsInEvents.Any())
+            if (duplicateMacsInEvents.Count > 0)
             {
                 Console.WriteLine($"  FAIL: Duplicate MACs found in events: {string.Join(", ", duplicateMacsInEvents)}");
                 return false;

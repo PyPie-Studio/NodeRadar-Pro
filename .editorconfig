@@ -11,7 +11,26 @@ insert_final_newline = true
 [*.cs]
 # Roslyn Code Analysis Diagnostics (CA rules) enforced as warnings
 dotnet_analyzer_diagnostic.severity = warning
+
+# SonarLint Cognitive Complexity advisory suggestion
+dotnet_diagnostic.S3776.severity = suggestion
+
+# Promoted Analyzer Diagnostics enforced as error
 dotnet_diagnostic.CA1307.severity = error
+dotnet_diagnostic.CA5398.severity = error
+dotnet_diagnostic.CA1867.severity = error
+dotnet_diagnostic.CA1816.severity = error
+dotnet_diagnostic.CA1835.severity = error
+dotnet_diagnostic.CA1850.severity = error
+dotnet_diagnostic.CA1840.severity = error
+dotnet_diagnostic.CA1836.severity = error
+dotnet_diagnostic.CA1860.severity = error
+dotnet_diagnostic.CA1866.severity = error
+dotnet_diagnostic.CA1859.severity = error
+dotnet_diagnostic.CA1068.severity = error
+dotnet_diagnostic.CA2263.severity = error
+dotnet_diagnostic.S107.severity = error
+dotnet_diagnostic.S1192.severity = suggestion
 
 # Remove unused usings - enforced by gate + CI via dotnet format analyzers
 dotnet_diagnostic.IDE0005.severity = warning
@@ -82,6 +101,10 @@ dotnet_diagnostic.CA1861.severity = none         # Constant arrays passed as arg
 dotnet_diagnostic.CA1847.severity = none         # Use char overload for single char string lookups
 dotnet_diagnostic.xUnit2032.severity = none      # Assert.IsAssignableFrom vs Assert.IsType
 
+# Static MAC OUI vendor dictionary contains thousands of repeated vendor name entries
+[**/VendorLookup.cs]
+dotnet_diagnostic.S1192.severity = none
+
 [tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1305.severity = none
@@ -90,6 +113,8 @@ dotnet_diagnostic.CA2201.severity = none
 dotnet_diagnostic.CA1852.severity = none
 dotnet_diagnostic.CA1001.severity = none
 dotnet_diagnostic.xUnit2032.severity = none
+dotnet_diagnostic.S1192.severity = none
+dotnet_diagnostic.S107.severity = none
 
 [*.{axaml,xml,json,md,yml,yaml}]
 indent_style = space

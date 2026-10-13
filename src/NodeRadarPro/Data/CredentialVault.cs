@@ -208,7 +208,6 @@ public static class CredentialVault
     internal static byte[] GetFallbackEncryptionKeyLegacy()
     {
         string identifier = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_FallbackKey";
-        using var sha256 = SHA256.Create();
-        return sha256.ComputeHash(Encoding.UTF8.GetBytes(identifier));
+        return SHA256.HashData(Encoding.UTF8.GetBytes(identifier));
     }
 }

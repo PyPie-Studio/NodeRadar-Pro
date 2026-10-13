@@ -23,7 +23,7 @@ public class BannerGrabProbeTests
                 using var client = await listener.AcceptTcpClientAsync();
                 using var stream = client.GetStream();
                 byte[] data = Encoding.UTF8.GetBytes("Hello, Test Banner\r\n");
-                await stream.WriteAsync(data, 0, data.Length);
+                await stream.WriteAsync(data.AsMemory());
             }
             catch { }
         });

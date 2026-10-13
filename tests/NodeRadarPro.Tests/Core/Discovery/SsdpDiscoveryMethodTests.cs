@@ -41,7 +41,7 @@ public class SsdpDiscoveryMethodTests
         }
 
         var discoveredDevices = new List<NetworkDevice>();
-        var ex = await Record.ExceptionAsync(() => ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), cts.Token, CustomUdpFactory));
+        var ex = await Record.ExceptionAsync(() => ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), CustomUdpFactory, cts.Token));
         Assert.Null(ex);
         Assert.Empty(discoveredDevices);
     }

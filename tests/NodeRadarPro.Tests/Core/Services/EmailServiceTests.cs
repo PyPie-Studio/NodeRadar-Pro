@@ -25,6 +25,7 @@ public class EmailServiceTests : IDisposable
     {
         _liteDb.Dispose();
         _ms.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

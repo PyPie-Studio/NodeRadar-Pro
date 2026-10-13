@@ -110,9 +110,9 @@ public class BannerGrabProbe : IFingerprintProbe
                         0x01, 0x00, 0x08, 0x00, // RDP negotiation payload type (0x01)
                         0x03, 0x00, 0x00, 0x00  // Requested protocols (0x03 = SSL/CredSSP)
                     };
-                    await stream.WriteAsync(rdpNeg, 0, rdpNeg.Length, cts.Token);
+                    await stream.WriteAsync(rdpNeg.AsMemory(), cts.Token);
                     byte[] rdpResp = new byte[1024];
-                    int rdpRead = await stream.ReadAsync(rdpResp, 0, rdpResp.Length, cts.Token);
+                    int rdpRead = await stream.ReadAsync(rdpResp.AsMemory(), cts.Token);
                     if (rdpRead <= 0) return string.Empty;
                 }
 
@@ -121,7 +121,7 @@ public class BannerGrabProbe : IFingerprintProbe
                 {
                     TargetHost = ip,
                     CertificateRevocationCheckMode = System.Security.Cryptography.X509Certificates.X509RevocationMode.NoCheck,
-                    EnabledSslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+                    EnabledSslProtocols = System.Security.Authentication.SslProtocols.None
                 };
 
                 await sslStream.AuthenticateAsClientAsync(sslOptions, cts.Token);
@@ -158,10 +158,10 @@ public class BannerGrabProbe : IFingerprintProbe
             {
                 string req = $"GET / HTTP/1.1\r\nHost: {ip}\r\nConnection: close\r\n\r\n";
                 byte[] reqBytes = Encoding.ASCII.GetBytes(req);
-                await activeStream.WriteAsync(reqBytes, 0, reqBytes.Length, cts.Token);
+                await activeStream.WriteAsync(reqBytes.AsMemory(), cts.Token);
 
                 byte[] buffer = new byte[2048];
-                int read = await activeStream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+                int read = await activeStream.ReadAsync(buffer.AsMemory(), cts.Token);
                 string response = Encoding.UTF8.GetString(buffer, 0, read);
 
                 var serverLine = response.Split('\n').FirstOrDefault(l => l.StartsWith("Server:", StringComparison.OrdinalIgnoreCase));
@@ -184,7 +184,7 @@ public class BannerGrabProbe : IFingerprintProbe
                 }
 
                 byte[] buffer = new byte[512];
-                int read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+                int read = await stream.ReadAsync(buffer.AsMemory(), cts.Token);
                 if (read > 0)
                 {
                     string greeting = Encoding.UTF8.GetString(buffer, 0, read).Trim();

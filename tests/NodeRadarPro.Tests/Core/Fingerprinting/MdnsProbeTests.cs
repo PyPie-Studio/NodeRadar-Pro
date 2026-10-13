@@ -15,6 +15,7 @@ public class MdnsProbeTests : IDisposable
     public void Dispose()
     {
         MdnsProbe.ClearCacheForTesting();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

@@ -10,14 +10,17 @@ namespace NodeRadarPro.Core.Discovery;
 
 public class MdnsDiscoveryMethod : IDiscoveryMethod
 {
+    private const string DeviceTypeMobile = "Mobile Device";
+    private const string KeywordIphone = "iphone";
+
     public string Name => "mDNS / Bonjour";
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, ct, null);
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, null, ct);
     }
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct, Func<UdpClient>? udpClientFactory)
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<UdpClient>? udpClientFactory = null, CancellationToken ct = default)
     {
         try
         {
@@ -199,7 +202,7 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
                     if (nameLen > 0 && start + 1 + nameLen == localIdx)
                     {
                         string name = Encoding.UTF8.GetString(buffer, start + 1, nameLen);
-                        if (!name.StartsWith("_") && name.Length > 2)
+                        if (!name.StartsWith('_') && name.Length > 2)
                         {
                             return name + ".local";
                         }
@@ -224,7 +227,7 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
                 if (localIdx - start - 1 > 2)
                 {
                     string hostname = raw.Substring(start + 1, localIdx - start - 1 + 6);
-                    if (!hostname.StartsWith("_"))
+                    if (!hostname.StartsWith('_'))
                     {
                         return hostname;
                     }
@@ -239,20 +242,20 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
     private string GetDeviceTypeFromMdns(string hostname, byte[] buffer)
     {
         string hostLower = hostname.ToLowerInvariant();
-        if (hostLower.Contains("iphone", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("phone", StringComparison.OrdinalIgnoreCase))
-            return "Mobile Device";
+        if (hostLower.Contains(KeywordIphone, StringComparison.OrdinalIgnoreCase) || hostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("phone", StringComparison.OrdinalIgnoreCase))
+            return DeviceTypeMobile;
         if (hostLower.Contains("android", StringComparison.OrdinalIgnoreCase))
-            return "Mobile Device";
+            return DeviceTypeMobile;
         if (hostLower.Contains("tv", StringComparison.OrdinalIgnoreCase))
             return "Smart TV";
         if (hostLower.Contains("printer", StringComparison.OrdinalIgnoreCase))
             return "Printer";
 
         string raw = Encoding.UTF8.GetString(buffer).ToLowerInvariant();
-        if (raw.Contains("iphone", StringComparison.OrdinalIgnoreCase) || raw.Contains("ipad", StringComparison.OrdinalIgnoreCase) || raw.Contains("apple-mobdev2", StringComparison.OrdinalIgnoreCase))
-            return "Mobile Device";
+        if (raw.Contains(KeywordIphone, StringComparison.OrdinalIgnoreCase) || raw.Contains("ipad", StringComparison.OrdinalIgnoreCase) || raw.Contains("apple-mobdev2", StringComparison.OrdinalIgnoreCase))
+            return DeviceTypeMobile;
         if (raw.Contains("android", StringComparison.OrdinalIgnoreCase) || raw.Contains("googlecast", StringComparison.OrdinalIgnoreCase))
-            return "Mobile Device";
+            return DeviceTypeMobile;
 
         return "Generic Device";
     }

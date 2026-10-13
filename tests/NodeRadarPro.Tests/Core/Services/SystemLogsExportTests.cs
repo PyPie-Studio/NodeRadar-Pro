@@ -22,6 +22,7 @@ public class SystemLogsExportTests : IDisposable
     {
         _liteDb.Dispose();
         _ms.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     public static string BuildCsvBaseline(List<LogEntry> logs)

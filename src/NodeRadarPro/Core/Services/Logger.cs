@@ -44,7 +44,7 @@ public static class Logger
     public static void Log(LogLevel level, string source, string message, string? deviceMac = null)
     {
         string timestamp = DateTime.Now.ToString("yyyy-MM-dd  hh:mm:ss.fff tt");
-        string threadId = System.Threading.Thread.CurrentThread.ManagedThreadId.ToString().PadLeft(3, '0');
+        string threadId = Environment.CurrentManagedThreadId.ToString().PadLeft(3, '0');
         string macInfo = !string.IsNullOrEmpty(deviceMac) ? $" [{deviceMac}]" : "";
 
         // Structure: [Timestamp] [Level] [Thread] [Source] Message [Device]

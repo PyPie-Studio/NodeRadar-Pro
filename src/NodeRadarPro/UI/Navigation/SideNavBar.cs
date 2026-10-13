@@ -180,7 +180,7 @@ public class SideNavBar : Border
     private Border MakeNavItem(string name, string icon, string label, string tooltip)
     {
         Control iconControl;
-        bool isSvg = icon.StartsWith("M", StringComparison.OrdinalIgnoreCase);
+        bool isSvg = icon.StartsWith('M') || icon.StartsWith('m');
 
         if (isSvg)
         {

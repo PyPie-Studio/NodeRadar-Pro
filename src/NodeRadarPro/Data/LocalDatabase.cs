@@ -13,6 +13,18 @@ namespace NodeRadarPro.Data;
 /// </summary>
 public class LocalDatabase : IDisposable
 {
+    private const string DevicesCollection = "devices";
+    private const string AlertsCollection = "alerts";
+    private const string UptimeCollection = "uptime";
+    private const string LogsCollection = "logs";
+    private const string SettingsCollection = "settings";
+    private const string DatabaseSource = "Database";
+    private const string SmtpPasswordKey = "SmtpPassword";
+    private const string SmtpPasswordEncryptedKey = "SmtpPasswordEncrypted";
+    private const string TimestampField = "Timestamp";
+    private const string MacAddressField = "MacAddress";
+    private const string IpAddressField = "IpAddress";
+
     private static Lazy<LocalDatabase> _instance = new(() => new LocalDatabase());
     public static LocalDatabase Instance => _instance.Value;
 
@@ -150,24 +162,24 @@ public class LocalDatabase : IDisposable
             if (_db == null) return;
 
             // devices
-            var devices = _db.GetCollection<NetworkNode>("devices");
-            devices.EnsureIndex("MacAddress", "$.MacAddress", unique: true);
-            devices.EnsureIndex("IpAddress", "$.IpAddress");
+            var devices = _db.GetCollection<NetworkNode>(DevicesCollection);
+            devices.EnsureIndex(MacAddressField, "$.MacAddress", unique: true);
+            devices.EnsureIndex(IpAddressField, "$.IpAddress");
 
             // alerts
-            var alerts = _db.GetCollection<AlertEvent>("alerts");
-            alerts.EnsureIndex("Timestamp", "$.Timestamp");
+            var alerts = _db.GetCollection<AlertEvent>(AlertsCollection);
+            alerts.EnsureIndex(TimestampField, "$.Timestamp");
             alerts.EnsureIndex("IsResolved", "$.IsResolved");
 
             // uptime
-            var uptime = _db.GetCollection<UptimeSnapshot>("uptime");
-            uptime.EnsureIndex("MacAddress", "$.MacAddress");
-            uptime.EnsureIndex("Timestamp", "$.Timestamp");
+            var uptime = _db.GetCollection<UptimeSnapshot>(UptimeCollection);
+            uptime.EnsureIndex(MacAddressField, "$.MacAddress");
+            uptime.EnsureIndex(TimestampField, "$.Timestamp");
             uptime.EnsureIndex("Mac_Time", "$.MacAddress + '_' + $.Timestamp");
 
             // logs
-            var logs = _db.GetCollection<LogEntry>("logs");
-            logs.EnsureIndex("Timestamp", "$.Timestamp");
+            var logs = _db.GetCollection<LogEntry>(LogsCollection);
+            logs.EnsureIndex(TimestampField, "$.Timestamp");
             logs.EnsureIndex("DeviceMac", "$.DeviceMac");
             logs.EnsureIndex("Level", "$.Level");
         }
@@ -187,6 +199,7 @@ public class LocalDatabase : IDisposable
         {
             _db?.Dispose();
         }
+        GC.SuppressFinalize(this);
     }
 
     // ══════════════════════════════════
@@ -204,7 +217,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var collection = _db.GetCollection<NetworkNode>("devices");
+            var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
             var validNodes = scannedNodes.Where(n => n != null && n.MacAddress != "Unknown").ToList();
             if (validNodes.Count == 0) return new List<NetworkNode>();
 
@@ -318,52 +331,52 @@ public class LocalDatabase : IDisposable
         }
     }
 
-    public void UpdateRegistration(string macAddress, string customName, string notes,
-        string location, string deviceName, string deviceModel, string icon,
-        string? ipAddress = null, int score = 0, ThreatLevel threat = ThreatLevel.Safe, string exactModel = "")
+    public void UpdateRegistration(NetworkNode node)
     {
+        ArgumentNullException.ThrowIfNull(node);
+
         lock (SyncRoot)
         {
-            var collection = _db.GetCollection<NetworkNode>("devices");
+            var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
 
-            var existing = collection.FindOne(x => x.MacAddress == macAddress);
+            var existing = collection.FindOne(x => x.MacAddress == node.MacAddress);
             if (existing != null)
             {
-                existing.CustomName = customName;
-                existing.Notes = notes;
-                existing.Location = location;
-                existing.DeviceName = deviceName;
-                existing.DeviceModel = deviceModel;
-                existing.IconPath = icon;
+                existing.CustomName = node.CustomName;
+                existing.Notes = node.Notes;
+                existing.Location = node.Location;
+                existing.DeviceName = node.DeviceName;
+                existing.DeviceModel = node.DeviceModel;
+                existing.IconPath = node.IconPath;
                 existing.IsRegistered = true;
-                existing.VulnerabilityScore = score;
-                existing.ThreatLevel = threat;
-                if (!string.IsNullOrEmpty(exactModel)) existing.ExactModel = exactModel;
+                existing.VulnerabilityScore = node.VulnerabilityScore;
+                existing.ThreatLevel = node.ThreatLevel;
+                if (!string.IsNullOrEmpty(node.ExactModel)) existing.ExactModel = node.ExactModel;
 
-                if (!string.IsNullOrEmpty(ipAddress))
-                    existing.IpAddress = ipAddress;
+                if (!string.IsNullOrEmpty(node.IpAddress))
+                    existing.IpAddress = node.IpAddress;
                 collection.Update(existing);
             }
             else
             {
-                var node = new NetworkNode
+                var newNode = new NetworkNode
                 {
-                    MacAddress = macAddress,
-                    CustomName = customName,
-                    Notes = notes,
-                    Location = location,
-                    DeviceName = deviceName,
-                    DeviceModel = deviceModel,
-                    IconPath = icon,
-                    IpAddress = ipAddress ?? "0.0.0.0",
+                    MacAddress = node.MacAddress,
+                    CustomName = node.CustomName,
+                    Notes = node.Notes,
+                    Location = node.Location,
+                    DeviceName = node.DeviceName,
+                    DeviceModel = node.DeviceModel,
+                    IconPath = node.IconPath,
+                    IpAddress = !string.IsNullOrEmpty(node.IpAddress) ? node.IpAddress : "0.0.0.0",
                     IsRegistered = true,
-                    VulnerabilityScore = score,
-                    ThreatLevel = threat,
-                    ExactModel = exactModel,
+                    VulnerabilityScore = node.VulnerabilityScore,
+                    ThreatLevel = node.ThreatLevel,
+                    ExactModel = node.ExactModel,
                     FirstSeen = DateTime.UtcNow,
                     LastSeen = DateTime.UtcNow
                 };
-                collection.Insert(node);
+                collection.Insert(newNode);
             }
             Checkpoint();
         }
@@ -373,7 +386,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var collection = _db.GetCollection<NetworkNode>("devices");
+            var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
             var existing = collection.FindOne(x => x.MacAddress == macAddress);
             if (existing != null)
             {
@@ -388,7 +401,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var collection = _db.GetCollection<NetworkNode>("devices");
+            var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
             var existing = collection.FindOne(x => x.MacAddress == macAddress);
             if (existing != null) { collection.Delete(existing.Id); Checkpoint(); return true; }
             return false;
@@ -399,12 +412,12 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var collection = _db.GetCollection<NetworkNode>("devices");
+            var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
 
             var macList = System.Linq.Enumerable.ToList(macAddresses);
             int deletedCount = collection.DeleteMany(x => macList.Contains(x.MacAddress));
 
-            Log(LogLevel.Info, "Database", $"Bulk deleted {deletedCount} devices from database.");
+            Log(LogLevel.Info, DatabaseSource, $"Bulk deleted {deletedCount} devices from database.");
             Checkpoint();
             return deletedCount;
         }
@@ -416,7 +429,7 @@ public class LocalDatabase : IDisposable
         {
             try
             {
-                return _db.GetCollection<NetworkNode>("devices").FindOne(x => x.IsRegistered && x.IpAddress == ip);
+                return _db.GetCollection<NetworkNode>(DevicesCollection).FindOne(x => x.IsRegistered && x.IpAddress == ip);
             }
             catch
             {
@@ -431,7 +444,7 @@ public class LocalDatabase : IDisposable
         {
             try
             {
-                return _db.GetCollection<NetworkNode>("devices").Find(x => x.IsRegistered).ToList();
+                return _db.GetCollection<NetworkNode>(DevicesCollection).Find(x => x.IsRegistered).ToList();
             }
             catch
             {
@@ -446,7 +459,7 @@ public class LocalDatabase : IDisposable
         {
             try
             {
-                return _db.GetCollection<NetworkNode>("devices").FindAll().ToList();
+                return _db.GetCollection<NetworkNode>(DevicesCollection).FindAll().ToList();
             }
             catch
             {
@@ -463,7 +476,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             col.Insert(alert);
         }
     }
@@ -474,7 +487,7 @@ public class LocalDatabase : IDisposable
         if (list.Count == 0) return;
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             col.InsertBulk(list);
         }
     }
@@ -483,8 +496,8 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            return _db.GetCollection<AlertEvent>("alerts")
-                .Find(Query.All("Timestamp", Query.Descending), limit: limit).ToList();
+            return _db.GetCollection<AlertEvent>(AlertsCollection)
+                .Find(Query.All(TimestampField, Query.Descending), limit: limit).ToList();
         }
     }
 
@@ -492,7 +505,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            return _db.GetCollection<AlertEvent>("alerts").Count(x => !x.IsResolved);
+            return _db.GetCollection<AlertEvent>(AlertsCollection).Count(x => !x.IsResolved);
         }
     }
 
@@ -500,7 +513,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             var alert = col.FindById(alertId);
             if (alert != null)
             {
@@ -515,7 +528,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection("alerts");
+            var col = _db.GetCollection(AlertsCollection);
             var now = DateTime.UtcNow;
             col.UpdateMany(
                 BsonExpression.Create("{ IsResolved: true, ResolvedAt: @0 }", now),
@@ -528,7 +541,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             bool deleted = col.Delete(alertId);
             if (deleted)
             {
@@ -542,12 +555,12 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             int deleted = col.DeleteMany(x => x.IsResolved);
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} resolved alerts.");
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Deleted {deleted} resolved alerts.");
             }
             return deleted;
         }
@@ -557,14 +570,14 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             var idList = alertIds as IList<ObjectId> ?? alertIds.ToList();
             if (idList.Count == 0) return 0;
             int deleted = col.DeleteMany(x => idList.Contains(x.Id));
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} alerts.");
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Deleted {deleted} alerts.");
             }
             return deleted;
         }
@@ -574,7 +587,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             int deleted = resolvedOnly
                 ? col.DeleteMany(x => x.IsResolved && x.Timestamp < cutoff)
                 : col.DeleteMany(x => x.Timestamp < cutoff);
@@ -582,7 +595,7 @@ public class LocalDatabase : IDisposable
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} alerts older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Deleted {deleted} alerts older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
             }
             return deleted;
         }
@@ -592,10 +605,10 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<AlertEvent>("alerts");
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             int count = col.DeleteAll();
             Checkpoint();
-            Logger.Log(LogLevel.Info, "Database", $"Cleared all {count} alerts.");
+            Logger.Log(LogLevel.Info, DatabaseSource, $"Cleared all {count} alerts.");
             return count;
         }
     }
@@ -609,7 +622,7 @@ public class LocalDatabase : IDisposable
         if (snapshots.Count == 0) return;
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<UptimeSnapshot>("uptime");
+            var col = _db.GetCollection<UptimeSnapshot>(UptimeCollection);
             col.InsertBulk(snapshots);
         }
     }
@@ -620,7 +633,7 @@ public class LocalDatabase : IDisposable
         lock (SyncRoot)
         {
             var cutoff = DateTime.UtcNow.AddHours(-hours);
-            return _db.GetCollection<UptimeSnapshot>("uptime")
+            return _db.GetCollection<UptimeSnapshot>(UptimeCollection)
                 .Find(x => x.MacAddress == macAddress && x.Timestamp >= cutoff)
                 .OrderBy(x => x.Timestamp).ToList();
         }
@@ -634,7 +647,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<LogEntry>("logs");
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
             col.Insert(entry);
         }
     }
@@ -659,7 +672,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<LogEntry>("logs");
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
             var query = col.Query();
 
             if (levelFilter.HasValue)
@@ -677,7 +690,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<LogEntry>("logs");
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
             bool deleted = col.Delete(logId);
             if (deleted)
             {
@@ -691,12 +704,12 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<LogEntry>("logs");
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
             int deleted = col.DeleteMany(x => x.Timestamp < cutoff);
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, "Database", $"Deleted {deleted} logs older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Deleted {deleted} logs older than {cutoff:yyyy-MM-dd hh:mm:ss tt}.");
             }
             return deleted;
         }
@@ -706,10 +719,10 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var col = _db.GetCollection<LogEntry>("logs");
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
             int count = col.DeleteAll();
             Checkpoint();
-            Logger.Log(LogLevel.Info, "Database", $"Cleared all {count} system logs.");
+            Logger.Log(LogLevel.Info, DatabaseSource, $"Cleared all {count} system logs.");
             return count;
         }
     }
@@ -722,26 +735,26 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            var bsonCol = _db.GetCollection("settings");
+            var bsonCol = _db.GetCollection(SettingsCollection);
             var doc = bsonCol.FindById(1);
 
-            if (doc != null && doc.ContainsKey("SmtpPassword") && !doc["SmtpPassword"].IsNull && !string.IsNullOrEmpty(doc["SmtpPassword"].AsString))
+            if (doc != null && doc.ContainsKey(SmtpPasswordKey) && !doc[SmtpPasswordKey].IsNull && !string.IsNullOrEmpty(doc[SmtpPasswordKey].AsString))
             {
-                var plainPass = doc["SmtpPassword"].AsString;
+                var plainPass = doc[SmtpPasswordKey].AsString;
                 try
                 {
-                    doc["SmtpPasswordEncrypted"] = CredentialVault.EncryptSecret(plainPass);
+                    doc[SmtpPasswordEncryptedKey] = CredentialVault.EncryptSecret(plainPass);
                 }
                 catch (Exception ex)
                 {
-                    Log(LogLevel.Error, "Database", $"Failed to encrypt legacy SmtpPassword: {ex.Message}");
+                    Log(LogLevel.Error, DatabaseSource, $"Failed to encrypt legacy SmtpPassword: {ex.Message}");
                 }
 
-                doc.Remove("SmtpPassword");
+                doc.Remove(SmtpPasswordKey);
                 bsonCol.Update(doc);
             }
 
-            var collection = _db.GetCollection<AppSettings>("settings");
+            var collection = _db.GetCollection<AppSettings>(SettingsCollection);
             var settings = collection.FindById(1) ?? new AppSettings();
 
             if (!string.IsNullOrEmpty(settings.SmtpPasswordEncrypted))
@@ -752,7 +765,7 @@ public class LocalDatabase : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Log(LogLevel.Error, "Database", $"Failed to decrypt SmtpPassword: {ex.Message}");
+                    Log(LogLevel.Error, DatabaseSource, $"Failed to decrypt SmtpPassword: {ex.Message}");
                     settings.SmtpPassword = "";
                 }
             }
@@ -773,7 +786,7 @@ public class LocalDatabase : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Log(LogLevel.Error, "Database", $"Failed to encrypt SmtpPassword during save: {ex.Message}");
+                    Log(LogLevel.Error, DatabaseSource, $"Failed to encrypt SmtpPassword during save: {ex.Message}");
                 }
             }
             else
@@ -781,7 +794,7 @@ public class LocalDatabase : IDisposable
                 settings.SmtpPasswordEncrypted = null;
             }
 
-            var collection = _db.GetCollection<AppSettings>("settings");
+            var collection = _db.GetCollection<AppSettings>(SettingsCollection);
             collection.Upsert(settings);
             Checkpoint();
         }
@@ -807,23 +820,23 @@ public class LocalDatabase : IDisposable
 
             // Prune uptime snapshots
             var uptimeCutoff = now.AddDays(-uptimeDays);
-            deleted += _db.GetCollection<UptimeSnapshot>("uptime")
+            deleted += _db.GetCollection<UptimeSnapshot>(UptimeCollection)
                 .DeleteMany(x => x.Timestamp < uptimeCutoff);
 
             // Prune old logs
             var logCutoff = now.AddDays(-logDays);
-            deleted += _db.GetCollection<LogEntry>("logs")
+            deleted += _db.GetCollection<LogEntry>(LogsCollection)
                 .DeleteMany(x => x.Timestamp < logCutoff);
 
             // Prune resolved alerts older than retention
             var alertCutoff = now.AddDays(-alertDays);
-            deleted += _db.GetCollection<AlertEvent>("alerts")
+            deleted += _db.GetCollection<AlertEvent>(AlertsCollection)
                 .DeleteMany(x => x.IsResolved && x.ResolvedAt != null && x.ResolvedAt < alertCutoff);
 
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, "Database", $"Pruned {deleted} expired records (uptime>{uptimeDays}d, logs>{logDays}d, resolved alerts>{alertDays}d).");
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Pruned {deleted} expired records (uptime>{uptimeDays}d, logs>{logDays}d, resolved alerts>{alertDays}d).");
             }
 
             return deleted;

@@ -116,7 +116,7 @@ public class TraceroutePage : Border
         _statusText.Text = $"Tracing route to {target}...";
         _cts = new CancellationTokenSource();
 
-        await Task.Run(() => _engine.RunTracerouteAsync(target, 30, 2000, _cts.Token));
+        await Task.Run(() => _engine.RunTracerouteAsync(target, 30, 2000, token: _cts.Token));
     }
 
     private void OnStopTrace(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

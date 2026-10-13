@@ -20,7 +20,10 @@ public class MockPingClient : IPingClient
         return SendPingAsyncMock(address, timeout, buffer, options);
     }
 
-    public void Dispose() { }
+    public void Dispose()
+    {
+        GC.SuppressFinalize(this);
+    }
 }
 
 public class TracerouteEngineTests
@@ -59,7 +62,7 @@ public class TracerouteEngineTests
             }
         };
 
-        await engine.RunTracerouteAsync("8.8.8.8", maxHops: 30, timeoutMs: 2000, token: default, () => mockClient);
+        await engine.RunTracerouteAsync("8.8.8.8", maxHops: 30, timeoutMs: 2000, pingClientFactory: () => mockClient, token: default);
 
         Assert.True(completed);
         Assert.Equal(2, hops.Count);
@@ -89,7 +92,7 @@ public class TracerouteEngineTests
             }
         };
 
-        await engine.RunTracerouteAsync("192.0.2.1", maxHops: 1, timeoutMs: 2000, token: default, () => mockClient);
+        await engine.RunTracerouteAsync("192.0.2.1", maxHops: 1, timeoutMs: 2000, pingClientFactory: () => mockClient, token: default);
 
         Assert.Single(hops);
         Assert.False(hops[0].Status);
@@ -119,7 +122,7 @@ public class TracerouteEngineTests
         using var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
 
-        await engine.RunTracerouteAsync("8.8.8.8", maxHops: 30, timeoutMs: 2000, token: cts.Token, () => mockClient);
+        await engine.RunTracerouteAsync("8.8.8.8", maxHops: 30, timeoutMs: 2000, pingClientFactory: () => mockClient, token: cts.Token);
 
         // Should not have discovered any hops since it was cancelled before loop execution
         Assert.Empty(hops);

@@ -25,6 +25,7 @@ public class AppUtilsTests : IDisposable
                 Directory.Delete(_testLogDir, true);
         }
         catch { }
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

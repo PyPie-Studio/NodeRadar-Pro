@@ -22,6 +22,7 @@ public class IntrusionDetectorTests : IDisposable
     {
         _liteDb.Dispose();
         _ms.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private class ThrowingSubnetScanner : SubnetScanner

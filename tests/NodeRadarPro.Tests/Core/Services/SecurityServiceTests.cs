@@ -27,17 +27,13 @@ public class SecurityServiceTests
         string testContent = "This is a test content for hashing.";
 
         // Expected SHA256 Hash
-        string expectedHash;
-        using (var sha256 = SHA256.Create())
+        byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(testContent));
+        StringBuilder sb = new StringBuilder();
+        foreach (byte b in hashBytes)
         {
-            byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(testContent));
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in hashBytes)
-            {
-                sb.Append(b.ToString("x2"));
-            }
-            expectedHash = sb.ToString();
+            sb.Append(b.ToString("x2"));
         }
+        string expectedHash = sb.ToString();
 
         try
         {
@@ -156,17 +152,13 @@ public class SecurityServiceTests
         // Arrange
         string tempFile = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         string testContent = "This is a test content for verifying file hash.";
-        string expectedHash;
-        using (var sha256 = SHA256.Create())
+        byte[] hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(testContent));
+        StringBuilder sb = new StringBuilder();
+        foreach (byte b in hashBytes)
         {
-            byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(testContent));
-            StringBuilder sb = new StringBuilder();
-            foreach (byte b in hashBytes)
-            {
-                sb.Append(b.ToString("x2"));
-            }
-            expectedHash = sb.ToString();
+            sb.Append(b.ToString("x2"));
         }
+        string expectedHash = sb.ToString();
 
         try
         {

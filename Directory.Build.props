@@ -6,7 +6,7 @@
     <AnalysisMode>Default</AnalysisMode>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
-    <WarningsAsErrors>$(WarningsAsErrors);CA1307</WarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);CA1307;CA5398;CA1867;CA1816;CA1835;CA1850;CA1840;CA1836;CA1860;CA1866;CA1859;CA1068;CA2263;S107</WarningsAsErrors>
     <!-- NodeRadar Pro Analyzer Onboarding Baseline (2026-08-17):
          Suppression baseline for desktop Avalonia, low-level network sockets, and LiteDB stack.
          The NoWarn baseline is shrink-only — rules are removed as legacy code is refactored. -->

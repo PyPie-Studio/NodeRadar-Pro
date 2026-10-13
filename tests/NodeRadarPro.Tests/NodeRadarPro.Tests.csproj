@@ -33,4 +33,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\NodeRadarPro\NodeRadarPro.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="Roslynator.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>

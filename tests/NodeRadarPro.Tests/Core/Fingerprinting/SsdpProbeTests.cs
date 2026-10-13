@@ -14,6 +14,7 @@ public class SsdpProbeTests : IDisposable
     public void Dispose()
     {
         SsdpProbe.ClearCacheForTesting();
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

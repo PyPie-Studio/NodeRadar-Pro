@@ -22,6 +22,7 @@ public class LocalDatabaseTests : IDisposable
     {
         _liteDb.Dispose();
         _ms.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     // -- DEVICE TESTS --
@@ -121,7 +122,16 @@ public class LocalDatabaseTests : IDisposable
     [Fact]
     public void UpdateRegistration_CreatesOrUpdatesDevice()
     {
-        _db.UpdateRegistration("00:11:22:33:44:55", "Test TV", "Living Room", "Loc1", "Smart TV", "ModelX", "icon_tv");
+        _db.UpdateRegistration(new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            CustomName = "Test TV",
+            Notes = "Living Room",
+            Location = "Loc1",
+            DeviceName = "Smart TV",
+            DeviceModel = "ModelX",
+            IconPath = "icon_tv"
+        });
 
         var registered = _db.GetRegisteredDevices();
         Assert.Single(registered);
@@ -129,7 +139,16 @@ public class LocalDatabaseTests : IDisposable
         Assert.True(registered[0].IsRegistered);
 
         // Update existing
-        _db.UpdateRegistration("00:11:22:33:44:55", "Test TV 2", "Notes", "Loc2", "Smart TV", "ModelX", "icon_tv");
+        _db.UpdateRegistration(new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            CustomName = "Test TV 2",
+            Notes = "Notes",
+            Location = "Loc2",
+            DeviceName = "Smart TV",
+            DeviceModel = "ModelX",
+            IconPath = "icon_tv"
+        });
         var updated = _db.GetRegisteredDevices();
         Assert.Single(updated);
         Assert.Equal("Test TV 2", updated[0].CustomName);

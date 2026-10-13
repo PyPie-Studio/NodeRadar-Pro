@@ -25,6 +25,7 @@ public class CredentialVaultTests : IDisposable
         {
             // Ignore cleanup exceptions
         }
+        GC.SuppressFinalize(this);
     }
 
     [Fact]

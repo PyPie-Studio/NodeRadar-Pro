@@ -19,7 +19,7 @@ public static partial class ChangelogService
     private static readonly Regex ReleaseHeaderRegex = MyReleaseHeaderRegex();
     private static readonly Regex BulletPointRegex = MyBulletPointRegex();
 
-    private static IReadOnlyList<ChangelogRelease>? _cachedReleases;
+    private static List<ChangelogRelease>? _cachedReleases;
 
     /// <summary>
     /// Retrieves recent application releases in reverse chronological order.

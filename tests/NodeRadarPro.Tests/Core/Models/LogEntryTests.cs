@@ -60,8 +60,8 @@ public class LogEntryTests
         Assert.Equal(0, (int)LogLevel.Info);
         Assert.Equal(1, (int)LogLevel.Warning);
         Assert.Equal(2, (int)LogLevel.Error);
-        Assert.True(Enum.IsDefined(typeof(LogLevel), LogLevel.Info));
-        Assert.True(Enum.IsDefined(typeof(LogLevel), LogLevel.Warning));
-        Assert.True(Enum.IsDefined(typeof(LogLevel), LogLevel.Error));
+        Assert.True(Enum.IsDefined(LogLevel.Info));
+        Assert.True(Enum.IsDefined(LogLevel.Warning));
+        Assert.True(Enum.IsDefined(LogLevel.Error));
     }
 }
