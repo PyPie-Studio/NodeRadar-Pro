@@ -1,11 +1,27 @@
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting;
 using NodeRadarPro.Core.Fingerprinting.Probes;
+using Xunit;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
 public class NbnsProbeTests
 {
+    [Fact]
+    public void Properties_ReturnExpectedValues()
+    {
+        var probe = new NbnsProbe();
+        Assert.Equal("NetBIOS (NBNS)", probe.Name);
+        Assert.Equal(35, probe.Priority);
+    }
+
     [Fact]
     public void ParseNodeStatusResponse_ShortBuffer_DoesNotThrowOrPopulate()
     {
@@ -27,14 +43,15 @@ public class NbnsProbeTests
         // Header (12 bytes)
         var packet = new List<byte>(new byte[12]);
 
-        // Compressed Name Pointer (2 bytes: 0xC0, 0x0C)
-        packet.Add(0xC0);
-        packet.Add(0x0C);
+        // Query name / RR Name (e.g. compressed pointer 2 bytes or 34-byte encoded name)
+        packet.Add(0x20);
+        packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+        packet.Add(0x00);
 
         // Type (2 bytes: 0x00, 0x21), Class (2 bytes: 0x00, 0x01), TTL (4 bytes)
         packet.AddRange(new byte[8]);
 
-        // RDLength: 2 bytes (big endian) -> e.g. 1 (numNames) + 18*2 + 6 (MAC) = 43 bytes = 0x002B
+        // RDLength: 2 bytes (big endian) -> 1 (numNames) + 18*2 + 6 (MAC) = 43 bytes = 0x002B
         packet.Add(0x00);
         packet.Add(0x2B);
 
@@ -63,5 +80,187 @@ public class NbnsProbeTests
         Assert.Equal("MYDESKTOP", result.RawData["NbnsHostname"]);
         Assert.Equal("WORKGROUP", result.RawData["NbnsDomain"]);
         Assert.Equal("00:11:22:33:44:55", result.RawData["NbnsMac"]);
+    }
+
+    [Fact]
+    public void ParseNodeStatusResponse_CompressedPointerName_ExtractsInfoSuccessfully()
+    {
+        var result = new ProbeResult { Source = "NetBIOS (NBNS)" };
+        var packet = new List<byte>(new byte[12]);
+
+        // Compression pointer: 0xC0, 0x0C
+        packet.Add(0xC0);
+        packet.Add(0x0C);
+
+        // Type (2), Class (2), TTL (4) = 8 bytes
+        packet.AddRange(new byte[8]);
+
+        // Padding to ensure minimum buffer length 57:
+        // Header(12) + pointer(2) + metadata(8) + RDLen(2) + numNames(1) + Name1(18) + MAC(6) = 49 bytes.
+        // We can add dummy bytes or extra names. Let's make it 2 names (18 bytes more -> 67 total).
+
+        // RDLength = 1 + 18 + 6 = 25 (0x0019)
+        packet.Add(0x00);
+        packet.Add(0x19);
+
+        // Number of names: 2
+        packet.Add(0x02);
+
+        // Name 1: "SERVER01       ", suffix 0x00, flags 0x0000
+        packet.AddRange(Encoding.ASCII.GetBytes("SERVER01       "));
+        packet.Add(0x00);
+        packet.Add(0x00); packet.Add(0x00);
+
+        // Name 2: "WORKGROUP      ", suffix 0x00, flags 0x8000
+        packet.AddRange(Encoding.ASCII.GetBytes("WORKGROUP      "));
+        packet.Add(0x00);
+        packet.Add(0x80); packet.Add(0x00);
+
+        // MAC Address: 00:0a:95:9d:68:16
+        packet.AddRange(new byte[] { 0x00, 0x0a, 0x95, 0x9d, 0x68, 0x16 });
+
+        NbnsProbe.ParseNodeStatusResponse(packet.ToArray(), result);
+
+        Assert.Equal("SERVER01", result.RawData["NbnsHostname"]);
+        Assert.Equal("WORKGROUP", result.RawData["NbnsDomain"]);
+        Assert.Equal("00:0a:95:9d:68:16", result.RawData["NbnsMac"]);
+    }
+
+    [Fact]
+    public void ParseNodeStatusResponse_AllZeroMac_OmitsMacFromRawData()
+    {
+        var result = new ProbeResult { Source = "NetBIOS (NBNS)" };
+        var packet = new List<byte>(new byte[12]);
+
+        packet.Add(0x20);
+        packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+        packet.Add(0x00);
+        packet.AddRange(new byte[8]);
+
+        packet.Add(0x00); packet.Add(0x19);
+        packet.Add(0x01); // 1 name
+
+        packet.AddRange(Encoding.ASCII.GetBytes("HOST1          "));
+        packet.Add(0x00);
+        packet.Add(0x00); packet.Add(0x00);
+
+        // All zero MAC address
+        packet.AddRange(new byte[6] { 0, 0, 0, 0, 0, 0 });
+
+        NbnsProbe.ParseNodeStatusResponse(packet.ToArray(), result);
+
+        Assert.Equal("HOST1", result.RawData["NbnsHostname"]);
+        Assert.False(result.RawData.ContainsKey("NbnsMac"));
+    }
+
+    [Fact]
+    public void ParseNodeStatusResponse_TruncatedRData_DoesNotThrow()
+    {
+        var result = new ProbeResult { Source = "NetBIOS (NBNS)" };
+        var packet = new List<byte>(new byte[12]);
+
+        packet.Add(0x20);
+        packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+        packet.Add(0x00);
+        packet.AddRange(new byte[8]);
+
+        // Claims 100 bytes of RDATA, but payload stops short
+        packet.Add(0x00); packet.Add(0x64);
+        packet.Add(0x05); // Claims 5 names, but no name bytes follow
+
+        NbnsProbe.ParseNodeStatusResponse(packet.ToArray(), result);
+
+        Assert.Empty(result.RawData);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_UnreachableHost_ReturnsEmptyResult()
+    {
+        var probe = new NbnsProbe();
+        var node = new NetworkNode { IpAddress = "127.0.0.1" };
+
+        using var cts = new CancellationTokenSource(200);
+        var result = await probe.ProbeAsync(node, cts.Token);
+
+        Assert.NotNull(result);
+        Assert.Equal("NetBIOS (NBNS)", result.Source);
+        Assert.Empty(result.RawData);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_WithMockUdpResponder_ParsesNodeStatus()
+    {
+        // Try binding port 137 locally to act as a mock NetBIOS server
+        using var responder = new UdpClient();
+        try
+        {
+            responder.Client.Bind(new IPEndPoint(IPAddress.Loopback, 137));
+        }
+        catch (SocketException)
+        {
+            // Port 137 cannot be bound (e.g. requires privileges or already in use). Skip loopback server test.
+            return;
+        }
+
+        using var cts = new CancellationTokenSource(3000);
+
+        var responderTask = Task.Run(async () =>
+        {
+            try
+            {
+                var receiveResult = await responder.ReceiveAsync(cts.Token);
+
+                // Build mock NBNS Node Status response
+                var packet = new List<byte>();
+                // Transaction ID from query (first 2 bytes)
+                packet.Add(receiveResult.Buffer[0]);
+                packet.Add(receiveResult.Buffer[1]);
+
+                // Flags (response): 0x8400
+                packet.Add(0x84); packet.Add(0x00);
+                // QDCOUNT: 0, ANCOUNT: 1, NSCOUNT: 0, ARCOUNT: 0
+                packet.Add(0x00); packet.Add(0x00);
+                packet.Add(0x00); packet.Add(0x01);
+                packet.Add(0x00); packet.Add(0x00);
+                packet.Add(0x00); packet.Add(0x00);
+
+                // Answer section: Name section (34 bytes: len + 32 mangled + terminator)
+                packet.Add(0x20);
+                packet.AddRange(Encoding.ASCII.GetBytes("CKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"));
+                packet.Add(0x00);
+
+                // Type: NBSTAT (0x0021), Class: IN (0x0001), TTL: 0
+                packet.Add(0x00); packet.Add(0x21);
+                packet.Add(0x00); packet.Add(0x01);
+                packet.AddRange(new byte[4]);
+
+                // RDLENGTH: 1 + 18 + 6 = 25 (0x0019)
+                packet.Add(0x00); packet.Add(0x19);
+                packet.Add(0x01); // 1 name
+
+                packet.AddRange(Encoding.ASCII.GetBytes("TESTHOST       "));
+                packet.Add(0x00); // Suffix
+                packet.Add(0x00); packet.Add(0x00); // Flags (unique)
+
+                // MAC
+                packet.AddRange(new byte[] { 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff });
+
+                byte[] respBytes = packet.ToArray();
+                await responder.SendAsync(respBytes, respBytes.Length, receiveResult.RemoteEndPoint);
+            }
+            catch { }
+        }, cts.Token);
+
+        var probe = new NbnsProbe();
+        var node = new NetworkNode { IpAddress = "127.0.0.1" };
+
+        var result = await probe.ProbeAsync(node, cts.Token);
+
+        await responderTask;
+
+        Assert.NotNull(result);
+        Assert.Equal("NetBIOS (NBNS)", result.Source);
+        Assert.Equal("TESTHOST", result.RawData["NbnsHostname"]);
+        Assert.Equal("aa:bb:cc:dd:ee:ff", result.RawData["NbnsMac"]);
     }
 }
