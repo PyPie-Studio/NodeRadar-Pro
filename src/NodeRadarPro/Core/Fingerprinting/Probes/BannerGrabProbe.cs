@@ -13,7 +13,11 @@ public class BannerGrabProbe : IFingerprintProbe
     public string Name => "Banner Grabbing";
     public int Priority => 50;
 
-    private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+    private static readonly HttpClient _httpClient = new HttpClient(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(15)
+    })
+    { Timeout = TimeSpan.FromSeconds(2) };
 
     public async Task<ProbeResult> ProbeAsync(NetworkNode node, CancellationToken ct)
     {
