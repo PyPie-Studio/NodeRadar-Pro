@@ -25,8 +25,6 @@ public class ConnectivityMonitor
     private readonly ConcurrentDictionary<string, DateTime> _lastLatencyAlert = new();
     private readonly ConcurrentDictionary<string, DateTime> _lastPacketLossAlert = new();
 
-    // Concurrency limit for synchronous ARP calls to prevent ThreadPool exhaustion
-    private static readonly SemaphoreSlim _arpSemaphore = new SemaphoreSlim(10);
 
     private static readonly TimeSpan AlertCooldown = TimeSpan.FromMinutes(5);
 
@@ -133,23 +131,6 @@ public class ConnectivityMonitor
             if (arpTableDict.TryGetValue(device.IpAddress, out var arpMac) && !string.IsNullOrEmpty(arpMac) && arpMac != "Unknown")
             {
                 arpOnline = true;
-            }
-            else
-            {
-                try
-                {
-                    await _arpSemaphore.WaitAsync(token);
-                    try
-                    {
-                        string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(device.IpAddress));
-                        if (mac != "Unknown") arpOnline = true;
-                    }
-                    finally
-                    {
-                        _arpSemaphore.Release();
-                    }
-                }
-                catch { }
             }
 
             // ICMP ping

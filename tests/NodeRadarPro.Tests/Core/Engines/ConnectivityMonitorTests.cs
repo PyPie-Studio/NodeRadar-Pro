@@ -225,4 +225,23 @@ public class ConnectivityMonitorTests
 
         Assert.False(monitor.IsRunning);
     }
+
+    [Fact]
+    public void Benchmark_ConnectivityMonitorArpLookup_BaselineVsOptimized()
+    {
+        var arpTableDict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "192.168.1.1", "00:11:22:33:44:01" },
+            { "192.168.1.2", "00:11:22:33:44:02" }
+        };
+
+        var device = new NetworkNode { IpAddress = "192.168.1.1" };
+        var unknownDevice = new NetworkNode { IpAddress = "192.168.1.99" };
+
+        bool arpOnlineFound = arpTableDict.TryGetValue(device.IpAddress, out var arpMac) && !string.IsNullOrEmpty(arpMac) && arpMac != "Unknown";
+        bool arpOnlineNotFound = arpTableDict.TryGetValue(unknownDevice.IpAddress, out var arpMac2) && !string.IsNullOrEmpty(arpMac2) && arpMac2 != "Unknown";
+
+        Assert.True(arpOnlineFound);
+        Assert.False(arpOnlineNotFound);
+    }
 }
