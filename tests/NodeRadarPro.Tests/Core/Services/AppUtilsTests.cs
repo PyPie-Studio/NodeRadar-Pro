@@ -177,4 +177,62 @@ public class AppUtilsTests
         var exception = Record.Exception(() => AppUtils.OpenFolder(tempDir));
         Assert.Null(exception);
     }
+
+    [Fact]
+    public void GetMacAddress_WhenExceptionThrown_LogsError()
+    {
+        string testLogDir = Path.Combine(Path.GetTempPath(), "AppUtilsLoggerTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(testLogDir);
+        string testLogFile = Path.Combine(testLogDir, "noderadar_system.log");
+        try
+        {
+            Logger.SetCustomLogDirectoryForTesting(testLogDir);
+            string mac = AppUtils.GetMacAddress(() => throw new InvalidOperationException("Test network interface failure"));
+            Logger.FlushForTesting();
+
+            Assert.Equal("Unknown", mac);
+            Assert.True(File.Exists(testLogFile));
+            string logContent = File.ReadAllText(testLogFile);
+            Assert.Contains("AppUtils", logContent);
+            Assert.Contains("Failed to retrieve MAC address", logContent);
+            Assert.Contains("Test network interface failure", logContent);
+        }
+        finally
+        {
+            Logger.SetCustomLogDirectoryForTesting(null);
+            if (Directory.Exists(testLogDir))
+            {
+                try { Directory.Delete(testLogDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public void GetLocalIpAddress_WhenExceptionThrown_LogsError()
+    {
+        string testLogDir = Path.Combine(Path.GetTempPath(), "AppUtilsLoggerTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(testLogDir);
+        string testLogFile = Path.Combine(testLogDir, "noderadar_system.log");
+        try
+        {
+            Logger.SetCustomLogDirectoryForTesting(testLogDir);
+            string ip = AppUtils.GetLocalIpAddress(() => throw new InvalidOperationException("Test IP retrieval failure"));
+            Logger.FlushForTesting();
+
+            Assert.Equal("127.0.0.1", ip);
+            Assert.True(File.Exists(testLogFile));
+            string logContent = File.ReadAllText(testLogFile);
+            Assert.Contains("AppUtils", logContent);
+            Assert.Contains("Failed to retrieve local IP address", logContent);
+            Assert.Contains("Test IP retrieval failure", logContent);
+        }
+        finally
+        {
+            Logger.SetCustomLogDirectoryForTesting(null);
+            if (Directory.Exists(testLogDir))
+            {
+                try { Directory.Delete(testLogDir, true); } catch { }
+            }
+        }
+    }
 }
