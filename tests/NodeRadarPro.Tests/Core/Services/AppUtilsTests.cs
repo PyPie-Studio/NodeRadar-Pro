@@ -4,8 +4,29 @@ using NodeRadarPro.Core;
 
 namespace NodeRadarPro.Tests;
 
-public class AppUtilsTests
+[Collection("LoggerStaticState")]
+public class AppUtilsTests : IDisposable
 {
+    private readonly string _testLogDir;
+
+    public AppUtilsTests()
+    {
+        _testLogDir = Path.Combine(Path.GetTempPath(), "NodeRadarAppUtilsTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(_testLogDir);
+        Logger.SetCustomLogDirectoryForTesting(_testLogDir);
+    }
+
+    public void Dispose()
+    {
+        Logger.SetCustomLogDirectoryForTesting(null);
+        try
+        {
+            if (Directory.Exists(_testLogDir))
+                Directory.Delete(_testLogDir, true);
+        }
+        catch { }
+    }
+
     [Fact]
     public void GetMacAddress_WithValidInterface_ReturnsFormattedMac()
     {
@@ -86,10 +107,19 @@ public class AppUtilsTests
     }
 
     [Fact]
-    public void GetMacAddress_WhenExceptionThrown_ReturnsUnknown()
+    public void GetMacAddress_WhenExceptionThrown_ReturnsUnknownAndLogsError()
     {
-        string mac = AppUtils.GetMacAddress(() => throw new InvalidOperationException("Provider error"));
+        string exceptionMessage = "Network adapter error " + Guid.NewGuid();
+        string mac = AppUtils.GetMacAddress(() => throw new InvalidOperationException(exceptionMessage));
+
         Assert.Equal("Unknown", mac);
+
+        Logger.FlushForTesting();
+        string logFile = Path.Combine(_testLogDir, "noderadar_system.log");
+        Assert.True(File.Exists(logFile));
+        string content = File.ReadAllText(logFile);
+        Assert.Contains("AppUtils", content);
+        Assert.Contains($"Failed to retrieve MAC address: {exceptionMessage}", content);
     }
 
     [Fact]
