@@ -199,4 +199,45 @@ public class SubnetScannerBenchmarkTests
         }
         return matchCount;
     }
+
+    [Fact]
+    public async Task Benchmark_NetBiosResolution_TaskRunVsAsyncUdp()
+    {
+        const int concurrentTasks = 10;
+        string nonResponsiveIp = "192.0.2.1"; // TEST-NET-1
+
+        using var cts = new CancellationTokenSource(200);
+
+        // Baseline: Task.Run wrapping synchronous TryResolveNetBiosName
+        long baselineAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        var sw = Stopwatch.StartNew();
+        var baselineTasks = Enumerable.Range(0, concurrentTasks)
+            .Select(_ => Task.Run(() => ArpResolver.TryResolveNetBiosName(nonResponsiveIp)))
+            .ToArray();
+        try
+        {
+            await Task.WhenAll(baselineTasks);
+        }
+        catch { }
+        sw.Stop();
+        long baselineAllocated = GC.GetAllocatedBytesForCurrentThread() - baselineAllocBefore;
+
+        // Optimized: Native async TryResolveNetBiosNameAsync with UdpClient.ReceiveAsync
+        using var cts2 = new CancellationTokenSource(200);
+        long optAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        sw.Restart();
+        var optTasks = Enumerable.Range(0, concurrentTasks)
+            .Select(_ => ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp, cancellationToken: cts2.Token))
+            .ToArray();
+        await Task.WhenAll(optTasks);
+        sw.Stop();
+        long optAllocated = GC.GetAllocatedBytesForCurrentThread() - optAllocBefore;
+
+        // Assert that all async tasks return empty strings without throwing
+        Assert.All(optTasks, t => Assert.Equal(string.Empty, t.Result));
+
+        // Both methods handle timeouts gracefully and return empty string
+        Assert.True(optTasks.All(t => t.IsCompletedSuccessfully), "All async tasks completed successfully.");
+    }
+
 }

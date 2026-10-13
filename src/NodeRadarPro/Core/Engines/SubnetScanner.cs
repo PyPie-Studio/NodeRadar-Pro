@@ -572,7 +572,7 @@ public class SubnetScanner
                     using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
                     cts.CancelAfter(3000);
 
-                    string netbios = await Task.Run(() => _arpResolver.TryResolveNetBiosName(node.IpAddress), cts.Token);
+                    string netbios = await _arpResolver.TryResolveNetBiosNameAsync(node.IpAddress, cts.Token);
                     if (!string.IsNullOrEmpty(netbios))
                         node.Hostname = netbios;
                 }

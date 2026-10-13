@@ -58,6 +58,36 @@ public class ArpResolverTests
     }
 
     [Fact]
+    public async Task TryResolveNetBiosNameAsync_InvalidIp_ReturnsEmptyString()
+    {
+        // Arrange
+        string invalidIp = "invalid-ip";
+
+        // Act
+        string result = await ArpResolver.TryResolveNetBiosNameAsync(invalidIp);
+
+        // Assert
+        Assert.Equal(string.Empty, result);
+    }
+
+    [Fact]
+    public async Task TryResolveNetBiosNameAsync_NonResponsiveIp_TimesOutAndReturnsEmptyString()
+    {
+        // Arrange
+        string nonResponsiveIp = "192.0.2.1"; // TEST-NET-1 IP address
+        var stopwatch = Stopwatch.StartNew();
+
+        // Act
+        string result = await ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp);
+        stopwatch.Stop();
+
+        // Assert
+        Assert.Equal(string.Empty, result);
+        // Ensure it timed out approximately after 1500ms (1.5 seconds)
+        Assert.True(stopwatch.ElapsedMilliseconds >= 1000, "Expected a timeout to take at least 1000ms");
+    }
+
+    [Fact]
     public void GetFullArpTable_ReturnsListWithoutExceptions()
     {
         // Act

@@ -5,6 +5,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace NodeRadarPro.Core;
 
@@ -203,7 +205,53 @@ public static class ArpResolver
             if (response.Length > 56)
             {
                 int numberOfNames = response[56];
-                if (numberOfNames > 0)
+                if (numberOfNames > 0 && response.Length >= 57 + 15)
+                {
+                    // The first name in the response is typically the machine name
+                    string name = Encoding.ASCII.GetString(response, 57, 15).Trim();
+                    return name;
+                }
+            }
+        }
+        catch { }
+        return string.Empty;
+    }
+
+    /// <summary>
+    /// Asynchronously attempts to resolve the NetBIOS name of a device via UDP port 137 (Professional fallback).
+    /// Uses non-blocking UDP I/O to avoid holding thread pool threads.
+    /// </summary>
+    public static async Task<string> TryResolveNetBiosNameAsync(string ipAddress, int port = 137, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(ipAddress) || !IPAddress.TryParse(ipAddress, out _))
+                return string.Empty;
+
+            using var udp = new UdpClient();
+            udp.Connect(ipAddress, port);
+
+            // Standard NetBIOS Node Status Query packet
+            byte[] query = {
+                0x80, 0x94, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x20, 0x43, 0x4b, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x00, 0x00, 0x21,
+                0x00, 0x01
+            };
+
+            await udp.SendAsync(query, cancellationToken).ConfigureAwait(false);
+
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(1500);
+
+            var result = await udp.ReceiveAsync(timeoutCts.Token).ConfigureAwait(false);
+            byte[] response = result.Buffer;
+
+            if (response.Length > 56)
+            {
+                int numberOfNames = response[56];
+                if (numberOfNames > 0 && response.Length >= 57 + 15)
                 {
                     // The first name in the response is typically the machine name
                     string name = Encoding.ASCII.GetString(response, 57, 15).Trim();
