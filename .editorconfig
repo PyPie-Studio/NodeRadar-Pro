@@ -11,6 +11,7 @@ insert_final_newline = true
 [*.cs]
 # Roslyn Code Analysis Diagnostics (CA rules) enforced as warnings
 dotnet_analyzer_diagnostic.severity = warning
+dotnet_diagnostic.CA1307.severity = error
 
 # Remove unused usings - enforced by gate + CI via dotnet format analyzers
 dotnet_diagnostic.IDE0005.severity = warning
@@ -81,7 +82,7 @@ dotnet_diagnostic.CA1861.severity = none         # Constant arrays passed as arg
 dotnet_diagnostic.CA1847.severity = none         # Use char overload for single char string lookups
 dotnet_diagnostic.xUnit2032.severity = none      # Assert.IsAssignableFrom vs Assert.IsType
 
-[*.Tests.cs]
+[tests/**.cs]
 dotnet_diagnostic.CA1707.severity = none
 dotnet_diagnostic.CA1305.severity = none
 dotnet_diagnostic.CA1307.severity = none

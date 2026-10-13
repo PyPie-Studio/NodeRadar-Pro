@@ -608,9 +608,9 @@ public class ScannerPage : Border
         foreach (var node in _scanResults)
         {
             if (!string.IsNullOrEmpty(filter) &&
-                !node.IpAddress.ToLower().Contains(filter) &&
-                !node.MacAddress.ToLower().Contains(filter) &&
-                !node.DisplayName.ToLower().Contains(filter))
+                !node.IpAddress.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !node.MacAddress.Contains(filter, StringComparison.OrdinalIgnoreCase) &&
+                !node.DisplayName.Contains(filter, StringComparison.OrdinalIgnoreCase))
                 continue;
             _resultsBody.Children.Add(MakeTableRow(node, idx++ % 2 == 0));
         }
@@ -681,10 +681,10 @@ public class ScannerPage : Border
 
         // Build accurate subtitle: Prefer [Exact Model] or [OS Guess] or [Vendor]
         string identitySubtitle = node.SubtitleText;
-        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess))
+        if (!string.IsNullOrEmpty(node.OsGuess) && !identitySubtitle.Contains(node.OsGuess, StringComparison.OrdinalIgnoreCase))
             identitySubtitle = $"{node.OsGuess} • {identitySubtitle}";
 
-        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor"))
+        if (string.IsNullOrEmpty(identitySubtitle) || identitySubtitle.Contains("Unknown Vendor", StringComparison.OrdinalIgnoreCase))
             identitySubtitle = "Unknown Device";
 
         var devPanel = new StackPanel

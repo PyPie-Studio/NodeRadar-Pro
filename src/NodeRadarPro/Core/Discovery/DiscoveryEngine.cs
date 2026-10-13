@@ -88,7 +88,7 @@ public class DiscoveryEngine
                 }
 
                 // Track protocols and log details
-                if (!existing.SourceProtocol.Contains(device.SourceProtocol))
+                if (!existing.SourceProtocol.Contains(device.SourceProtocol, StringComparison.OrdinalIgnoreCase))
                 {
                     existing.SourceProtocol += $", {device.SourceProtocol}";
                 }

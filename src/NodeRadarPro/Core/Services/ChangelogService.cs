@@ -103,7 +103,7 @@ public static partial class ChangelogService
     private static string CleanMarkdownText(string text)
     {
         // Strip markdown bold **text** markers for clean UI presentation
-        return text.Replace("**", "");
+        return text.Replace("**", "", StringComparison.Ordinal);
     }
 
     private static string? LoadChangelogMarkdown()

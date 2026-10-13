@@ -113,7 +113,7 @@ public class ArpDiscoveryMethod : IDiscoveryMethod
     public static string GetMacVendor(string mac)
     {
         if (string.IsNullOrEmpty(mac) || mac == "Unknown") return "Unknown Vendor";
-        var normalized = mac.Replace("-", ":").ToUpperInvariant();
+        var normalized = mac.Replace("-", ":", StringComparison.Ordinal).ToUpperInvariant();
 
         // Check for Locally Administered Address (LAA) aka Privacy/Randomized MAC
         // under IEEE 802, if the second hex digit of the first octet is 2, 6, A, or E

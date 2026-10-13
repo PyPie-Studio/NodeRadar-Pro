@@ -618,7 +618,7 @@ public class SubnetScanner
                 foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
                 {
                     if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
-                    else if (!node.ExactModel.Contains(banner)) node.ExactModel += $" | {banner}";
+                    else if (!node.ExactModel.Contains(banner, StringComparison.OrdinalIgnoreCase)) node.ExactModel += $" | {banner}";
                 }
             }
         }

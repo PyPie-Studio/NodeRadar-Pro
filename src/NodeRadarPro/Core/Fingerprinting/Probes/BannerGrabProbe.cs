@@ -165,7 +165,7 @@ public class BannerGrabProbe : IFingerprintProbe
                 string response = Encoding.UTF8.GetString(buffer, 0, read);
 
                 var serverLine = response.Split('\n').FirstOrDefault(l => l.StartsWith("Server:", StringComparison.OrdinalIgnoreCase));
-                string banner = serverLine?.Replace("Server:", "").Trim() ?? string.Empty;
+                string banner = serverLine?.Replace("Server:", "", StringComparison.OrdinalIgnoreCase).Trim() ?? string.Empty;
 
                 banner = new string(System.Linq.Enumerable.ToArray(System.Linq.Enumerable.Where(banner, c => c >= 32 && c < 127).Take(100)));
 
@@ -209,7 +209,7 @@ public class BannerGrabProbe : IFingerprintProbe
             if (response.IsSuccessStatusCode)
             {
                 var contentType = response.Content.Headers.ContentType?.MediaType;
-                if (contentType != null && contentType.Contains("image/"))
+                if (contentType != null && contentType.Contains("image/", StringComparison.OrdinalIgnoreCase))
                 {
                     return "Web UI (Apple-Icon)";
                 }

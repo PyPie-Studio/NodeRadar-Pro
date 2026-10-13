@@ -58,7 +58,7 @@ public class SystemLogsExportTests : IDisposable
             if (!string.IsNullOrEmpty(log.Message))
             {
                 if (log.Message.Contains('"'))
-                    sb.Append(log.Message.Replace("\"", "\"\""));
+                    sb.Append(log.Message.Replace("\"", "\"\"", StringComparison.Ordinal));
                 else
                     sb.Append(log.Message);
             }

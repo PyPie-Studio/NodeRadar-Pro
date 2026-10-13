@@ -74,14 +74,14 @@ public class MdnsProbe : IFingerprintProbe
                     data.InstanceName = instanceName;
                 }
 
-                if (raw.Contains("Apple") || raw.Contains("AirPlay") || raw.Contains("apple-mobdev2")) data.Services.Add("Apple Device");
-                if (raw.Contains("Google") || raw.Contains("Cast")) data.Services.Add("Google Cast");
-                if (raw.Contains("Spotify")) data.Services.Add("Spotify Connect");
-                if (raw.Contains("Printer") || raw.Contains("ipp")) data.Services.Add("Printer");
-                if (raw.Contains("Android") || raw.Contains("androidtv")) data.Services.Add("Android Device");
-                if (raw.Contains("iPhone") || raw.Contains("iPad") || raw.Contains("MacBook") || raw.Contains("iMac")) data.Services.Add("Apple Device");
-                if (raw.Contains("amzn-alexa")) data.Services.Add("Amazon Alexa");
-                if (raw.Contains("homekit") || raw.Contains("hap")) data.Services.Add("Apple HomeKit");
+                if (raw.Contains("Apple", StringComparison.OrdinalIgnoreCase) || raw.Contains("AirPlay", StringComparison.OrdinalIgnoreCase) || raw.Contains("apple-mobdev2", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple Device");
+                if (raw.Contains("Google", StringComparison.OrdinalIgnoreCase) || raw.Contains("Cast", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Google Cast");
+                if (raw.Contains("Spotify", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Spotify Connect");
+                if (raw.Contains("Printer", StringComparison.OrdinalIgnoreCase) || raw.Contains("ipp", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Printer");
+                if (raw.Contains("Android", StringComparison.OrdinalIgnoreCase) || raw.Contains("androidtv", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Android Device");
+                if (raw.Contains("iPhone", StringComparison.OrdinalIgnoreCase) || raw.Contains("iPad", StringComparison.OrdinalIgnoreCase) || raw.Contains("MacBook", StringComparison.OrdinalIgnoreCase) || raw.Contains("iMac", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple Device");
+                if (raw.Contains("amzn-alexa", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Amazon Alexa");
+                if (raw.Contains("homekit", StringComparison.OrdinalIgnoreCase) || raw.Contains("hap", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple HomeKit");
 
                 ParseTxtRecords(result.Buffer, data);
             }

@@ -935,7 +935,7 @@ public class InventoryPage : Border
             if (_activeFilter == "iot" && n.DeviceType != "IoT") return false;
 
             if (!string.IsNullOrEmpty(search))
-                return n.DisplayName.ToLower().Contains(search) || n.IpAddress.ToLower().Contains(search) || n.MacAddress.ToLower().Contains(search) || (n.Vendor ?? "").ToLower().Contains(search);
+                return n.DisplayName.Contains(search, StringComparison.OrdinalIgnoreCase) || n.IpAddress.Contains(search, StringComparison.OrdinalIgnoreCase) || n.MacAddress.Contains(search, StringComparison.OrdinalIgnoreCase) || (n.Vendor ?? "").Contains(search, StringComparison.OrdinalIgnoreCase);
             return true;
         })
         .OrderByDescending(n => n.IsOnline)
@@ -1240,7 +1240,7 @@ public class InventoryPage : Border
         {
             node.ExactModel = fingerprint.Model;
         }
-        else if (!node.ExactModel.Contains(fingerprint.Model))
+        else if (!node.ExactModel.Contains(fingerprint.Model, StringComparison.OrdinalIgnoreCase))
         {
             node.ExactModel = $"{fingerprint.Model} | {node.ExactModel}";
         }
@@ -1408,18 +1408,18 @@ public class InventoryPage : Border
         if (icon == "gamepad") return ThemeTokens.SvgGamepad;
         if (icon == "pc" || icon == "laptop") return ThemeTokens.SvgDesktop;
 
-        string type = (node.DeviceType ?? "").ToLower();
-        if (type.Contains("router") || type.Contains("gateway") || type.Contains("network")) return ThemeTokens.SvgRouter;
-        if (type.Contains("server") || type.Contains("nas")) return ThemeTokens.SvgServer;
-        if (type.Contains("phone") || type.Contains("mobile") || type.Contains("iphone")) return ThemeTokens.SvgPhone;
-        if (type.Contains("printer")) return ThemeTokens.SvgPrinter;
-        if (type.Contains("tv")) return ThemeTokens.SvgTv;
-        if (type.Contains("iot") || type.Contains("smart") || type.Contains("bulb") || type.Contains("light")) return ThemeTokens.SvgIot;
+        string type = node.DeviceType ?? "";
+        if (type.Contains("router", StringComparison.OrdinalIgnoreCase) || type.Contains("gateway", StringComparison.OrdinalIgnoreCase) || type.Contains("network", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgRouter;
+        if (type.Contains("server", StringComparison.OrdinalIgnoreCase) || type.Contains("nas", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgServer;
+        if (type.Contains("phone", StringComparison.OrdinalIgnoreCase) || type.Contains("mobile", StringComparison.OrdinalIgnoreCase) || type.Contains("iphone", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgPhone;
+        if (type.Contains("printer", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgPrinter;
+        if (type.Contains("tv", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgTv;
+        if (type.Contains("iot", StringComparison.OrdinalIgnoreCase) || type.Contains("smart", StringComparison.OrdinalIgnoreCase) || type.Contains("bulb", StringComparison.OrdinalIgnoreCase) || type.Contains("light", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgIot;
 
-        string vendor = (node.Vendor ?? "").ToLower();
-        if (vendor.Contains("apple") || vendor.Contains("samsung") || vendor.Contains("xiaomi") || vendor.Contains("google")) return ThemeTokens.SvgPhone;
-        if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("netgear")) return ThemeTokens.SvgRouter;
-        if (vendor.Contains("dell") || vendor.Contains("hp") || vendor.Contains("intel") || vendor.Contains("vmware")) return ThemeTokens.SvgServer;
+        string vendor = node.Vendor ?? "";
+        if (vendor.Contains("apple", StringComparison.OrdinalIgnoreCase) || vendor.Contains("samsung", StringComparison.OrdinalIgnoreCase) || vendor.Contains("xiaomi", StringComparison.OrdinalIgnoreCase) || vendor.Contains("google", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgPhone;
+        if (vendor.Contains("cisco", StringComparison.OrdinalIgnoreCase) || vendor.Contains("tp-link", StringComparison.OrdinalIgnoreCase) || vendor.Contains("ubiquiti", StringComparison.OrdinalIgnoreCase) || vendor.Contains("netgear", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgRouter;
+        if (vendor.Contains("dell", StringComparison.OrdinalIgnoreCase) || vendor.Contains("hp", StringComparison.OrdinalIgnoreCase) || vendor.Contains("intel", StringComparison.OrdinalIgnoreCase) || vendor.Contains("vmware", StringComparison.OrdinalIgnoreCase)) return ThemeTokens.SvgServer;
 
         return ThemeTokens.SvgDesktop;
     }

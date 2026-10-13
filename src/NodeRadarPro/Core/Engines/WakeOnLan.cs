@@ -24,7 +24,7 @@ public static class WakeOnLan
         if (string.IsNullOrWhiteSpace(macAddress)) return false;
 
         // Normalize MAC address: AA:BB:CC... -> AABBCC...
-        string cleanMac = macAddress.Replace(":", "").Replace("-", "").Replace(".", "").Replace(" ", "");
+        string cleanMac = macAddress.Replace(":", "", StringComparison.Ordinal).Replace("-", "", StringComparison.Ordinal).Replace(".", "", StringComparison.Ordinal).Replace(" ", "", StringComparison.Ordinal);
         if (cleanMac.Length != 12) return false;
 
         byte[] macBytes = new byte[6];

@@ -186,7 +186,7 @@ public class SystemLogsPage : Border
 
         var logs = _db.GetLogs(500, _levelFilter, _deviceFilter);
         if (!string.IsNullOrEmpty(search))
-            logs = logs.Where(l => l.Message.ToLower().Contains(search) || l.Source.ToLower().Contains(search) || (l.DeviceMac ?? "").ToLower().Contains(search)).ToList();
+            logs = logs.Where(l => l.Message.Contains(search, StringComparison.OrdinalIgnoreCase) || l.Source.Contains(search, StringComparison.OrdinalIgnoreCase) || (l.DeviceMac ?? "").Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
         _entryCount.Text = $"({logs.Count} entries)";
 
@@ -375,8 +375,8 @@ public class SystemLogsPage : Border
 
                     if (!string.IsNullOrEmpty(log.Message))
                     {
-                        if (log.Message.Contains('"'))
-                            sb.Append(log.Message.Replace("\"", "\"\""));
+                        if (log.Message.Contains('"', StringComparison.Ordinal))
+                            sb.Append(log.Message.Replace("\"", "\"\"", StringComparison.Ordinal));
                         else
                             sb.Append(log.Message);
                     }

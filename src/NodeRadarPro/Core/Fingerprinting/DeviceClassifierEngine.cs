@@ -46,24 +46,24 @@ public static class DeviceClassifierEngine
 
         if (!string.IsNullOrEmpty(dhcpOs))
         {
-            if (dhcpOs.Contains("ios") || dhcpOs.Contains("apple"))
+            if (dhcpOs.Contains("ios", StringComparison.OrdinalIgnoreCase) || dhcpOs.Contains("apple", StringComparison.OrdinalIgnoreCase))
             {
                 iosScore += 80;
             }
-            else if (dhcpOs.Contains("android"))
+            else if (dhcpOs.Contains("android", StringComparison.OrdinalIgnoreCase))
             {
                 linuxScore += 60;
                 iotScore += 40;
             }
-            else if (dhcpOs.Contains("windows"))
+            else if (dhcpOs.Contains("windows", StringComparison.OrdinalIgnoreCase))
             {
                 winScore += 70;
             }
-            else if (dhcpOs.Contains("linux"))
+            else if (dhcpOs.Contains("linux", StringComparison.OrdinalIgnoreCase))
             {
                 linuxScore += 50;
             }
-            else if (dhcpOs.Contains("cisco") || dhcpOs.Contains("voip"))
+            else if (dhcpOs.Contains("cisco", StringComparison.OrdinalIgnoreCase) || dhcpOs.Contains("voip", StringComparison.OrdinalIgnoreCase))
             {
                 networkScore += 60;
             }
@@ -72,9 +72,9 @@ public static class DeviceClassifierEngine
         // DHCP Vendor Class provides strong OS hints
         if (!string.IsNullOrEmpty(dhcpVendorClass))
         {
-            if (dhcpVendorClass.Contains("msft")) winScore += 40;
-            if (dhcpVendorClass.Contains("android")) { linuxScore += 50; iotScore += 30; }
-            if (dhcpVendorClass.Contains("apple") || dhcpVendorClass.Contains("dhcpc")) iosScore += 30;
+            if (dhcpVendorClass.Contains("msft", StringComparison.OrdinalIgnoreCase)) winScore += 40;
+            if (dhcpVendorClass.Contains("android", StringComparison.OrdinalIgnoreCase)) { linuxScore += 50; iotScore += 30; }
+            if (dhcpVendorClass.Contains("apple", StringComparison.OrdinalIgnoreCase) || dhcpVendorClass.Contains("dhcpc", StringComparison.OrdinalIgnoreCase)) iosScore += 30;
         }
 
         // DHCP Hostname pattern matching — very reliable for mobile identification
@@ -82,30 +82,30 @@ public static class DeviceClassifierEngine
         if (!string.IsNullOrEmpty(dhcpHostLower))
         {
             // Apple patterns
-            if (dhcpHostLower.Contains("iphone") || dhcpHostLower.Contains("ipad") ||
-                dhcpHostLower.Contains("macbook") || dhcpHostLower.Contains("imac") ||
-                dhcpHostLower.Contains("apple"))
+            if (dhcpHostLower.Contains("iphone", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase) ||
+                dhcpHostLower.Contains("macbook", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("imac", StringComparison.OrdinalIgnoreCase) ||
+                dhcpHostLower.Contains("apple", StringComparison.OrdinalIgnoreCase))
             {
                 iosScore += 60;
             }
             // Android phone patterns
-            else if (dhcpHostLower.Contains("galaxy") || dhcpHostLower.Contains("pixel") ||
-                     dhcpHostLower.Contains("redmi") || dhcpHostLower.Contains("poco") ||
-                     dhcpHostLower.Contains("oneplus") || dhcpHostLower.Contains("oppo") ||
-                     dhcpHostLower.Contains("vivo") || dhcpHostLower.Contains("realme") ||
-                     dhcpHostLower.Contains("motorola") || dhcpHostLower.Contains("moto") ||
-                     dhcpHostLower.Contains("nokia") || dhcpHostLower.Contains("huawei") ||
-                     dhcpHostLower.Contains("honor") || dhcpHostLower.Contains("xiaomi") ||
-                     dhcpHostLower.Contains("samsung") || dhcpHostLower.Contains("sm-") ||
-                     dhcpHostLower.Contains("note") || dhcpHostLower.Contains("a5") ||
-                     dhcpHostLower.Contains("android"))
+            else if (dhcpHostLower.Contains("galaxy", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("pixel", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("redmi", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("poco", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("oneplus", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("oppo", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("vivo", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("realme", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("motorola", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("moto", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("nokia", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("huawei", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("honor", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("xiaomi", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("samsung", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("sm-", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("note", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("a5", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("android", StringComparison.OrdinalIgnoreCase))
             {
                 linuxScore += 50;
                 iotScore += 30;
             }
             // Windows patterns
-            else if (dhcpHostLower.Contains("desktop-") || dhcpHostLower.Contains("laptop-") ||
-                     dhcpHostLower.Contains("windows"))
+            else if (dhcpHostLower.Contains("desktop-", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("laptop-", StringComparison.OrdinalIgnoreCase) ||
+                     dhcpHostLower.Contains("windows", StringComparison.OrdinalIgnoreCase))
             {
                 winScore += 30;
             }
@@ -113,37 +113,37 @@ public static class DeviceClassifierEngine
 
         // ═══════════════════════════════════════
         // 1. MAC & Vendor Scoring
-        if (vendor.Contains("apple")) iosScore += 30;
+        if (vendor.Contains("apple", StringComparison.OrdinalIgnoreCase)) iosScore += 30;
 
-        if (vendor.Contains("microsoft") || vendor.Contains("intel") || vendor.Contains("dell") || vendor.Contains("hp") ||
-            vendor.Contains("lenovo") || vendor.Contains("asus") || vendor.Contains("acer") || vendor.Contains("gigabyte") || vendor.Contains("msi"))
+        if (vendor.Contains("microsoft", StringComparison.OrdinalIgnoreCase) || vendor.Contains("intel", StringComparison.OrdinalIgnoreCase) || vendor.Contains("dell", StringComparison.OrdinalIgnoreCase) || vendor.Contains("hp", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("lenovo", StringComparison.OrdinalIgnoreCase) || vendor.Contains("asus", StringComparison.OrdinalIgnoreCase) || vendor.Contains("acer", StringComparison.OrdinalIgnoreCase) || vendor.Contains("gigabyte", StringComparison.OrdinalIgnoreCase) || vendor.Contains("msi", StringComparison.OrdinalIgnoreCase))
             winScore += 10;
 
-        if (vendor.Contains("raspberry") || vendor.Contains("synology") || vendor.Contains("qnap")) linuxScore += 40;
+        if (vendor.Contains("raspberry", StringComparison.OrdinalIgnoreCase) || vendor.Contains("synology", StringComparison.OrdinalIgnoreCase) || vendor.Contains("qnap", StringComparison.OrdinalIgnoreCase)) linuxScore += 40;
 
-        if (vendor.Contains("xiaomi") || vendor.Contains("tuya") || vendor.Contains("espressif")) iotScore += 30;
+        if (vendor.Contains("xiaomi", StringComparison.OrdinalIgnoreCase) || vendor.Contains("tuya", StringComparison.OrdinalIgnoreCase) || vendor.Contains("espressif", StringComparison.OrdinalIgnoreCase)) iotScore += 30;
 
         // Mobile vendors
-        if (vendor.Contains("samsung") || vendor.Contains("google") || vendor.Contains("oneplus") || vendor.Contains("oppo") ||
-            vendor.Contains("vivo") || vendor.Contains("realme") || vendor.Contains("motorola") || vendor.Contains("lg") ||
-            vendor.Contains("htc") || vendor.Contains("nokia") || vendor.Contains("sony mobile"))
+        if (vendor.Contains("samsung", StringComparison.OrdinalIgnoreCase) || vendor.Contains("google", StringComparison.OrdinalIgnoreCase) || vendor.Contains("oneplus", StringComparison.OrdinalIgnoreCase) || vendor.Contains("oppo", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("vivo", StringComparison.OrdinalIgnoreCase) || vendor.Contains("realme", StringComparison.OrdinalIgnoreCase) || vendor.Contains("motorola", StringComparison.OrdinalIgnoreCase) || vendor.Contains("lg", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("htc", StringComparison.OrdinalIgnoreCase) || vendor.Contains("nokia", StringComparison.OrdinalIgnoreCase) || vendor.Contains("sony mobile", StringComparison.OrdinalIgnoreCase))
         {
             linuxScore += 40;
             iotScore += 20;
         }
 
         // Routers, gateways, ONUs
-        if (vendor.Contains("cisco") || vendor.Contains("tp-link") || vendor.Contains("ubiquiti") || vendor.Contains("mikrotik") ||
-            vendor.Contains("huawei") || vendor.Contains("sagemcom") || vendor.Contains("fiberhome") || vendor.Contains("netgear") ||
-            vendor.Contains("d-link") || vendor.Contains("linksys") || vendor.Contains("technicolor") || vendor.Contains("zte") ||
-            vendor.Contains("zyxel") || vendor.Contains("tenda") || vendor.Contains("mercusys") || vendor.Contains("totolink") ||
-            vendor.Contains("netis") || vendor.Contains("router") || vendor.Contains("gateway"))
+        if (vendor.Contains("cisco", StringComparison.OrdinalIgnoreCase) || vendor.Contains("tp-link", StringComparison.OrdinalIgnoreCase) || vendor.Contains("ubiquiti", StringComparison.OrdinalIgnoreCase) || vendor.Contains("mikrotik", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("huawei", StringComparison.OrdinalIgnoreCase) || vendor.Contains("sagemcom", StringComparison.OrdinalIgnoreCase) || vendor.Contains("fiberhome", StringComparison.OrdinalIgnoreCase) || vendor.Contains("netgear", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("d-link", StringComparison.OrdinalIgnoreCase) || vendor.Contains("linksys", StringComparison.OrdinalIgnoreCase) || vendor.Contains("technicolor", StringComparison.OrdinalIgnoreCase) || vendor.Contains("zte", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("zyxel", StringComparison.OrdinalIgnoreCase) || vendor.Contains("tenda", StringComparison.OrdinalIgnoreCase) || vendor.Contains("mercusys", StringComparison.OrdinalIgnoreCase) || vendor.Contains("totolink", StringComparison.OrdinalIgnoreCase) ||
+            vendor.Contains("netis", StringComparison.OrdinalIgnoreCase) || vendor.Contains("router", StringComparison.OrdinalIgnoreCase) || vendor.Contains("gateway", StringComparison.OrdinalIgnoreCase))
         {
             networkScore += 30;
         }
 
         // Privacy MAC strongly hints mobile (assign equally to iOS and Linux/Android to avoid bias)
-        if (vendor.Contains("randomized") || vendor.Contains("privacy"))
+        if (vendor.Contains("randomized", StringComparison.OrdinalIgnoreCase) || vendor.Contains("privacy", StringComparison.OrdinalIgnoreCase))
         {
             iosScore += 20;
             linuxScore += 20;
@@ -180,9 +180,9 @@ public static class DeviceClassifierEngine
         }
 
         // 4. Hostname Keywords & NetBIOS Resolution
-        if (hostname.Contains("iphone") || hostname.Contains("ipad") || hostname.Contains("apple-")) iosScore += 50;
-        if (hostname.Contains("windows") || hostname.Contains("desktop-") || hostname.Contains("laptop-")) winScore += 30;
-        if (hostname.Contains("android") || hostname.Contains("galaxy")) iotScore += 30;
+        if (hostname.Contains("iphone", StringComparison.OrdinalIgnoreCase) || hostname.Contains("ipad", StringComparison.OrdinalIgnoreCase) || hostname.Contains("apple-", StringComparison.OrdinalIgnoreCase)) iosScore += 50;
+        if (hostname.Contains("windows", StringComparison.OrdinalIgnoreCase) || hostname.Contains("desktop-", StringComparison.OrdinalIgnoreCase) || hostname.Contains("laptop-", StringComparison.OrdinalIgnoreCase)) winScore += 30;
+        if (hostname.Contains("android", StringComparison.OrdinalIgnoreCase) || hostname.Contains("galaxy", StringComparison.OrdinalIgnoreCase)) iotScore += 30;
 
         var nbnsProbe = probeResults.FirstOrDefault(pr => pr.Source == "NetBIOS (NBNS)");
         string nbnsHostname = nbnsProbe?.GetValue("NbnsHostname") ?? "";
@@ -204,11 +204,11 @@ public static class DeviceClassifierEngine
         // 5. "Silent Device" Heuristic
         // ═══════════════════════════════════════
         // Devices with Privacy MAC + no open ports + no banners are almost certainly mobile phones
-        bool isPrivacyMac = vendor.Contains("privacy") || vendor.Contains("randomized");
+        bool isPrivacyMac = vendor.Contains("privacy", StringComparison.OrdinalIgnoreCase) || vendor.Contains("randomized", StringComparison.OrdinalIgnoreCase);
         bool hasNoPorts = node.OpenPorts == null || node.OpenPorts.Count == 0;
         bool hasNoBanners = node.PortBanners == null || node.PortBanners.Count == 0;
 
-        string cleanedData = combinedData.Replace("privacy mac", "").Replace("randomized mac", "").Trim();
+        string cleanedData = combinedData.Replace("privacy mac", "", StringComparison.OrdinalIgnoreCase).Replace("randomized mac", "", StringComparison.OrdinalIgnoreCase).Trim();
         bool hasNoProtocolData = string.IsNullOrWhiteSpace(cleanedData);
 
         if (isPrivacyMac && hasNoPorts && hasNoBanners)
@@ -281,9 +281,9 @@ public static class DeviceClassifierEngine
 
             if (winner.Key == "macOS/iOS")
             {
-                if (combinedData.Contains("iphone") || combinedData.Contains("ipad") ||
-                    vendor.Contains("randomized") || vendor.Contains("privacy") ||
-                    dhcpHostLower.Contains("iphone") || dhcpHostLower.Contains("ipad"))
+                if (combinedData.Contains("iphone", StringComparison.OrdinalIgnoreCase) || combinedData.Contains("ipad", StringComparison.OrdinalIgnoreCase) ||
+                    vendor.Contains("randomized", StringComparison.OrdinalIgnoreCase) || vendor.Contains("privacy", StringComparison.OrdinalIgnoreCase) ||
+                    dhcpHostLower.Contains("iphone", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase))
                 {
                     result.Type = DeviceTypeCategory.Mobile;
                     result.TypeString = "Mobile Device";
@@ -316,17 +316,17 @@ public static class DeviceClassifierEngine
                 if (ContainsData("tv") || ContainsData("tizen") || ContainsData("webos")) { result.Type = DeviceTypeCategory.TV; result.TypeString = "Smart TV"; }
                 else if (ContainsData("speaker") || ContainsData("sonos")) { result.Type = DeviceTypeCategory.Speaker; result.TypeString = "Smart Speaker"; }
                 else if (ContainsData("camera") || ContainsData("hikvision") || ContainsData("dahua")) { result.Type = DeviceTypeCategory.Camera; result.TypeString = "IP Camera"; }
-                else if (ContainsData("android") || (vendor.Contains("xiaomi") && !ContainsData("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
+                else if (ContainsData("android") || (vendor.Contains("xiaomi", StringComparison.OrdinalIgnoreCase) && !ContainsData("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
                 else if (ContainsData("playstation") || ContainsData("xbox") || ContainsData("nintendo")) { result.Type = DeviceTypeCategory.GameConsole; result.TypeString = "Game Console"; }
                 else { result.Type = DeviceTypeCategory.IoT; result.TypeString = "IoT Smart Device"; }
             }
             else if (winner.Key == "Linux/Android")
             {
-                if (combinedData.Contains("android") || IsMobileVendor(vendor) ||
-                    dhcpHostLower.Contains("galaxy") || dhcpHostLower.Contains("pixel") ||
-                    dhcpHostLower.Contains("redmi") || dhcpHostLower.Contains("poco") ||
-                    dhcpHostLower.Contains("oneplus") || dhcpHostLower.Contains("sm-") ||
-                    dhcpOs.Contains("android"))
+                if (combinedData.Contains("android", StringComparison.OrdinalIgnoreCase) || IsMobileVendor(vendor) ||
+                    dhcpHostLower.Contains("galaxy", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("pixel", StringComparison.OrdinalIgnoreCase) ||
+                    dhcpHostLower.Contains("redmi", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("poco", StringComparison.OrdinalIgnoreCase) ||
+                    dhcpHostLower.Contains("oneplus", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("sm-", StringComparison.OrdinalIgnoreCase) ||
+                    dhcpOs.Contains("android", StringComparison.OrdinalIgnoreCase))
                 {
                     result.Type = DeviceTypeCategory.Mobile;
                     result.TypeString = "Mobile Phone";
@@ -351,36 +351,36 @@ public static class DeviceClassifierEngine
 
     private static bool IsMobileVendor(string vendor)
     {
-        return vendor.Contains("apple") || vendor.Contains("samsung") || vendor.Contains("google") ||
-               vendor.Contains("oneplus") || vendor.Contains("oppo") || vendor.Contains("vivo") ||
-               vendor.Contains("realme") || vendor.Contains("motorola") || vendor.Contains("lg") ||
-               vendor.Contains("htc") || vendor.Contains("nokia") || vendor.Contains("sony mobile") ||
-               vendor.Contains("xiaomi") || vendor.Contains("huawei") || vendor.Contains("randomized") ||
-               vendor.Contains("privacy");
+        return vendor.Contains("apple", StringComparison.OrdinalIgnoreCase) || vendor.Contains("samsung", StringComparison.OrdinalIgnoreCase) || vendor.Contains("google", StringComparison.OrdinalIgnoreCase) ||
+               vendor.Contains("oneplus", StringComparison.OrdinalIgnoreCase) || vendor.Contains("oppo", StringComparison.OrdinalIgnoreCase) || vendor.Contains("vivo", StringComparison.OrdinalIgnoreCase) ||
+               vendor.Contains("realme", StringComparison.OrdinalIgnoreCase) || vendor.Contains("motorola", StringComparison.OrdinalIgnoreCase) || vendor.Contains("lg", StringComparison.OrdinalIgnoreCase) ||
+               vendor.Contains("htc", StringComparison.OrdinalIgnoreCase) || vendor.Contains("nokia", StringComparison.OrdinalIgnoreCase) || vendor.Contains("sony mobile", StringComparison.OrdinalIgnoreCase) ||
+               vendor.Contains("xiaomi", StringComparison.OrdinalIgnoreCase) || vendor.Contains("huawei", StringComparison.OrdinalIgnoreCase) || vendor.Contains("randomized", StringComparison.OrdinalIgnoreCase) ||
+               vendor.Contains("privacy", StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsValidModel(string model)
     {
         if (string.IsNullOrEmpty(model)) return false;
         string lower = model.ToLowerInvariant();
-        if (lower.Contains("too many connections") ||
-            lower.Contains("try later") ||
-            lower.Contains("404 not found") ||
-            lower.Contains("400 bad request") ||
-            lower.Contains("403 forbidden") ||
-            lower.Contains("503 service unavailable") ||
-            lower.Contains("500 internal server error") ||
-            lower.Contains("bad request") ||
-            lower.Contains("nginx") ||
-            lower.Contains("apache") ||
-            lower.Contains("lighttpd") ||
-            lower.Contains("microhttpd") ||
-            lower.Contains("rompager") ||
-            lower.Contains("gws") ||
-            lower.Contains("upnp/") ||
-            lower.Contains("connection refused") ||
-            lower.Contains("timed out") ||
-            lower.Contains("no route"))
+        if (lower.Contains("too many connections", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("try later", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("404 not found", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("400 bad request", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("403 forbidden", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("503 service unavailable", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("500 internal server error", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("bad request", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("nginx", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("apache", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("lighttpd", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("microhttpd", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("rompager", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("gws", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("upnp/", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("connection refused", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
+            lower.Contains("no route", StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

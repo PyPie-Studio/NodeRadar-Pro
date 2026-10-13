@@ -13,11 +13,11 @@ public static class DeviceIconMapper
         string h = hostname.ToLowerInvariant();
 
         // 1. Apple Overrides
-        if (v.Contains("apple"))
+        if (v.Contains("apple", StringComparison.OrdinalIgnoreCase))
         {
-            if (h.Contains("iphone") || containsData("iphone")) return "phone";
-            if (h.Contains("ipad") || containsData("ipad")) return "tablet";
-            if (h.Contains("macbook") || h.Contains("imac") || h.Contains("mac-mini")) return "pc";
+            if (h.Contains("iphone", StringComparison.OrdinalIgnoreCase) || containsData("iphone")) return "phone";
+            if (h.Contains("ipad", StringComparison.OrdinalIgnoreCase) || containsData("ipad")) return "tablet";
+            if (h.Contains("macbook", StringComparison.OrdinalIgnoreCase) || h.Contains("imac", StringComparison.OrdinalIgnoreCase) || h.Contains("mac-mini", StringComparison.OrdinalIgnoreCase)) return "pc";
             return "phone"; // Default Apple to phone icon (iOS heavily dominates)
         }
 

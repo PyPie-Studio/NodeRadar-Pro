@@ -239,19 +239,19 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
     private string GetDeviceTypeFromMdns(string hostname, byte[] buffer)
     {
         string hostLower = hostname.ToLowerInvariant();
-        if (hostLower.Contains("iphone") || hostLower.Contains("ipad") || hostLower.Contains("phone"))
+        if (hostLower.Contains("iphone", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("phone", StringComparison.OrdinalIgnoreCase))
             return "Mobile Device";
-        if (hostLower.Contains("android"))
+        if (hostLower.Contains("android", StringComparison.OrdinalIgnoreCase))
             return "Mobile Device";
-        if (hostLower.Contains("tv"))
+        if (hostLower.Contains("tv", StringComparison.OrdinalIgnoreCase))
             return "Smart TV";
-        if (hostLower.Contains("printer"))
+        if (hostLower.Contains("printer", StringComparison.OrdinalIgnoreCase))
             return "Printer";
 
         string raw = Encoding.UTF8.GetString(buffer).ToLowerInvariant();
-        if (raw.Contains("iphone") || raw.Contains("ipad") || raw.Contains("apple-mobdev2"))
+        if (raw.Contains("iphone", StringComparison.OrdinalIgnoreCase) || raw.Contains("ipad", StringComparison.OrdinalIgnoreCase) || raw.Contains("apple-mobdev2", StringComparison.OrdinalIgnoreCase))
             return "Mobile Device";
-        if (raw.Contains("android") || raw.Contains("googlecast"))
+        if (raw.Contains("android", StringComparison.OrdinalIgnoreCase) || raw.Contains("googlecast", StringComparison.OrdinalIgnoreCase))
             return "Mobile Device";
 
         return "Generic Device";
@@ -260,23 +260,23 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
     private string GetVendorFromMdns(string hostname, byte[] buffer)
     {
         string hostLower = hostname.ToLowerInvariant();
-        if (hostLower.Contains("iphone") || hostLower.Contains("ipad") || hostLower.Contains("apple"))
+        if (hostLower.Contains("iphone", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("ipad", StringComparison.OrdinalIgnoreCase) || hostLower.Contains("apple", StringComparison.OrdinalIgnoreCase))
             return "Apple";
-        if (hostLower.Contains("android"))
+        if (hostLower.Contains("android", StringComparison.OrdinalIgnoreCase))
             return "Google / Android";
-        if (hostLower.Contains("huawei"))
+        if (hostLower.Contains("huawei", StringComparison.OrdinalIgnoreCase))
             return "Huawei";
-        if (hostLower.Contains("xiaomi"))
+        if (hostLower.Contains("xiaomi", StringComparison.OrdinalIgnoreCase))
             return "Xiaomi";
 
         string raw = Encoding.UTF8.GetString(buffer).ToLowerInvariant();
-        if (raw.Contains("apple") || raw.Contains("iphone") || raw.Contains("ipad"))
+        if (raw.Contains("apple", StringComparison.OrdinalIgnoreCase) || raw.Contains("iphone", StringComparison.OrdinalIgnoreCase) || raw.Contains("ipad", StringComparison.OrdinalIgnoreCase))
             return "Apple";
-        if (raw.Contains("google"))
+        if (raw.Contains("google", StringComparison.OrdinalIgnoreCase))
             return "Google";
-        if (raw.Contains("huawei"))
+        if (raw.Contains("huawei", StringComparison.OrdinalIgnoreCase))
             return "Huawei";
-        if (raw.Contains("xiaomi"))
+        if (raw.Contains("xiaomi", StringComparison.OrdinalIgnoreCase))
             return "Xiaomi";
 
         return "Unknown Vendor";
