@@ -218,7 +218,10 @@ public class SubnetScannerBenchmarkTests
         {
             await Task.WhenAll(baselineTasks);
         }
-        catch { }
+        catch (Exception)
+        {
+            /* Baseline timeout or cancellation expected */
+        }
         sw.Stop();
         long baselineAllocated = GC.GetAllocatedBytesForCurrentThread() - baselineAllocBefore;
 

@@ -259,7 +259,10 @@ public static class ArpResolver
                 }
             }
         }
-        catch { }
+        catch (Exception)
+        {
+            /* UDP timeout, port unreachable, or cancellation; fallback to empty NetBIOS name */
+        }
         return string.Empty;
     }
 
