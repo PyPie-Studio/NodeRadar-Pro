@@ -132,10 +132,10 @@ public static class ScannerDiagnostics
         {
             // Case A: Synology NAS
             var nodeNas = new NetworkNode { IpAddress = "192.168.1.55", MacAddress = "00:11:32:AA:BB:CC", Hostname = "Synology-NAS" };
-            var probesNas = new List<ProbeResult>
+            var probesNas = new System.Collections.Generic.List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Synology" } } },
-                new ProbeResult { Source = "mDNS / Bonjour", RawData = new Dictionary<string, string> { { "Model", "DS220+" } } }
+                new ProbeResult { Source = "MAC OUI Lookup", RawData = new System.Collections.Generic.Dictionary<string, string> { { "Vendor", "Synology" } } },
+                new ProbeResult { Source = "mDNS / Bonjour", RawData = new System.Collections.Generic.Dictionary<string, string> { { "Model", "DS220+" } } }
             };
             var classNas = DeviceClassifierEngine.Classify(nodeNas, probesNas);
             if (classNas.TypeString != "NAS Storage" || classNas.Vendor != "Synology" || classNas.Model != "DS220+")
@@ -146,9 +146,9 @@ public static class ScannerDiagnostics
 
             // Case B: Samsung Mobile Phone (Android)
             var nodePhone = new NetworkNode { IpAddress = "192.168.1.60", MacAddress = "10:19:94:11:22:33", Hostname = "Galaxy-S21" };
-            var probesPhone = new List<ProbeResult>
+            var probesPhone = new System.Collections.Generic.List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Samsung Electronics" } } }
+                new ProbeResult { Source = "MAC OUI Lookup", RawData = new System.Collections.Generic.Dictionary<string, string> { { "Vendor", "Samsung Electronics" } } }
             };
             var classPhone = DeviceClassifierEngine.Classify(nodePhone, probesPhone);
             if (classPhone.TypeString != "Mobile Phone" || classPhone.Vendor != "Samsung Electronics" || classPhone.Os != "Linux/Android")
@@ -159,9 +159,9 @@ public static class ScannerDiagnostics
 
             // Case C: Router / ONU (Fiberhome)
             var nodeRouter = new NetworkNode { IpAddress = "192.168.1.1", MacAddress = "00:0B:AD:99:88:77", Hostname = "router.local" };
-            var probesRouter = new List<ProbeResult>
+            var probesRouter = new System.Collections.Generic.List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Fiberhome" } } }
+                new ProbeResult { Source = "MAC OUI Lookup", RawData = new System.Collections.Generic.Dictionary<string, string> { { "Vendor", "Fiberhome" } } }
             };
             var classRouter = DeviceClassifierEngine.Classify(nodeRouter, probesRouter);
             if (classRouter.TypeString != "Router / Gateway" || classRouter.Vendor != "Fiberhome" || classRouter.Os != "Infrastructure")
@@ -172,9 +172,9 @@ public static class ScannerDiagnostics
 
             // Case D: Randomized / Privacy MAC (iPhone/iOS)
             var nodePrivacy = new NetworkNode { IpAddress = "192.168.1.70", MacAddress = "02:11:22:33:44:55", Hostname = "Unknown Device" };
-            var probesPrivacy = new List<ProbeResult>
+            var probesPrivacy = new System.Collections.Generic.List<ProbeResult>
             {
-                new ProbeResult { Source = "MAC OUI Lookup", RawData = new Dictionary<string, string> { { "Vendor", "Privacy MAC" } } }
+                new ProbeResult { Source = "MAC OUI Lookup", RawData = new System.Collections.Generic.Dictionary<string, string> { { "Vendor", "Privacy MAC" } } }
             };
             var classPrivacy = DeviceClassifierEngine.Classify(nodePrivacy, probesPrivacy);
             if (classPrivacy.TypeString != "Mobile Device" || classPrivacy.Vendor != "Privacy MAC" || classPrivacy.Os != "macOS/iOS")
@@ -217,7 +217,7 @@ public static class ScannerDiagnostics
             var scanner = new SubnetScanner { TimeoutMs = 500 };
 
             int discoveryEventCount = 0;
-            var discoveredNodes = new List<NetworkNode>();
+            var discoveredNodes = new System.Collections.Generic.List<NetworkNode>();
 
             scanner.NodeDiscovered += (node) =>
             {
