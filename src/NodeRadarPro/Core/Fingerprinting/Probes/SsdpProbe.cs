@@ -28,7 +28,8 @@ public class SsdpProbe : IFingerprintProbe
     private static readonly HttpClient _httpClient = new HttpClient(new SocketsHttpHandler
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(15)
-    }) { Timeout = TimeSpan.FromSeconds(2) };
+    })
+    { Timeout = TimeSpan.FromSeconds(2) };
 
     public static async Task StartSweepAsync(CancellationToken token)
     {

@@ -16,7 +16,8 @@ public class BannerGrabProbe : IFingerprintProbe
     private static readonly HttpClient _httpClient = new HttpClient(new SocketsHttpHandler
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(15)
-    }) { Timeout = TimeSpan.FromSeconds(2) };
+    })
+    { Timeout = TimeSpan.FromSeconds(2) };
 
     public async Task<ProbeResult> ProbeAsync(NetworkNode node, CancellationToken ct)
     {
