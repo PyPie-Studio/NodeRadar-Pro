@@ -70,6 +70,24 @@ public class LoggerTests : IDisposable
     }
 
     [Fact]
+    public void Log_HandlesWriteFailureGracefullyWithoutThrowing()
+    {
+        // Simulate write failure by creating a directory with the log file name
+        Directory.CreateDirectory(_testLogFilePath);
+
+        string source = "UnitTestFailure";
+        string message = "Test write failure message " + Guid.NewGuid().ToString();
+
+        var exception = Record.Exception(() =>
+        {
+            Logger.Log(LogLevel.Error, source, message);
+            Logger.FlushForTesting();
+        });
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public void FlushForTesting_PerformanceTest()
     {
         // Warmup
