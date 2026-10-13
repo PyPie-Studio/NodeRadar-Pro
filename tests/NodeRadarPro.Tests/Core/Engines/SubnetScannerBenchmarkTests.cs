@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using NodeRadarPro.Core;
 
@@ -108,6 +109,67 @@ public class SubnetScannerBenchmarkTests
         // Direct lookup should allocate significantly fewer bytes than repeated dictionary cloning
         Assert.True(optAllocated < baselineAllocated / 10,
             $"Expected optimized allocations ({optAllocated} B) to be < 10% of baseline ({baselineAllocated} B)");
+    }
+
+    [Fact]
+    public void Benchmark_ArpSweepLoop_BaselineVsOptimized()
+    {
+        // Simulate an ARP table with 5,000 entries across various subnets, only 50 matching 192.168.1.x
+        var arpTable = new List<(string Ip, string Mac)>();
+        for (int i = 0; i < 5000; i++)
+        {
+            string subnet = (i % 100 == 0) ? "192.168.1" : $"10.{i / 256}.{i % 256}";
+            int host = (i % 250) + 1;
+            arpTable.Add(($"{subnet}.{host}", $"00:11:22:33:{(i / 256):X2}:{(i % 256):X2}"));
+        }
+
+        string baseIp = "192.168.1";
+        int startIp = 1;
+        int endIp = 254;
+
+        const int runs = 1000;
+
+        // Baseline: ContainsKey lookup BEFORE IP filter check
+        int baselineMatches = 0;
+        var swBaseline = Stopwatch.StartNew();
+        for (int r = 0; r < runs; r++)
+        {
+            var discoveredMacs = new ConcurrentDictionary<string, bool>();
+            discoveredMacs.TryAdd("00:11:22:33:00:00", true);
+
+            int count = 0;
+            foreach (var (ip, mac) in arpTable)
+            {
+                if (discoveredMacs.ContainsKey(mac)) continue;
+                if (!SubnetScanner.IsIpInSubnetAndRange(ip.AsSpan(), baseIp, startIp, endIp)) continue;
+                count++;
+            }
+            baselineMatches = count;
+        }
+        swBaseline.Stop();
+
+        // Optimized: Lightweight IP filter check BEFORE TryAdd lookup
+        int optMatches = 0;
+        var swOpt = Stopwatch.StartNew();
+        for (int r = 0; r < runs; r++)
+        {
+            var discoveredMacs = new ConcurrentDictionary<string, bool>();
+            discoveredMacs.TryAdd("00:11:22:33:00:00", true);
+
+            int count = 0;
+            foreach (var (ip, mac) in arpTable)
+            {
+                if (!SubnetScanner.IsIpInSubnetAndRange(ip.AsSpan(), baseIp, startIp, endIp)) continue;
+                if (!discoveredMacs.TryAdd(mac, true)) continue;
+                count++;
+            }
+            optMatches = count;
+        }
+        swOpt.Stop();
+
+        Assert.Equal(baselineMatches, optMatches);
+        Assert.True(swOpt.ElapsedTicks <= swBaseline.ElapsedTicks * 2,
+            $"Expected optimized loop ({swOpt.ElapsedMilliseconds}ms) to be as fast or faster than baseline ({swBaseline.ElapsedMilliseconds}ms)");
     }
 
     private static long RunBaseline((string Ip, string Mac)[] arpTable, string baseIp, int startIp, int endIp)
