@@ -269,9 +269,16 @@ public class RadarCanvas : Control
         using var clip = context.PushClip(new Rect(0, 0, bounds.Width, bounds.Height));
 
         var center = new Point(bounds.Width / 2, bounds.Height / 2);
-        double baseRadius = Math.Min(bounds.Width, bounds.Height) / 2.2;
-        double maxRadius = baseRadius; // Fixed size for the radar circle
+        double maxRadius = Math.Min(bounds.Width, bounds.Height) / 2.2;
 
+        RenderBackgroundAndGrid(context, center, maxRadius);
+        RenderRadarSweep(context, center, maxRadius);
+        RenderNetworkNodes(context, center, maxRadius);
+        RenderZoomOverlay(context, bounds);
+    }
+
+    private static void RenderBackgroundAndGrid(DrawingContext context, Point center, double maxRadius)
+    {
         // Background circle — deep surface
         context.DrawEllipse(_bgBrush, null, center, maxRadius, maxRadius);
 
@@ -298,7 +305,10 @@ public class RadarCanvas : Control
         // Crosshairs — faint
         context.DrawLine(_crossPen, new Point(center.X, center.Y - maxRadius), new Point(center.X, center.Y + maxRadius));
         context.DrawLine(_crossPen, new Point(center.X - maxRadius, center.Y), new Point(center.X + maxRadius, center.Y));
+    }
 
+    private void RenderRadarSweep(DrawingContext context, Point center, double maxRadius)
+    {
         // Scanning Wave — an expanding, fading ring
         double waveProgress = (_radarAngle / 360.0); // 0.0 to 1.0
         double waveRadius = maxRadius * waveProgress;
@@ -329,10 +339,13 @@ public class RadarCanvas : Control
         context.DrawEllipse(_hubGlow, null, center, 12, 12);
         context.DrawEllipse(_hubBrush, null, center, 5, 5);
         context.DrawEllipse(_hubInner, null, center, 2, 2);
+    }
 
+    private void RenderNetworkNodes(DrawingContext context, Point center, double baseRadius)
+    {
         // ── PUSH CLIPPING FOR NODES ──
         // Only draw nodes if they are within the radar circle
-        using var nodeClip = context.PushClip(new RoundedRect(new Rect(center.X - maxRadius, center.Y - maxRadius, maxRadius * 2, maxRadius * 2), maxRadius));
+        using var nodeClip = context.PushClip(new RoundedRect(new Rect(center.X - baseRadius, center.Y - baseRadius, baseRadius * 2, baseRadius * 2), baseRadius));
 
         // Network Nodes
         double pulseScale = 1.0 + (Math.Sin(_pulsePhase) * 0.25);
@@ -410,7 +423,10 @@ public class RadarCanvas : Control
             double textYOffset = nodePoint.Y > center.Y ? -(24 * nodeScale) : (18 * nodeScale);
             context.DrawText(formattedText, new Point(nodePoint.X - (formattedText.Width / 2), nodePoint.Y + textYOffset));
         }
+    }
 
+    private void RenderZoomOverlay(DrawingContext context, Rect bounds)
+    {
         // Zoom Level Indicator (Subtle overlay)
         if (_zoomLevel != 1.0)
         {
