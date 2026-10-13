@@ -1,6 +1,11 @@
+using System;
+using System.Collections.Generic;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting.Probes;
+using Xunit;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
@@ -18,6 +23,53 @@ public class MdnsProbeTests : IDisposable
     }
 
     [Fact]
+    public void Properties_ReturnExpectedValues()
+    {
+        var probe = new MdnsProbe();
+        Assert.Equal("mDNS / Bonjour", probe.Name);
+        Assert.Equal(20, probe.Priority);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_UncachedNode_ReturnsEmptyRawData()
+    {
+        var probe = new MdnsProbe();
+        var node = new NetworkNode { IpAddress = "10.0.0.99" };
+
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.Equal("mDNS / Bonjour", result.Source);
+        Assert.Empty(result.RawData);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_WithCachedDataAndDuplicates_FormatsDistinctServices()
+    {
+        var mdnsData = new MdnsProbe.MdnsData
+        {
+            InstanceName = "Living Room TV",
+            Model = "OLED55",
+            Manufacturer = "LG"
+        };
+        mdnsData.Services.Add("Google Cast");
+        mdnsData.Services.Add("Apple Device");
+        mdnsData.Services.Add("Google Cast");
+
+        MdnsProbe.InjectCacheForTesting("192.168.1.50", mdnsData);
+
+        var probe = new MdnsProbe();
+        var node = new NetworkNode { IpAddress = "192.168.1.50" };
+
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.Equal("mDNS / Bonjour", result.Source);
+        Assert.Equal("Living Room TV", result.RawData["InstanceName"]);
+        Assert.Equal("OLED55", result.RawData["Model"]);
+        Assert.Equal("LG", result.RawData["Manufacturer"]);
+        Assert.Equal("Google Cast, Apple Device", result.RawData["Services"]);
+    }
+
+    [Fact]
     public void CreateMdnsQuery_FormatsDnsQuestionCorrectly()
     {
         string service = "_airplay._tcp.local";
@@ -25,11 +77,9 @@ public class MdnsProbeTests : IDisposable
 
         Assert.NotNull(packet);
         Assert.True(packet.Length > 12);
-        // Questions count = 1 at offset 4-5
         Assert.Equal(0x00, packet[4]);
         Assert.Equal(0x01, packet[5]);
 
-        // First label length for "_airplay" is 8
         Assert.Equal(8, packet[12]);
         string label1 = Encoding.ASCII.GetString(packet, 13, 8);
         Assert.Equal("_airplay", label1);
@@ -48,19 +98,97 @@ public class MdnsProbeTests : IDisposable
         Assert.Equal("Apple Inc.", data.Manufacturer);
     }
 
+    [Theory]
+    [InlineData("am=AppleTV5,3", "AppleTV5,3", "")]
+    [InlineData("md=Chromecast", "Chromecast", "")]
+    [InlineData("rpMd=HomePod", "HomePod", "")]
+    [InlineData("man=Sonos", "", "Sonos")]
+    [InlineData("mf=Samsung", "", "Samsung")]
+    public void ParseTxtRecords_VariousModelAndVendorKeys_ExtractsCorrectly(string txt, string expectedModel, string expectedVendor)
+    {
+        var data = new MdnsProbe.MdnsData();
+        byte[] txtBytes = Encoding.UTF8.GetBytes(txt);
+
+        MdnsProbe.ParseTxtRecords(txtBytes, data);
+
+        Assert.Equal(expectedModel, data.Model);
+        Assert.Equal(expectedVendor, data.Manufacturer);
+    }
+
+    [Fact]
+    public void ParseTxtRecords_StopsAtNonPrintableCharacter()
+    {
+        var data = new MdnsProbe.MdnsData();
+        byte[] txtBytes = Encoding.UTF8.GetBytes("model=ProductModel\x00extra");
+
+        MdnsProbe.ParseTxtRecords(txtBytes, data);
+
+        Assert.Equal("ProductModel", data.Model);
+    }
+
+    [Fact]
+    public void ParseTxtRecords_HandlesInvalidBufferGracefully()
+    {
+        var data = new MdnsProbe.MdnsData();
+        MdnsProbe.ParseTxtRecords(Array.Empty<byte>(), data);
+        Assert.Equal(string.Empty, data.Model);
+    }
+
     [Fact]
     public void ExtractMdnsInstanceName_ValidLocalRecord_ExtractsHostname()
     {
-        // Format: [prefix bytes] [name length] [name bytes] [0x05, 'l', 'o', 'c', 'a', 'l', 0x00]
         var bytes = new List<byte> { 0x00, 0x00, 0x00, 0x00 };
         string host = "Living-Room-AppleTV";
         bytes.Add((byte)host.Length);
         bytes.AddRange(Encoding.UTF8.GetBytes(host));
-        bytes.AddRange(new byte[] { 0x05, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0x00 });
+        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
 
         string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
 
         Assert.Equal(host, extracted);
+    }
+
+    [Fact]
+    public void ExtractMdnsInstanceName_ServiceTypeStartingWithUnderscore_ReturnsEmpty()
+    {
+        var bytes = new List<byte> { 0x00, 0x00, 0x00, 0x00 };
+        string host = "_googlecast";
+        bytes.Add((byte)host.Length);
+        bytes.AddRange(Encoding.UTF8.GetBytes(host));
+        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
+
+        string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
+
+        Assert.Equal(string.Empty, extracted);
+    }
+
+    [Fact]
+    public void ExtractMdnsInstanceName_ShortHostName_ReturnsEmpty()
+    {
+        var bytes = new List<byte> { 0x00, 0x00, 0x00, 0x00 };
+        string host = "ab";
+        bytes.Add((byte)host.Length);
+        bytes.AddRange(Encoding.UTF8.GetBytes(host));
+        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
+
+        string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
+
+        Assert.Equal(string.Empty, extracted);
+    }
+
+    [Fact]
+    public void ExtractMdnsInstanceName_NoLocalPattern_ReturnsEmpty()
+    {
+        byte[] bytes = Encoding.UTF8.GetBytes("Random data without mdns pattern");
+        string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes);
+        Assert.Equal(string.Empty, extracted);
+    }
+
+    [Fact]
+    public void ExtractMdnsInstanceName_HandlesEmptyOrSmallBufferGracefully()
+    {
+        Assert.Equal(string.Empty, MdnsProbe.ExtractMdnsInstanceName(Array.Empty<byte>()));
+        Assert.Equal(string.Empty, MdnsProbe.ExtractMdnsInstanceName(new byte[] { 0x01, 0x02 }));
     }
 
     [Fact]
