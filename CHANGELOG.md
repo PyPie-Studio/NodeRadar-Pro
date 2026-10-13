@@ -13,6 +13,7 @@
 
 ### Security and Package Hardening
 - **Transitive Cryptography Dependency Remediation (`Directory.Packages.props`, `NodeRadarPro.csproj`, `NodeRadarPro.Tests.csproj`)**: Pinned `System.Security.Cryptography.Pkcs` to version 10.0.13, resolving vulnerability advisories GHSA-846f-f764-76mx and GHSA-2fmv-rv2c-59x7.
+- **Central Package Management Upgrades (`Directory.Packages.props`)**: Upgraded `Avalonia` suite to 12.1.4, `Roslynator.Analyzers` to 5.0.1, `System.Management`, `System.Windows.Extensions` and `System.Security.Cryptography.ProtectedData` to 10.0.13, `Microsoft.NET.Test.Sdk` to 18.11.0, and `xunit.v3` / `xunit.runner.visualstudio` test tooling to 4.0.2 and 4.0.1.
 
 ### Test Suite Coverage
 - **Comprehensive Subsystem and Probe Test Expansion (`tests/NodeRadarPro.Tests/`)**: Added 119 unit tests across models (`UptimeSnapshotTests.cs`, `AlertEventTests.cs`, `NetworkDeviceTests.cs`, `FingerprintResultTests.cs`, `LogEntryTests.cs`), fingerprinting probes (`MacOuiProbeTests.cs`, `NbnsProbeTests.cs`, `MdnsProbeTests.cs`, `SsdpProbeTests.cs`, `SnmpProbeTests.cs`, `BannerGrabProbeTests.cs`), diagnostics (`AppUtilsTests.cs`, `LoggerTests.cs`, `EmailServiceTests.cs`) and UI controls (`RadarCanvasTests.cs`), bringing total passing test count to 539 tests.
