@@ -116,7 +116,14 @@ public class DarkPurpleTheme
         var cts = new CancellationTokenSource();
 
         // Log startup
-        try { db.Log(LogLevel.Info, "System", "NodeRadar Pro started"); } catch { }
+        try
+        {
+            db.Log(LogLevel.Info, "System", "NodeRadar Pro started");
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, "System", $"Failed to log startup to database: {ex.Message}");
+        }
 
         // ═══════════════════════════════════════════
         // ██  SHELL COMPONENTS
@@ -247,7 +254,14 @@ public class DarkPurpleTheme
                 long avgLat = latencyCount > 0 ? totalLatency / latencyCount : -1;
 
                 int alertCount = 0;
-                try { alertCount = db.GetUnresolvedAlertCount(); } catch { }
+                try
+                {
+                    alertCount = db.GetUnresolvedAlertCount();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "Database", $"Failed to get unresolved alert count: {ex.Message}");
+                }
 
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -267,7 +281,14 @@ public class DarkPurpleTheme
             Task.Run(() =>
             {
                 int count = activeNodesMap.Values.Count(n => n.IsOnline);
-                try { db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices"); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Scanner", $"Scan discovered {count} devices");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Scanner", $"Failed to log scan discovery: {ex.Message}");
+                }
                 SyncGlobalStats();
             });
         };
@@ -288,7 +309,14 @@ public class DarkPurpleTheme
             activeNodesMap.UpdateNode(node);
             Task.Run(() =>
             {
-                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' saved", node.MacAddress);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Inventory", $"Failed to log saved device: {ex.Message}", node.MacAddress);
+                }
                 db.Checkpoint();
                 SyncGlobalStats();
             });
@@ -299,7 +327,14 @@ public class DarkPurpleTheme
             activeNodesMap.TryRemove(node.MacAddress, out _);
             Task.Run(() =>
             {
-                try { db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Inventory", $"Device '{node.DisplayName}' deleted", node.MacAddress);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Inventory", $"Failed to log deleted device: {ex.Message}", node.MacAddress);
+                }
                 db.Checkpoint();
                 SyncGlobalStats();
             });
@@ -313,7 +348,14 @@ public class DarkPurpleTheme
             }
             Task.Run(() =>
             {
-                try { db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices"); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Inventory", $"Bulk deleted {nodes.Count()} devices");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Inventory", $"Failed to log bulk deleted devices: {ex.Message}");
+                }
                 db.Checkpoint();
                 SyncGlobalStats();
             });
@@ -379,7 +421,14 @@ public class DarkPurpleTheme
                     node.ThreatLevel,
                     node.ExactModel
                 );
-                try { db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Scanner", $"Device '{node.DisplayName}' permanently registered", node.MacAddress);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Scanner", $"Failed to log device registration: {ex.Message}", node.MacAddress);
+                }
                 db.Checkpoint();
                 SyncGlobalStats();
             });
@@ -392,7 +441,14 @@ public class DarkPurpleTheme
             ApplySettings(newSettings, monitor, scanner, detector);
             Task.Run(() =>
             {
-                try { db.Log(LogLevel.Info, "Settings", "Settings updated"); } catch { }
+                try
+                {
+                    db.Log(LogLevel.Info, "Settings", "Settings updated");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Error, "Settings", $"Failed to log settings update: {ex.Message}");
+                }
                 db.Checkpoint();
                 SyncGlobalStats();
             });
@@ -463,7 +519,14 @@ public class DarkPurpleTheme
                 // UI Status Updates
                 int online = activeNodesMap.Values.Count(n => n.IsOnline);
                 int alertCountActual = 0;
-                try { alertCountActual = db.GetUnresolvedAlertCount(); } catch { }
+                try
+                {
+                    alertCountActual = db.GetUnresolvedAlertCount();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log(LogLevel.Warning, "Database", $"Failed to get unresolved alert count at startup: {ex.Message}");
+                }
 
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -493,7 +556,14 @@ public class DarkPurpleTheme
             cts.Cancel();
             cts.Dispose();
             scannerPage.Cleanup();
-            try { db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
+            try
+            {
+                db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Error, "System", $"Failed to log shutdown to database: {ex.Message}");
+            }
         };
 
         return window;
