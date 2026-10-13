@@ -226,9 +226,18 @@ public class BannerGrabProbeTests
             {
                 using var client = await listener.AcceptTcpClientAsync();
                 using var sslStream = new SslStream(client.GetStream(), false);
-                await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                var sslServerOptions = new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = cert,
+                    ClientCertificateRequired = false,
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                };
+                await sslStream.AuthenticateAsServerAsync(sslServerOptions, CancellationToken.None);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TLS Server Error: {ex}");
+            }
         });
 
         try
@@ -255,7 +264,13 @@ public class BannerGrabProbeTests
             {
                 using var client = await listener.AcceptTcpClientAsync();
                 using var sslStream = new SslStream(client.GetStream(), false);
-                await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                var sslServerOptions = new SslServerAuthenticationOptions
+                {
+                    ServerCertificate = cert,
+                    ClientCertificateRequired = false,
+                    EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                };
+                await sslStream.AuthenticateAsServerAsync(sslServerOptions, CancellationToken.None);
 
                 byte[] buffer = new byte[1024];
                 _ = await sslStream.ReadAsync(buffer, 0, buffer.Length);
@@ -264,7 +279,10 @@ public class BannerGrabProbeTests
                 byte[] responseBytes = Encoding.UTF8.GetBytes(response);
                 await sslStream.WriteAsync(responseBytes, 0, responseBytes.Length);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"TLS HTTP Server Error: {ex}");
+            }
         });
 
         try
@@ -312,10 +330,19 @@ public class BannerGrabProbeTests
                     await stream.WriteAsync(rdpResp, 0, rdpResp.Length);
 
                     using var sslStream = new SslStream(stream, false);
-                    await sslStream.AuthenticateAsServerAsync(cert, false, SslProtocols.Tls12 | SslProtocols.Tls13, false);
+                    var sslServerOptions = new SslServerAuthenticationOptions
+                    {
+                        ServerCertificate = cert,
+                        ClientCertificateRequired = false,
+                        EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13
+                    };
+                    await sslStream.AuthenticateAsServerAsync(sslServerOptions, CancellationToken.None);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RDP TLS Server Error: {ex}");
+            }
         });
 
         try
