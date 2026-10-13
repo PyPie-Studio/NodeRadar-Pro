@@ -141,7 +141,7 @@ public class BannerGrabProbeTests
     [Fact]
     public async Task GrabBannerAsync_WithHttpServerResponse_ParsesServerHeaderAndStripsNonPrintable()
     {
-        var (listener, port) = StartListenerOnAvailablePort(8080, 8008, 9000, 5000);
+        var (listener, port) = StartListenerOnAvailablePort(8080, 8008, 9000, 5000, 8000, 8888);
 
         var serverTask = Task.Run(async () =>
         {
@@ -174,7 +174,7 @@ public class BannerGrabProbeTests
     [Fact]
     public async Task ProbeAsync_WithHttpPort_ExecutesHttpProbesAndHandlesMetadataFailureGracefully()
     {
-        var (listener, port) = StartListenerOnAvailablePort(8080, 8008, 9000, 5000);
+        var (listener, port) = StartListenerOnAvailablePort(8080, 8008, 9000, 5000, 8000, 8888);
 
         var serverTask = Task.Run(async () =>
         {
@@ -217,7 +217,7 @@ public class BannerGrabProbeTests
     [Fact]
     public async Task GrabBannerAsync_WithTlsNonHttpPort_ExtractsSslCertificateCn()
     {
-        var (listener, port) = StartListenerOnAvailablePort(993, 995, 5061, 9443, 10000);
+        var (listener, port) = StartListenerOnAvailablePort(5061, 10000, 5001, 9443);
         using var cert = CreateSelfSignedCertificate("TestDevice.local");
 
         var serverTask = Task.Run(async () =>
@@ -246,7 +246,7 @@ public class BannerGrabProbeTests
     [Fact]
     public async Task GrabBannerAsync_WithTlsAndHttpPort_CombinesServerBannerAndSslCn()
     {
-        var (listener, port) = StartListenerOnAvailablePort(8443, 9443, 10000, 5001);
+        var (listener, port) = StartListenerOnAvailablePort(8443, 9443, 5001, 10000);
         using var cert = CreateSelfSignedCertificate("SecureRouter.local");
 
         var serverTask = Task.Run(async () =>
@@ -282,7 +282,18 @@ public class BannerGrabProbeTests
     [Fact]
     public async Task GrabBannerAsync_WithRdpPort3389_PerformsRdpNegotiationAndTlsHandshake()
     {
-        var (listener, port) = StartListenerOnAvailablePort(3389);
+        TcpListener listener;
+        int port;
+        try
+        {
+            (listener, port) = StartListenerOnAvailablePort(3389);
+        }
+        catch (InvalidOperationException)
+        {
+            // Port 3389 is in use by the host OS (e.g. Windows Remote Desktop Service); skip test on host
+            return;
+        }
+
         using var cert = CreateSelfSignedCertificate("RdpHost.domain.local");
 
         var serverTask = Task.Run(async () =>
@@ -344,9 +355,7 @@ public class BannerGrabProbeTests
             catch (SocketException) { }
         }
 
-        var fallback = new TcpListener(IPAddress.Loopback, 0);
-        fallback.Start();
-        return (fallback, ((IPEndPoint)fallback.LocalEndpoint).Port);
+        throw new InvalidOperationException($"Could not bind any preferred port ({string.Join(", ", preferredPorts)}).");
     }
 
     private static X509Certificate2 CreateSelfSignedCertificate(string commonName)
