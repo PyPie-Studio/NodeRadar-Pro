@@ -25,7 +25,10 @@ public class SsdpProbe : IFingerprintProbe
     }
 
     private static readonly ConcurrentDictionary<string, SsdpData> _cache = new();
-    private static readonly HttpClient _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(2) };
+    private static readonly HttpClient _httpClient = new HttpClient(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(15)
+    }) { Timeout = TimeSpan.FromSeconds(2) };
 
     public static async Task StartSweepAsync(CancellationToken token)
     {
