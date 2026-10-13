@@ -1,11 +1,6 @@
-using System;
-using System.Collections.Generic;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting.Probes;
-using Xunit;
 
 namespace NodeRadarPro.Tests.Fingerprinting;
 
@@ -119,9 +114,13 @@ public class MdnsProbeTests : IDisposable
     public void ParseTxtRecords_StopsAtNonPrintableCharacter()
     {
         var data = new MdnsProbe.MdnsData();
-        byte[] txtBytes = Encoding.UTF8.GetBytes("model=ProductModel\x00extra");
+        byte[] prefix = Encoding.UTF8.GetBytes("model=ProductModel");
+        byte[] suffix = Encoding.UTF8.GetBytes("extra");
+        var bytes = new List<byte>(prefix);
+        bytes.Add(0x00);
+        bytes.AddRange(suffix);
 
-        MdnsProbe.ParseTxtRecords(txtBytes, data);
+        MdnsProbe.ParseTxtRecords(bytes.ToArray(), data);
 
         Assert.Equal("ProductModel", data.Model);
     }
@@ -141,7 +140,7 @@ public class MdnsProbeTests : IDisposable
         string host = "Living-Room-AppleTV";
         bytes.Add((byte)host.Length);
         bytes.AddRange(Encoding.UTF8.GetBytes(host));
-        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
+        bytes.AddRange(new byte[] { 0x05, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0x00 });
 
         string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
 
@@ -155,7 +154,7 @@ public class MdnsProbeTests : IDisposable
         string host = "_googlecast";
         bytes.Add((byte)host.Length);
         bytes.AddRange(Encoding.UTF8.GetBytes(host));
-        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
+        bytes.AddRange(new byte[] { 0x05, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0x00 });
 
         string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
 
@@ -169,7 +168,7 @@ public class MdnsProbeTests : IDisposable
         string host = "ab";
         bytes.Add((byte)host.Length);
         bytes.AddRange(Encoding.UTF8.GetBytes(host));
-        bytes.AddRange(new byte[] { 0x05, (byte)"l"[0], (byte)"o"[0], (byte)"c"[0], (byte)"a"[0], (byte)"l"[0], 0x00 });
+        bytes.AddRange(new byte[] { 0x05, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0x00 });
 
         string extracted = MdnsProbe.ExtractMdnsInstanceName(bytes.ToArray());
 
