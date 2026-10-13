@@ -362,6 +362,8 @@ public class BannerGrabProbeTests
     {
         using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
         var req = new CertificateRequest($"CN={commonName}", ecdsa, HashAlgorithmName.SHA256);
-        return req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+        using var cert = req.CreateSelfSigned(DateTimeOffset.Now.AddDays(-1), DateTimeOffset.Now.AddDays(1));
+        byte[] pfxData = cert.Export(X509ContentType.Pfx);
+        return X509CertificateLoader.LoadPkcs12(pfxData, null, X509KeyStorageFlags.Exportable | X509KeyStorageFlags.EphemeralKeySet);
     }
 }
