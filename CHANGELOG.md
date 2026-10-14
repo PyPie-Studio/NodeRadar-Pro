@@ -1,6 +1,6 @@
 # NodeRadar Pro Changelog
  
-## NodeRadar Pro v2.0.9 (2026-10-14)
+## NodeRadar Pro v2.1.0 (2026-10-14)
 
 ### Core Engine and Network Performance
 - **Non-Blocking Asynchronous NetBIOS Discovery (`ArpResolver.cs`, `ISubnetScannerDependencies.cs`, `SubnetScanner.cs`)**: Replaced blocking threadpool execution with native non-blocking `UdpClient.ReceiveAsync` I/O with explicit timeout and cancellation token propagation.

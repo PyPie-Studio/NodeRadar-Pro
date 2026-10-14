@@ -52,7 +52,7 @@ public class ChangelogServiceTests
 
         Assert.NotEmpty(releases);
         Assert.True(releases.Count <= 3);
-        Assert.Equal("2.0.9", releases[0].Version);
+        Assert.Equal("2.1.0", releases[0].Version);
         Assert.NotEmpty(releases[0].Highlights);
     }
 }
