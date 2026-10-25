@@ -2,6 +2,9 @@
  
 ## NodeRadar Pro v2.2.0 (2026-10-25)
 
+### Code Quality and Static Analysis
+- **Connectivity Monitor Cognitive Complexity Decomposition (`ConnectivityMonitor.cs`)**: Refactored `UpdateTrackedDevices` and `CheckAllDevicesAsync` to eliminate Roslyn Sonar rule S3776 violations. Decomposed monolithic probe execution and dictionary update lambdas into modular private helpers (`UpdateTrackedDevice`, `MergeDeviceProperties`, `PreferNonEmpty`, `CheckDeviceAsync`, `ProbeDeviceConnectivityAsync`, `CheckArpStatusAsync`, `ResolveArpWithThrottlingAsync`, `CheckIcmpStatusAsync`, `ApplyProbeResult`, `RecordUptimeSnapshot`, `EvaluateAlerts`, `CheckConnectionLost`, `CheckReconnection`, `CheckHighLatency`, `CheckPacketLoss`, `TryConsumeAlertCooldown` and `PersistAlertsAndSnapshots`), reducing peak cognitive complexity from 67 to 4 while preserving thread safety and probe semantics.
+
 ### User Interface and Frontend Hardening
 - **Destructive Action Safety Latches (`SettingsPage.cs`, `SystemLogsPage.cs`, `AlertsPage.cs`)**: Added 2-step confirmation latches with field-tracked automatic timers on destructive operations including factory resets, backup restorations, log purging and alert clearing. Replaced text unicode glyphs with vector icons and direct text states.
 - **Adaptive Layout Bounding and Real-Time Dashboard Sync (`DashboardPage.cs`, `RadarCanvas.cs`, `DarkPurpleTheme.cs`)**: Constrained real-time ping traffic cards with a two-row Grid ("Auto,*"), wrapped dashboard root in ScrollViewer, enforced explicit minimum heights (`_radar.MinHeight = 360`, `radarCard.MinHeight = 440`, `pingsCard.MinHeight = 240`, `bentoGrid.MinHeight = 560`) and `MeasureOverride` on `RadarCanvas` to prevent canvas collapse inside ScrollViewer. Hooked `OnPropertyChanged` to pause/resume radar animation when hidden/visible, subscribed to `GlobalStatsUpdatedMessage` for synchronized alert badges and health gauge values, and wired navigation directly to Alerts.
