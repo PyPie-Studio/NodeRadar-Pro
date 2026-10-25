@@ -139,7 +139,7 @@ public class DarkPurpleTheme
 
         var rootGrid = new Grid
         {
-            Background = ThemeTokens.SurfaceContainerLowest,
+            Background = new SolidColorBrush(Color.Parse("#070E1D"), 0.78),
             ColumnDefinitions =
             {
                 new ColumnDefinition(new GridLength(ThemeTokens.SidebarWidth, GridUnitType.Pixel)),
@@ -535,7 +535,13 @@ public class DarkPurpleTheme
             pages.Inventory.ShowDevice(node);
         };
 
-        // ── Dashboard View Logs → navigate to alerts page (B6) ──
+        // ── Dashboard View Alerts / Logs → navigate to alerts page (B6) ──
+        pages.Dashboard.ViewAlertsRequested += () =>
+        {
+            sideNav.SetActive(PageAlerts);
+            showPage(PageAlerts);
+        };
+
         pages.Dashboard.ViewLogsRequested += () =>
         {
             sideNav.SetActive(PageAlerts);

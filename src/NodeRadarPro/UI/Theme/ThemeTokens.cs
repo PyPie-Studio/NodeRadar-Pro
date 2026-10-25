@@ -135,7 +135,7 @@ public static class ThemeTokens
 
     public static readonly string AppVersion = typeof(ThemeTokens).Assembly.GetName().Version is { } v
         ? $"{v.Major}.{v.Minor}.{v.Build}"
-        : "2.1.0";
+        : "2.2.0";
 
     // ── SVG Vector Paths (Modern Technical Icons) ──
     public const string SvgRouter = "M4,17V9H20V17H4M12,10A1,1 0 0,0 11,11A1,1 0 0,0 12,12A1,1 0 0,0 13,11A1,1 0 0,0 12,10M15,10A1,1 0 0,0 14,11A1,1 0 0,0 15,12A1,1 0 0,0 16,11A1,1 0 0,0 15,10M18,10A1,1 0 0,0 17,11A1,1 0 0,0 18,12A1,1 0 0,0 19,11A1,1 0 0,0 18,10M7,12V14H10V12H7Z";
@@ -173,6 +173,14 @@ public static class ThemeTokens
     public const string SvgRadar = "M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z";
     public const string SvgGear = "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z";
     public const string SvgRefresh = "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z";
+    public const string SvgTraceroute = "M22,12L18,8V11H10V5H13L9,1L5,5H8V13H18V16L22,12Z";
+    public const string SvgInventory = "M17,1H7C5.89,1 5,1.89 5,3V21C5,22.1 5.89,23 7,23H17C18.1,23 19,22.1 19,21V3C19,1.89 18.1,1 17,1M12,19A2,2 0 1,1 14,17A2,2 0 0,1 12,19M15,8H9V7H15V8Z";
+    public const string SvgPortScans = "M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z";
+    public const string SvgLogs = "M3,5H21V7H3V5M3,9H21V11H3V9M3,13H21V15H3V13M3,17H21V19H3V17Z";
+    public const string SvgSupport = "M11,18H13V16H11V18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,20C6.47,20 2,15.5 2,12C2,8.47 6.47,4 12,4C17.53,4 22,8.47 22,12C22,15.5 17.53,20 12,20M12,6A4,4 0 0,0 8,10H10A2,2 0 0,1 12,8A2,2 0 0,1 14,10C14,12 11,11.75 11,15H13C13,12.75 16,12.5 16,10A4,4 0 0,0 12,6Z";
+
+    public static readonly Color ShadowSidebar = Color.FromArgb(77, 0, 0, 0);
+    public static readonly Color ShadowTopBar = Color.FromArgb(25, 128, 0, 128);
 
     public static string GetDeviceSvg(string? iconKey)
     {
@@ -206,14 +214,29 @@ public static class ThemeTokens
         Fill = color ?? OnSurface
     };
 
-    public static void SetToolTip(Control control, string tip)
+    public static void SetToolTip(Control control, string? tip)
     {
         ToolTip.SetTip(control, tip);
     }
 
+    public static Avalonia.Input.Cursor? HandCursor
+    {
+        get
+        {
+            try
+            {
+                return new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+    }
+
     public static void AddCopyAction(Control control, string? initialValue = null, Func<string?>? valueProvider = null)
     {
-        control.Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand);
+        control.Cursor = HandCursor;
 
         control.PointerPressed += async (s, e) =>
         {
@@ -366,7 +389,7 @@ public static class ThemeTokens
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
         Padding = new Thickness(24, 0),
-        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        Cursor = HandCursor
     };
 
     public static Button PrimaryButton(string svgPath, string text)
@@ -391,7 +414,7 @@ public static class ThemeTokens
         BorderBrush = GhostBorder20,
         BorderThickness = new Thickness(1),
         Padding = new Thickness(24, 0),
-        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        Cursor = HandCursor
     };
 
     public static Button SecondaryButton(string svgPath, string text, IBrush? iconColor = null)
@@ -411,7 +434,7 @@ public static class ThemeTokens
         HorizontalContentAlignment = HorizontalAlignment.Center,
         VerticalContentAlignment = VerticalAlignment.Center,
         Padding = new Thickness(8, 4),
-        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        Cursor = HandCursor
     };
 
     public static Button TertiaryButton(string svgPath, string text, IBrush? iconColor = null)
@@ -437,7 +460,7 @@ public static class ThemeTokens
         Padding = new Thickness(24, 0),
         BorderBrush = ErrorBorderSubtle,
         BorderThickness = new Thickness(1),
-        Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+        Cursor = HandCursor
     };
 
     public static Button DangerButton(string svgPath, string text)

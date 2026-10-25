@@ -29,21 +29,14 @@ public class DashboardPage : Border
 
     public event Action<NetworkNode>? DeviceSelected;
     public event Action? ViewLogsRequested;
+    public event Action? ViewAlertsRequested;
+    private int _unresolvedAlertCount;
 
     public DashboardPage(List<NetworkNode> nodes)
     {
         _nodes = nodes;
         Background = ThemeTokens.Surface;
 
-        // Subscribe to updates
-        EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                _nodes = msg.Nodes.ToList();
-                RefreshData();
-            });
-        });
         // ── Health Gauge (Circular progress) ──
         _healthPercent = new TextBlock { Text = "100%", FontSize = 24, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface, HorizontalAlignment = HorizontalAlignment.Center };
         _healthStatusText = new TextBlock { Text = "STABLE", FontSize = 10, FontWeight = FontWeight.Black, LetterSpacing = 1.2, Foreground = ThemeTokens.Tertiary, HorizontalAlignment = HorizontalAlignment.Center };
@@ -72,7 +65,7 @@ public class DashboardPage : Border
         ThemeTokens.SetToolTip(healthCard, "Calculated system stability based on uptime vs alerts.");
 
         // ── Radar Card (Large) ──
-        _radar = new RadarCanvas();
+        _radar = new RadarCanvas { MinHeight = 360 };
         _radar.NodeSelected += n => DeviceSelected?.Invoke(n);
         _radar.NodeRightClicked += n => DeviceSelected?.Invoke(n);
 
@@ -85,6 +78,7 @@ public class DashboardPage : Border
         var radarDock = new DockPanel { Children = { radarHeader, _radar } };
         DockPanel.SetDock(radarHeader, Dock.Top);
         var radarCard = ThemeTokens.Card(radarDock, ThemeTokens.SurfaceContainerHigh, 24);
+        radarCard.MinHeight = 440;
 
         // ── Stats ──
         _onlineCount = new TextBlock { Text = "0", FontSize = 36, FontWeight = FontWeight.Bold, Foreground = ThemeTokens.OnSurface };
@@ -96,10 +90,15 @@ public class DashboardPage : Border
 
         var alertHeader = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(GridLength.Auto) } };
         var alertTitle = ThemeTokens.Label("ACTIVE ALERTS", 10, ThemeTokens.Error);
-        var logBtn = ThemeTokens.TertiaryButton("LOGS →");
-        logBtn.FontSize = 11; logBtn.Click += (s, e) => ViewLogsRequested?.Invoke();
-        Grid.SetColumn(alertTitle, 0); Grid.SetColumn(logBtn, 1);
-        alertHeader.Children.Add(alertTitle); alertHeader.Children.Add(logBtn);
+        var alertBtn = ThemeTokens.TertiaryButton("ALERTS →");
+        alertBtn.FontSize = 11;
+        alertBtn.Click += (s, e) =>
+        {
+            ViewAlertsRequested?.Invoke();
+            ViewLogsRequested?.Invoke();
+        };
+        Grid.SetColumn(alertTitle, 0); Grid.SetColumn(alertBtn, 1);
+        alertHeader.Children.Add(alertTitle); alertHeader.Children.Add(alertBtn);
         var alertCard = ThemeTokens.Card(new StackPanel { Children = { alertHeader, _alertCount } }, ThemeTokens.SurfaceContainerHigh, 20);
         alertCard.BorderBrush = ThemeTokens.ErrorBorderFaint;
 
@@ -108,12 +107,13 @@ public class DashboardPage : Border
         _pingsList = new StackPanel { Spacing = 2 };
         var pingsScroll = new ScrollViewer { Content = _pingsList, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
         var pingsCard = ThemeTokens.Card(new DockPanel { Children = { pingHeader, pingsScroll } }, ThemeTokens.SurfaceContainerHigh, 16);
+        pingsCard.MinHeight = 240;
         DockPanel.SetDock(pingHeader, Dock.Top);
 
         // ═══════════════════════
         // BENTO GRID ASSEMBLY
         // ═══════════════════════
-        var bentoGrid = new Grid();
+        var bentoGrid = new Grid { MinHeight = 560 };
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 0
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1.2, GridUnitType.Star))); // Col 1
         bentoGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star))); // Col 2
@@ -135,41 +135,76 @@ public class DashboardPage : Border
         bentoGrid.Children.Add(radarCard);
         radarCard.Margin = new Thickness(0, 10, 10, 0);
 
-        var rightColumn = new StackPanel { Spacing = 20, Children = { alertCard, pingsCard } };
+        var rightColumn = new Grid
+        {
+            RowDefinitions = new RowDefinitions("Auto,*"),
+            Margin = new Thickness(10, 10, 0, 0)
+        };
+        Grid.SetRow(alertCard, 0);
+        Grid.SetRow(pingsCard, 1);
+        alertCard.Margin = new Thickness(0, 0, 0, 16);
+        rightColumn.Children.Add(alertCard);
+        rightColumn.Children.Add(pingsCard);
+
         Grid.SetRow(rightColumn, 1); Grid.SetColumn(rightColumn, 2);
         bentoGrid.Children.Add(rightColumn);
-        rightColumn.Margin = new Thickness(10, 10, 0, 0);
 
-        Child = new Border { Margin = new Thickness(32), Child = bentoGrid };
+        Child = new ScrollViewer
+        {
+            Content = new Border { Margin = new Thickness(32), Child = bentoGrid },
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        };
+
+        // Subscribe to updates
+        EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _nodes = msg.Nodes.ToList();
+                RefreshData();
+            });
+        });
+
+        EventAggregator.Instance.Subscribe<GlobalStatsUpdatedMessage>(msg =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                _unresolvedAlertCount = msg.UnresolvedAlerts;
+                _alertCount.Text = _unresolvedAlertCount.ToString();
+                UpdateHealthGauge();
+            });
+        });
     }
 
     public void RefreshData()
     {
-        int totalTracked = _nodes.Count;
         int online = _nodes.Count(n => n.IsOnline);
         _onlineCount.Text = online.ToString();
 
         var onlineNodes = _nodes.Where(n => n.IsOnline && n.PingLatencyMs >= 0).ToList();
-        long avg = 0;
         if (onlineNodes.Count > 0)
         {
-            avg = (long)onlineNodes.Average(n => n.PingLatencyMs);
+            long avg = (long)onlineNodes.Average(n => n.PingLatencyMs);
             _latencyValue.Text = $"{avg}ms";
         }
         else _latencyValue.Text = "—";
 
-        int alerts = _nodes.Count(n => !n.IsOnline && n.IsRegistered);
-        _alertCount.Text = alerts.ToString();
+        _alertCount.Text = _unresolvedAlertCount.ToString();
+        UpdateHealthGauge();
 
-        // Update Health Gauge
-        double health = totalTracked > 0 ? (1.0 - ((double)alerts / totalTracked)) * 100 : 100;
+        _radar.UpdateNodes(_nodes);
+        RefreshPingsList();
+    }
+
+    private void UpdateHealthGauge()
+    {
+        int totalTracked = _nodes.Count;
+        double health = totalTracked > 0 ? Math.Max(0, (1.0 - ((double)_unresolvedAlertCount / Math.Max(totalTracked, 1))) * 100) : 100;
         _healthPercent.Text = $"{(int)health}%";
         if (health > 90) { _healthStatusText.Text = "STABLE"; _healthStatusText.Foreground = ThemeTokens.Tertiary; _healthGauge.BorderBrush = ThemeTokens.Tertiary; }
         else if (health > 70) { _healthStatusText.Text = "WARNING"; _healthStatusText.Foreground = ThemeTokens.HealthWarning; _healthGauge.BorderBrush = ThemeTokens.HealthWarning; }
         else { _healthStatusText.Text = "CRITICAL"; _healthStatusText.Foreground = ThemeTokens.Error; _healthGauge.BorderBrush = ThemeTokens.Error; }
-
-        _radar.UpdateNodes(_nodes);
-        RefreshPingsList();
     }
 
     private void RefreshPingsList()
@@ -207,5 +242,21 @@ public class DashboardPage : Border
         var card = ThemeTokens.Card(new StackPanel { Spacing = 4, Children = { header, value } }, ThemeTokens.SurfaceContainerHigh, 20);
         ThemeTokens.SetToolTip(card, tip);
         return card;
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty)
+        {
+            if (change.GetNewValue<bool>())
+            {
+                _radar.ResumeAnimation();
+            }
+            else
+            {
+                _radar.PauseAnimation();
+            }
+        }
     }
 }

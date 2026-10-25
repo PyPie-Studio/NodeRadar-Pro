@@ -32,6 +32,8 @@ public class SystemLogsPage : Border
     private readonly Button _exportBtn;
     private readonly Button _purgeOldBtn;
     private readonly Button _clearLogsBtn;
+    private DispatcherTimer? _purgeOldTimer;
+    private DispatcherTimer? _clearLogsTimer;
 
     public SystemLogsPage(LocalDatabase db)
     {
@@ -271,9 +273,10 @@ public class SystemLogsPage : Border
         Grid.SetColumn(iconElem, 0); Grid.SetColumn(timeTb, 1); Grid.SetColumn(srcTb, 2); Grid.SetColumn(msgTb, 3); Grid.SetColumn(dateTb, 4);
         row.Children.Add(iconElem); row.Children.Add(timeTb); row.Children.Add(srcTb); row.Children.Add(msgTb); row.Children.Add(dateTb);
 
+        var delIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 11, ThemeTokens.OnSurfaceVariant);
         var delBtn = new Button
         {
-            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 11, ThemeTokens.OnSurfaceVariant),
+            Content = delIcon,
             Background = Brushes.Transparent,
             Width = 24,
             Height = 24,
@@ -285,8 +288,31 @@ public class SystemLogsPage : Border
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
         ThemeTokens.SetToolTip(delBtn, "Delete this log entry permanently.");
+        bool isDelArmed = false;
+        DispatcherTimer? delArmTimer = null;
         delBtn.Click += (s, e) =>
         {
+            if (!isDelArmed)
+            {
+                isDelArmed = true;
+                delIcon.Fill = ThemeTokens.Error;
+                delBtn.Background = ThemeTokens.ErrorContainerSubtle;
+                ThemeTokens.SetToolTip(delBtn, "Click again to confirm deletion.");
+                delArmTimer?.Stop();
+                delArmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                delArmTimer.Tick += (s2, e2) =>
+                {
+                    delArmTimer.Stop();
+                    isDelArmed = false;
+                    delIcon.Fill = ThemeTokens.OnSurfaceVariant;
+                    delBtn.Background = Brushes.Transparent;
+                    ThemeTokens.SetToolTip(delBtn, "Delete this log entry permanently.");
+                };
+                delArmTimer.Start();
+                return;
+            }
+
+            delArmTimer?.Stop();
             _db.DeleteLog(log.Id);
             RefreshLogs();
         };
@@ -298,19 +324,43 @@ public class SystemLogsPage : Border
 
     private void OnPurgeOldClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        _purgeOldBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Purge?", 13, Brushes.White, Brushes.White);
+        _purgeOldBtn.Background = ThemeTokens.Error;
+        _purgeOldBtn.Click -= OnPurgeOldClicked;
+        _purgeOldBtn.Click += DoActualPurgeOld;
+        _purgeOldTimer?.Stop();
+        _purgeOldTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _purgeOldTimer.Tick += (s, ev) => ResetPurgeOldButton();
+        _purgeOldTimer.Start();
+    }
+
+    private void DoActualPurgeOld(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
         _db.DeleteLogsOlderThan(DateTime.UtcNow.AddDays(-7));
+        ResetPurgeOldButton();
         RefreshLogs();
+    }
+
+    private void ResetPurgeOldButton()
+    {
+        _purgeOldTimer?.Stop();
+        _purgeOldBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Purge > 7d", 13, ThemeTokens.Warning, ThemeTokens.Warning);
+        _purgeOldBtn.Background = Brushes.Transparent;
+        _purgeOldBtn.Click -= DoActualPurgeOld;
+        _purgeOldBtn.Click -= OnPurgeOldClicked;
+        _purgeOldBtn.Click += OnPurgeOldClicked;
     }
 
     private void OnClearLogsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _clearLogsBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear?", 13, Brushes.White, Brushes.White);
-        _clearLogsBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearLogsBtn.Background = ThemeTokens.Error;
         _clearLogsBtn.Click -= OnClearLogsClicked;
         _clearLogsBtn.Click += DoActualClearLogs;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, ev) => { ResetClearLogsButton(); timer.Stop(); };
-        timer.Start();
+        _clearLogsTimer?.Stop();
+        _clearLogsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _clearLogsTimer.Tick += (s, ev) => ResetClearLogsButton();
+        _clearLogsTimer.Start();
     }
 
     private void DoActualClearLogs(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -322,6 +372,7 @@ public class SystemLogsPage : Border
 
     private void ResetClearLogsButton()
     {
+        _clearLogsTimer?.Stop();
         _clearLogsBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear Logs", 13, ThemeTokens.Error, ThemeTokens.Error);
         _clearLogsBtn.Background = Brushes.Transparent;
         _clearLogsBtn.Click -= DoActualClearLogs;

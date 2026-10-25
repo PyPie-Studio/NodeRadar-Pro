@@ -1,15 +1,17 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 
 namespace NodeRadarPro.UI;
 
@@ -46,11 +48,13 @@ public class InventoryPage : Border
     private readonly UptimeChartControl _uptimeChart;
     private readonly Grid _timeAxis;
     private int _uptimeHours = 24;
+    private const string ManualDevicePrefix = "MANUAL-";
 
     // Detail controls
     private readonly TextBlock _detailName;
     private readonly TextBlock _detailSubtitle;
     private readonly Border _detailIpPill;
+    private readonly TextBox _detailIpInput;
     private readonly Border _detailMacPill;
     private readonly Border _statusDot;
     private readonly Border _threatBadge;
@@ -136,6 +140,14 @@ public class InventoryPage : Border
         {
             clearSearchBtn.IsVisible = !string.IsNullOrEmpty(_searchBox.Text);
             RefreshDeviceList();
+        };
+        _searchBox.KeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Escape)
+            {
+                _searchBox.Text = "";
+                RefreshDeviceList();
+            }
         };
         ThemeTokens.SetToolTip(_searchBox, "Filter the device list by IP, MAC, Vendor, or Custom Name.");
 
@@ -338,12 +350,22 @@ public class InventoryPage : Border
         _detailSubtitle.Margin = new Thickness(0, 4, 0, 10);
 
         _detailIpPill = MakeInfoPill("IP:", "—");
+        _detailIpInput = ThemeTokens.Input("192.168.1.1");
+        _detailIpInput.Width = 140;
+        _detailIpInput.Height = 28;
+        _detailIpInput.FontSize = 13;
+        _detailIpInput.Padding = new Thickness(8, 4);
+        _detailIpInput.VerticalAlignment = VerticalAlignment.Center;
+        _detailIpInput.IsVisible = false;
+        _detailIpInput.KeyDown += (s, e) => { if (e.Key == Key.Enter) SaveCurrentNode(); };
+        ThemeTokens.SetToolTip(_detailIpInput, "Editable IP address for manually added device.");
+
         _detailMacPill = MakeInfoPill("MAC:", "—");
         var pillRow = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 10,
-            Children = { _detailIpPill, _detailMacPill }
+            Children = { _detailIpPill, _detailIpInput, _detailMacPill }
         };
 
         // Scan Ports button (top-right of glass header, matching screenshot)
@@ -778,6 +800,14 @@ public class InventoryPage : Border
         _detailName.Text = node.DisplayName;
         _detailSubtitle.Text = GetRichSubtitle(node);
 
+        bool isManual = node.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase);
+        _detailIpPill.IsVisible = !isManual;
+        _detailIpInput.IsVisible = isManual;
+        if (isManual)
+        {
+            _detailIpInput.Text = node.IpAddress;
+        }
+
         UpdatePill(_detailIpPill, node.IpAddress);
         UpdatePill(_detailMacPill, node.MacAddress);
         UpdateStatusDot(node.IsOnline);
@@ -801,6 +831,10 @@ public class InventoryPage : Border
         _latencyStatText.Text = node.IsOnline && node.PingLatencyMs >= 0 ? $"{node.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{node.PacketLossPct:F1}";
         _lastScanText.Text = node.LastSeen != default ? GetTimeAgo(node.LastSeen) : "—";
+        if (node.LastSeen != default)
+            ThemeTokens.SetToolTip(_lastScanText, node.LastSeen.ToLocalTime().ToString("yyyy-MM-dd hh:mm:ss tt"));
+        else
+            ThemeTokens.SetToolTip(_lastScanText, null);
 
         _nameInput.Text = node.CustomName;
         _deviceNameInput.Text = node.DeviceName;
@@ -838,12 +872,21 @@ public class InventoryPage : Border
         UpdateStatusDot(_currentNode.IsOnline);
         _wakeBtn.IsEnabled = !_currentNode.IsOnline;
 
+        bool isManual = _currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase);
+        _detailIpPill.IsVisible = !isManual;
+        _detailIpInput.IsVisible = isManual;
+        UpdatePill(_detailIpPill, _currentNode.IpAddress);
+
         _detailSubtitle.Text = GetRichSubtitle(_currentNode);
         _deviceIconBox.Child = ThemeTokens.VectorIcon(GetDeviceSvg(_currentNode), 32, _currentNode.IsOnline ? ThemeTokens.Tertiary : ThemeTokens.OnSurfaceVariant);
 
         _latencyStatText.Text = _currentNode.IsOnline && _currentNode.PingLatencyMs >= 0 ? $"{_currentNode.PingLatencyMs}" : "—";
         _packetLossText.Text = $"{_currentNode.PacketLossPct:F1}";
         _lastScanText.Text = _currentNode.LastSeen != default ? GetTimeAgo(_currentNode.LastSeen) : "—";
+        if (_currentNode.LastSeen != default)
+            ThemeTokens.SetToolTip(_lastScanText, _currentNode.LastSeen.ToLocalTime().ToString("yyyy-MM-dd hh:mm:ss tt"));
+        else
+            ThemeTokens.SetToolTip(_lastScanText, null);
         RefreshUptimeChart();
     }
 
@@ -856,7 +899,7 @@ public class InventoryPage : Border
         for (int i = 0; i < 4; i++)
         {
             var time = now.AddHours(-(_uptimeHours / 4.0 * (4 - i)));
-            labels[i] = time.ToString("h:mm tt");
+            labels[i] = time.ToString("hh:mm tt");
         }
         labels[4] = "Now";
 
@@ -1121,7 +1164,7 @@ public class InventoryPage : Border
         var manualNode = new NetworkNode
         {
             IpAddress = "0.0.0.0",
-            MacAddress = $"MANUAL-{Guid.NewGuid().ToString()[..8].ToUpper()}",
+            MacAddress = ManualDevicePrefix + Guid.NewGuid().ToString()[..8].ToUpper(),
             Hostname = "Manual Entry",
             IsOnline = false,
             IsRegistered = true,
@@ -1136,6 +1179,28 @@ public class InventoryPage : Border
     private void SaveCurrentNode()
     {
         if (_currentNode == null) return;
+
+        if (_currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            string ipText = _detailIpInput.Text?.Trim() ?? "";
+            if (!IPAddress.TryParse(ipText, out _))
+            {
+                _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Invalid IP Address", 15, Brushes.White, Brushes.White);
+                _saveBtn.Background = ThemeTokens.Error;
+                var errTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                errTimer.Tick += (s, ev) =>
+                {
+                    _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgSave, "Save & Register", 15, Brushes.White, Brushes.White);
+                    _saveBtn.Background = ThemeTokens.Primary;
+                    errTimer.Stop();
+                };
+                errTimer.Start();
+                return;
+            }
+            _currentNode.IpAddress = ipText;
+            UpdatePill(_detailIpPill, ipText);
+        }
+
         _currentNode.CustomName = _nameInput.Text ?? "";
         _currentNode.DeviceName = _deviceNameInput.Text ?? "";
         _currentNode.DeviceModel = _deviceModelInput.Text ?? "";
@@ -1146,9 +1211,9 @@ public class InventoryPage : Border
         _db.UpdateRegistration(_currentNode);
         _detailName.Text = _currentNode.DisplayName;
 
-        _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Saved!", 16, Brushes.White, Brushes.White);
+        _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Saved!", 15, Brushes.White, Brushes.White);
         var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1.5) };
-        timer.Tick += (s, ev) => { _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgSave, "Save & Register", 16, Brushes.White, Brushes.White); timer.Stop(); };
+        timer.Tick += (s, ev) => { _saveBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgSave, "Save & Register", 15, Brushes.White, Brushes.White); timer.Stop(); };
         timer.Start();
         DeviceSaved?.Invoke(_currentNode);
         RefreshDeviceList();
@@ -1191,6 +1256,15 @@ public class InventoryPage : Border
     private async void OnPingClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
+        if (_currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
+        {
+            string ipText = _detailIpInput.Text?.Trim() ?? "";
+            if (IPAddress.TryParse(ipText, out _))
+            {
+                _currentNode.IpAddress = ipText;
+                UpdatePill(_detailIpPill, ipText);
+            }
+        }
         string ip = _currentNode.IpAddress;
         if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _pingResult.Text = "Set a valid IP first."; _pingResult.Foreground = ThemeTokens.Error; return; }
 
@@ -1272,6 +1346,15 @@ public class InventoryPage : Border
     private async void OnPortScanClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
+        if (_currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
+        {
+            string ipText = _detailIpInput.Text?.Trim() ?? "";
+            if (IPAddress.TryParse(ipText, out _))
+            {
+                _currentNode.IpAddress = ipText;
+                UpdatePill(_detailIpPill, ipText);
+            }
+        }
         string ip = _currentNode.IpAddress;
         if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _portResult.Text = "Set a valid IP first."; _portResult.Foreground = ThemeTokens.Error; return; }
         _portScanBtn.IsEnabled = false; _portResult.Text = "";

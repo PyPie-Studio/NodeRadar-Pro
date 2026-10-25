@@ -1,5 +1,18 @@
 # NodeRadar Pro Changelog
  
+## NodeRadar Pro v2.2.0 (2026-10-25)
+
+### User Interface and Frontend Hardening
+- **Destructive Action Safety Latches (`SettingsPage.cs`, `SystemLogsPage.cs`, `AlertsPage.cs`)**: Added 2-step confirmation latches with field-tracked automatic timers on destructive operations including factory resets, backup restorations, log purging and alert clearing. Replaced text unicode glyphs with vector icons and direct text states.
+- **Adaptive Layout Bounding and Real-Time Dashboard Sync (`DashboardPage.cs`, `RadarCanvas.cs`, `DarkPurpleTheme.cs`)**: Constrained real-time ping traffic cards with a two-row Grid ("Auto,*"), wrapped dashboard root in ScrollViewer, enforced explicit minimum heights (`_radar.MinHeight = 360`, `radarCard.MinHeight = 440`, `pingsCard.MinHeight = 240`, `bentoGrid.MinHeight = 560`) and `MeasureOverride` on `RadarCanvas` to prevent canvas collapse inside ScrollViewer. Hooked `OnPropertyChanged` to pause/resume radar animation when hidden/visible, subscribed to `GlobalStatsUpdatedMessage` for synchronized alert badges and health gauge values, and wired navigation directly to Alerts.
+- **Canvas Rendering Optimization and Timer Visibility Lifecycle (`RadarCanvas.cs`, `ThemeTokens.cs`)**: Overrode `OnPropertyChanged` on `RadarCanvas` and `DashboardPage` to automatically pause and resume the radar animation timer when visibility changes. Replaced per-frame string allocation keys with `NodeTextKey` struct in the formatted text cache, cached zoom overlay text, wrapped button cursors in headless-safe `HandCursor`, and standardized typography to `ThemeTokens.DefaultFont`.
+- **UI/UX Token Centralization and Vector Icons (`ThemeTokens.cs`, `SideNavBar.cs`, `TopNavBar.cs`)**: Added centralized SVG icon definitions (`SvgTraceroute`, `SvgInventory`, `SvgPortScans`, `SvgLogs`, `SvgSupport`) and acrylic box shadows (`ShadowSidebar`, `ShadowTopBar`). Enabled keyboard navigation (`Focusable = true`, Enter/Space key triggers) on sidebar navigation items.
+- **Acrylic Glassmorphism Restoration (`DarkPurpleTheme.cs`)**: Adjusted root window grid background to semi-transparent `#070E1D` with 0.78 opacity, restoring Windows 11 Acrylic and Mica backdrop visibility.
+- **Discrete Port Profiles and Concurrency Throttling (`PortScansPage.cs`)**: Capped active socket sweeps to 64 concurrent tasks (`SemaphoreSlim(64)`). Configured discrete port presets for Web (80, 443, 8080, 8443) and Database (1433, 1521, 3306, 5432, 6379, 27017), dynamically setting `_progressBar.Maximum = totalPorts` to accurately reflect sweep progress.
+- **Manual Device IP Entry and Search Ergonomics (`InventoryPage.cs`)**: Added editable IP text box for manual device entries (`ManualDevicePrefix`) with IPv4 validation, Enter-to-save trigger, and direct IP synchronization for ping and port sweep actions. Enforced 12-hour AM/PM formatting (`hh:mm tt`) on time axis labels and detailed tooltips (`yyyy-MM-dd hh:mm:ss tt`) on last scan timestamps. Wired Escape key to clear search filters.
+- **Subnet Prefix Validation and Keyboard Execution (`ScannerPage.cs`, `TraceroutePage.cs`)**: Added IPv4 subnet prefix validation ensuring start and end IPs share the same `/24` prefix with start host octet less than or equal to end host octet. Wired Enter key listeners on target inputs.
+- **Runtime Environment Accuracy (`SupportPage.cs`)**: Corrected runtime execution label from NativeAOT to CoreCLR JIT to reflect desktop runtime compilation.
+
 ## NodeRadar Pro v2.1.0 (2026-10-14)
 
 ### Core Engine and Network Performance

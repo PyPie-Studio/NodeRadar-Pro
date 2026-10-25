@@ -21,7 +21,7 @@ public class TopNavBar : Border
         {
             OffsetY = 1,
             Blur = 4,
-            Color = Color.FromArgb(25, 128, 0, 128)
+            Color = ThemeTokens.ShadowTopBar
         });
 
         // Left: Title

@@ -96,7 +96,7 @@ public class SupportPage : Border
                 sysTitle,
                 MakeInfoRow("Operating System", RuntimeInformation.OSDescription),
                 MakeInfoRow("Architecture", RuntimeInformation.OSArchitecture.ToString()),
-                MakeInfoRow("Framework", ".NET 10 (NativeAOT)"),
+                MakeInfoRow("Framework", ".NET 10 (CoreCLR JIT)"),
                 MakeInfoRow("UI Engine", "Avalonia UI 12.x"),
                 MakeInfoRow("Database", "LiteDB 5.x (Singleton)"),
                 MakeInfoRow("Security", "SHA256 Integrity Shield")

@@ -32,10 +32,13 @@ public class SettingsPage : Border
     private readonly CheckBox _synScanToggle;
     private readonly CheckBox _dnsResolveToggle;
 
-    // Persistence toggles (old)
-    private readonly CheckBox _fadeOutToggle;
-    private readonly NumericUpDown _fadeOutSeconds;
-    private readonly NumericUpDown _monitorInterval;
+    // Safety latches
+    private bool _isResetArmed;
+    private Avalonia.Threading.DispatcherTimer? _resetArmTimer;
+    private bool _isPruneArmed;
+    private Avalonia.Threading.DispatcherTimer? _pruneArmTimer;
+    private string? _pendingRestorePath;
+    private Avalonia.Threading.DispatcherTimer? _restoreArmTimer;
 
     // Maintenance & Lifecycle
     private readonly CheckBox _enableAutoBackupToggle;
@@ -76,11 +79,6 @@ public class SettingsPage : Border
         _db = db;
         _settings = db.LoadSettings();
         Background = ThemeTokens.Surface;
-
-        // Initialize controls requiring default values from _settings
-        _monitorInterval = new NumericUpDown { Value = _settings.MonitorIntervalSeconds, Minimum = 10, Maximum = 600, IsVisible = false };
-        _fadeOutToggle = new CheckBox { IsChecked = _settings.EnableOfflineFadeOut, IsVisible = false };
-        _fadeOutSeconds = new NumericUpDown { Value = _settings.FadeOutSeconds, IsVisible = false };
 
         _interfaceSelector = new ComboBox
         {
@@ -249,7 +247,7 @@ public class SettingsPage : Border
 
         var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
 
-        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector, new Panel { Height = 20 }, promiscRow, _monitorInterval, _fadeOutToggle, _fadeOutSeconds } };
+        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector, new Panel { Height = 20 }, promiscRow } };
         return ThemeTokens.Card(generalContent, ThemeTokens.SurfaceContainerLow, 32);
     }
 
@@ -345,7 +343,40 @@ public class SettingsPage : Border
         ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
         resetBtn.Height = 50;
         resetBtn.FontSize = 12;
-        resetBtn.Click += (s, e) => { _settings = new AppSettings(); _db.SaveSettings(_settings); Refresh(); SettingsSaved?.Invoke(_settings); };
+        resetBtn.Click += (s, e) =>
+        {
+            if (!_isResetArmed)
+            {
+                _isResetArmed = true;
+                resetBtn.Content = "Click to\nConfirm";
+                resetBtn.Background = ThemeTokens.Error;
+                resetBtn.Foreground = Brushes.White;
+
+                _resetArmTimer?.Stop();
+                _resetArmTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                _resetArmTimer.Tick += (s2, args) =>
+                {
+                    _resetArmTimer.Stop();
+                    _isResetArmed = false;
+                    resetBtn.Content = "Reset\nDefaults";
+                    resetBtn.Background = Brushes.Transparent;
+                    resetBtn.Foreground = ThemeTokens.OnSurface;
+                };
+                _resetArmTimer.Start();
+                return;
+            }
+
+            _resetArmTimer?.Stop();
+            _isResetArmed = false;
+            resetBtn.Content = "Reset\nDefaults";
+            resetBtn.Background = Brushes.Transparent;
+            resetBtn.Foreground = ThemeTokens.OnSurface;
+
+            _settings = new AppSettings();
+            _db.SaveSettings(_settings);
+            Refresh();
+            SettingsSaved?.Invoke(_settings);
+        };
 
         var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
         ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
@@ -369,9 +400,6 @@ public class SettingsPage : Border
     public void Refresh()
     {
         _settings = _db.LoadSettings();
-        _monitorInterval.Value = _settings.MonitorIntervalSeconds;
-        _fadeOutToggle.IsChecked = _settings.EnableOfflineFadeOut;
-        _fadeOutSeconds.Value = _settings.FadeOutSeconds;
         _sweepFrequency.Value = _settings.SweepFrequencySeconds;
         _sweepFreqValue.Text = $"{_settings.SweepFrequencySeconds}s";
         _responseTimeout.Value = _settings.ResponseTimeoutMs;
@@ -413,9 +441,6 @@ public class SettingsPage : Border
 
     private void OnSaveClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        _settings.MonitorIntervalSeconds = (int)(_monitorInterval.Value ?? 60);
-        _settings.EnableOfflineFadeOut = _fadeOutToggle.IsChecked == true;
-        _settings.FadeOutSeconds = (int)(_fadeOutSeconds.Value ?? 300);
         _settings.SweepFrequencySeconds = (int)_sweepFrequency.Value;
         _settings.ResponseTimeoutMs = (int)_responseTimeout.Value;
         _settings.EnableSynScan = _synScanToggle.IsChecked == true;
@@ -500,23 +525,18 @@ public class SettingsPage : Border
 
     private async void OnRestoreClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var topLevel = TopLevel.GetTopLevel(this);
-        if (topLevel == null) return;
-
-        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        if (_pendingRestorePath != null)
         {
-            Title = "Select Database Backup",
-            AllowMultiple = false,
-            FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Database Files") { Patterns = new[] { "*.db" } } }
-        });
+            _restoreArmTimer?.Stop();
+            string restorePath = _pendingRestorePath;
+            _pendingRestorePath = null;
+            _restoreBtn.Content = "Restore";
+            _restoreBtn.Background = Brushes.Transparent;
+            _restoreBtn.Foreground = ThemeTokens.OnSurface;
 
-        if (files.Count > 0)
-        {
             try
             {
-                string path = Uri.UnescapeDataString(files[0].Path.LocalPath);
-                bool success = _db.Backup.RestoreDatabase(path);
-
+                bool success = _db.Backup.RestoreDatabase(restorePath);
                 if (success)
                 {
                     _maintenanceStatus.Text = "Database restored. Restart recommended.";
@@ -534,11 +554,74 @@ public class SettingsPage : Border
                 _maintenanceStatus.Text = $"Error: {ex.Message}";
                 _maintenanceStatus.Foreground = ThemeTokens.Error;
             }
+            return;
+        }
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new Avalonia.Platform.Storage.FilePickerOpenOptions
+        {
+            Title = "Select Database Backup",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new Avalonia.Platform.Storage.FilePickerFileType("Database Files") { Patterns = new[] { "*.db" } } }
+        });
+
+        if (files.Count > 0)
+        {
+            string path = Uri.UnescapeDataString(files[0].Path.LocalPath);
+            _pendingRestorePath = path;
+            _restoreBtn.Content = "Confirm Restore";
+            _restoreBtn.Background = ThemeTokens.Error;
+            _restoreBtn.Foreground = Brushes.White;
+            _maintenanceStatus.Text = $"Selected: {System.IO.Path.GetFileName(path)}. Click 'Confirm Restore' to overwrite current database.";
+            _maintenanceStatus.Foreground = ThemeTokens.Warning;
+
+            _restoreArmTimer?.Stop();
+            _restoreArmTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(8) };
+            _restoreArmTimer.Tick += (s2, args) =>
+            {
+                _restoreArmTimer.Stop();
+                _pendingRestorePath = null;
+                _restoreBtn.Content = "Restore";
+                _restoreBtn.Background = Brushes.Transparent;
+                _restoreBtn.Foreground = ThemeTokens.OnSurface;
+                _maintenanceStatus.Text = "Restore cancelled.";
+                _maintenanceStatus.Foreground = ThemeTokens.OnSurfaceVariant;
+            };
+            _restoreArmTimer.Start();
         }
     }
 
     private async void OnPruneClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (!_isPruneArmed)
+        {
+            _isPruneArmed = true;
+            _pruneBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Click to Confirm", 14, Brushes.White, Brushes.White);
+            _pruneBtn.Background = ThemeTokens.Error;
+            _pruneBtn.Foreground = Brushes.White;
+
+            _pruneArmTimer?.Stop();
+            _pruneArmTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _pruneArmTimer.Tick += (s2, args) =>
+            {
+                _pruneArmTimer.Stop();
+                _isPruneArmed = false;
+                _pruneBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Purge Expired Records", 14, ThemeTokens.Error, ThemeTokens.OnSurface);
+                _pruneBtn.Background = Brushes.Transparent;
+                _pruneBtn.Foreground = ThemeTokens.OnSurface;
+            };
+            _pruneArmTimer.Start();
+            return;
+        }
+
+        _pruneArmTimer?.Stop();
+        _isPruneArmed = false;
+        _pruneBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Purge Expired Records", 14, ThemeTokens.Error, ThemeTokens.OnSurface);
+        _pruneBtn.Background = Brushes.Transparent;
+        _pruneBtn.Foreground = ThemeTokens.OnSurface;
+
         _pruneBtn.IsEnabled = false;
         _maintenanceStatus.Text = "Pruning expired database records...";
         _maintenanceStatus.Foreground = ThemeTokens.Tertiary;

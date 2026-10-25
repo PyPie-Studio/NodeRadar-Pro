@@ -1,16 +1,18 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Messaging;
 using NodeRadarPro.Data;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
-using System.Collections.Concurrent;
 
 namespace NodeRadarPro.UI;
 
@@ -176,6 +178,10 @@ public class ScannerPage : Border
         };
         _startIp.Background = Brushes.Transparent;
         _startIp.Padding = new Thickness(0, 10);
+        _startIp.KeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Enter) OnStartScan(s, e);
+        };
 
         var endLabel = ThemeTokens.Label("END IP ADDRESS", 10);
         endLabel.LetterSpacing = 1.5;
@@ -201,6 +207,10 @@ public class ScannerPage : Border
         };
         _endIp.Background = Brushes.Transparent;
         _endIp.Padding = new Thickness(0, 10);
+        _endIp.KeyDown += (s, e) =>
+        {
+            if (e.Key == Key.Enter) OnStartScan(s, e);
+        };
 
         var dash = new TextBlock
         {
@@ -517,6 +527,34 @@ public class ScannerPage : Border
         string endIp = _endIp.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(startIp) || string.IsNullOrEmpty(endIp)) return;
 
+        if (!IPAddress.TryParse(startIp, out var startParsed) ||
+            !IPAddress.TryParse(endIp, out var endParsed) ||
+            startParsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork ||
+            endParsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            _statusText.Text = "Invalid IPv4 address format.";
+            return;
+        }
+
+        byte[] startBytes = startParsed.GetAddressBytes();
+        byte[] endBytes = endParsed.GetAddressBytes();
+
+        if (startBytes[0] != endBytes[0] || startBytes[1] != endBytes[1] || startBytes[2] != endBytes[2])
+        {
+            _statusText.Text = "Start and end IPs must share the same /24 subnet prefix.";
+            return;
+        }
+
+        int rStart = startBytes[3];
+        int rEnd = endBytes[3];
+        if (rStart > rEnd)
+        {
+            _statusText.Text = "Start IP host octet must be less than or equal to end IP.";
+            return;
+        }
+
+        string baseIp = $"{startBytes[0]}.{startBytes[1]}.{startBytes[2]}";
+
         try
         {
             _isScanning = true;
@@ -537,19 +575,7 @@ public class ScannerPage : Border
             // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
             _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true;
 
-            string[] startParts = startIp.Split('.');
-            string[] endParts = endIp.Split('.');
-
-            if (startParts.Length == 4 && endParts.Length == 4 &&
-                int.TryParse(startParts[3], out int rStart) && int.TryParse(endParts[3], out int rEnd))
-            {
-                string baseIp = $"{startParts[0]}.{startParts[1]}.{startParts[2]}";
-                await _scanner.ScanRangeAsync(baseIp, rStart, rEnd, _scanCts.Token);
-            }
-            else
-            {
-                await _scanner.ScanSubnetAsync(SubnetScanner.GetLocalBaseIp(), _scanCts.Token);
-            }
+            await _scanner.ScanRangeAsync(baseIp, rStart, rEnd, _scanCts.Token);
 
             // Wait for all in-flight discovery tasks to finish before updating final status
             while (Volatile.Read(ref _inFlightDiscoveryCount) > 0)

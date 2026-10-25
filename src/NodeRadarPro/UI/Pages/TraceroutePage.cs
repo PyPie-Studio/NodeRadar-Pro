@@ -66,6 +66,14 @@ public class TraceroutePage : Border
         _destInput.FontSize = 16;
         _destInput.VerticalContentAlignment = VerticalAlignment.Center;
         ThemeTokens.SetToolTip(_destInput, "Enter a hostname or IPv4 address to trace.");
+        _destInput.KeyDown += (s, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Enter && !_isTracing)
+            {
+                OnStartTrace(s, new Avalonia.Interactivity.RoutedEventArgs());
+                e.Handled = true;
+            }
+        };
 
         var inputContent = new StackPanel { Spacing = 8, Children = { inputTitle, _destInput } };
         var inputCard = ThemeTokens.Card(inputContent, ThemeTokens.SurfaceContainerLow, 24);
@@ -96,7 +104,12 @@ public class TraceroutePage : Border
         root.Children.Add(topBento);
         root.Children.Add(listCard);
 
-        Child = root;
+        Child = new ScrollViewer
+        {
+            Content = root,
+            HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled,
+            VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
+        };
 
         _engine.HopDiscovered += OnHopDiscovered;
         _engine.TracerouteCompleted += OnTraceCompleted;

@@ -1,14 +1,16 @@
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using NodeRadarPro.Core;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 
 namespace NodeRadarPro.UI;
 
@@ -31,6 +33,7 @@ public class PortScansPage : Border
     private DateTime _scanStartTime;
     private CancellationTokenSource? _cts;
     private bool _isScanning;
+    private int[]? _activeProfilePorts;
 
     public PortScansPage()
     {
@@ -89,14 +92,19 @@ public class PortScansPage : Border
         _targetIp = ThemeTokens.Input("192.168.1.1");
         _targetIp.Text = $"{SubnetScanner.GetLocalBaseIp()}.1";
         ThemeTokens.SetToolTip(_targetIp, "The IPv4 address of the host you wish to probe.");
+        _targetIp.KeyDown += (s, e) => { if (e.Key == Key.Enter) OnStartScan(s, e); };
 
         var portStartLabel = ThemeTokens.Label("START PORT", 12); portStartLabel.LetterSpacing = 1.5; portStartLabel.Margin = new Thickness(0, 0, 0, 8);
         _startPort = ThemeTokens.Input("1"); _startPort.Text = "1";
         ThemeTokens.SetToolTip(_startPort, "The lower bound of the TCP port range (1-65535).");
+        _startPort.TextChanged += (s, e) => _activeProfilePorts = null;
+        _startPort.KeyDown += (s, e) => { if (e.Key == Key.Enter) OnStartScan(s, e); };
 
         var portEndLabel = ThemeTokens.Label("END PORT", 12); portEndLabel.LetterSpacing = 1.5; portEndLabel.Margin = new Thickness(0, 0, 0, 8);
         _endPort = ThemeTokens.Input("1024"); _endPort.Text = "1024";
         ThemeTokens.SetToolTip(_endPort, "The upper bound of the TCP port range (1-65535).");
+        _endPort.TextChanged += (s, e) => _activeProfilePorts = null;
+        _endPort.KeyDown += (s, e) => { if (e.Key == Key.Enter) OnStartScan(s, e); };
 
         var portGrid = new Grid { ColumnDefinitions = { new ColumnDefinition(new GridLength(1, GridUnitType.Star)), new ColumnDefinition(new GridLength(1, GridUnitType.Auto)), new ColumnDefinition(new GridLength(1, GridUnitType.Star)) } };
         var startCol = new StackPanel { Children = { portStartLabel, _startPort } };
@@ -109,8 +117,8 @@ public class PortScansPage : Border
         var profileLabel = ThemeTokens.Label("QUICK PROFILES", 12); profileLabel.LetterSpacing = 1.5; profileLabel.Margin = new Thickness(0, 16, 0, 8);
         var profileRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         profileRow.Children.Add(MakeProfileChip("Common", "1", "1024", "Scan standard service ports (1-1024)."));
-        profileRow.Children.Add(MakeProfileChip("Web", "80", "8443", "Scan common web and application server ports."));
-        profileRow.Children.Add(MakeProfileChip("Database", "1433", "5432", "Scan SQL, Redis, and Mongo database ports."));
+        profileRow.Children.Add(MakeProfileChip("Web", "80", "8443", "Scan common web and application server ports.", [80, 443, 8080, 8443]));
+        profileRow.Children.Add(MakeProfileChip("Database", "1433", "27017", "Scan SQL, Redis, and Mongo database ports.", [1433, 1521, 3306, 5432, 6379, 27017]));
         profileRow.Children.Add(MakeProfileChip("Full", "1", "65535", "Perform an exhaustive scan of all 65,535 possible TCP ports."));
 
         var cfgContent = new StackPanel { Children = { cfgTitle, ipLabel, _targetIp, new Panel { Height = 16 }, portGrid, profileLabel, profileRow } };
@@ -173,27 +181,49 @@ public class PortScansPage : Border
         if (_isScanning) return;
         string ip = _targetIp.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(ip)) return;
-        if (!int.TryParse(_startPort.Text, out int sp) || !int.TryParse(_endPort.Text, out int ep)) return;
+
+        IEnumerable<int> portsToScan;
+        string rangeDesc;
+        int totalPorts;
+
+        if (_activeProfilePorts != null && _activeProfilePorts.Length > 0)
+        {
+            portsToScan = _activeProfilePorts;
+            totalPorts = _activeProfilePorts.Length;
+            rangeDesc = $"{totalPorts} preset ports";
+        }
+        else
+        {
+            if (!int.TryParse(_startPort.Text, out int sp) || !int.TryParse(_endPort.Text, out int ep)) return;
+            if (sp < 1 || ep > 65535 || sp > ep)
+            {
+                _statusText.Text = "Invalid port range (1-65535).";
+                return;
+            }
+            totalPorts = ep - sp + 1;
+            portsToScan = Enumerable.Range(sp, totalPorts);
+            rangeDesc = $"{sp}-{ep}";
+        }
 
         _isScanning = true;
         _cts = new CancellationTokenSource();
         _resultsBody.Children.Clear();
+        _progressBar.Maximum = totalPorts;
         _progressBar.Value = 0;
         _scanStartTime = DateTime.UtcNow;
         _elapsedTime.Text = "ELAPSED: 00:00";
         _openCount.Text = "OPEN PORTS: 0";
-        _statusText.Text = $"Scanning {ip}:{sp}-{ep}...";
-        int totalPorts = ep - sp + 1;
+        _statusText.Text = $"Scanning {ip} ({rangeDesc})...";
         int scanned = 0;
         int found = 0;
 
-        var throttle = new SemaphoreSlim(200);
+        var throttle = new SemaphoreSlim(64);
 
         try
         {
             var openPorts = new ConcurrentBag<int>();
             var token = _cts.Token;
-            var tasks = Enumerable.Range(sp, totalPorts).Select(async port =>
+            var tasks = portsToScan.Select(async port =>
             {
                 if (token.IsCancellationRequested) return;
                 try
@@ -270,7 +300,7 @@ public class PortScansPage : Border
         _progressPct.Text = "0%";
     }
 
-    private Border MakeProfileChip(string name, string start, string end, string tooltip)
+    private Border MakeProfileChip(string name, string start, string end, string tooltip, int[]? discretePorts = null)
     {
         var chip = new Border
         {
@@ -282,7 +312,12 @@ public class PortScansPage : Border
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
             Child = new TextBlock { Text = name, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
-        chip.PointerPressed += (s, e) => { _startPort.Text = start; _endPort.Text = end; };
+        chip.PointerPressed += (s, e) =>
+        {
+            _startPort.Text = start;
+            _endPort.Text = end;
+            _activeProfilePorts = discretePorts;
+        };
         ThemeTokens.SetToolTip(chip, tooltip);
         return chip;
     }

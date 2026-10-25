@@ -26,6 +26,9 @@ public class RadarCanvas : Control
     private bool _isDragging = false;
 
     private readonly Avalonia.Threading.DispatcherTimer _radarTimer;
+    public bool IsTimerRunning => _radarTimer.IsEnabled;
+    public void PauseAnimation() => _radarTimer.Stop();
+    public void ResumeAnimation() => _radarTimer.Start();
 
     public event Action<NetworkNode>? NodeRightClicked;
     public event Action<NetworkNode>? NodeSelected;
@@ -55,7 +58,48 @@ public class RadarCanvas : Control
     private static readonly IPen _sweepPen = new ImmutablePen(new ImmutableSolidColorBrush(new Color(200, SweepCyan.R, SweepCyan.G, SweepCyan.B)), 2);
     private static readonly IPen[] _trailPens = InitTrailPens();
     private static readonly IPen[] _wavePens = InitWavePens();
-    private readonly Dictionary<string, FormattedText> _textCache = new();
+
+    private readonly struct NodeTextKey : IEquatable<NodeTextKey>
+    {
+        public readonly string MacAddress;
+        public readonly string DisplayName;
+        public readonly bool IsOnline;
+        public readonly bool IsSelected;
+        public readonly int TextScaleInt;
+
+        public NodeTextKey(string macAddress, string displayName, bool isOnline, bool isSelected, int textScaleInt)
+        {
+            MacAddress = macAddress;
+            DisplayName = displayName;
+            IsOnline = isOnline;
+            IsSelected = isSelected;
+            TextScaleInt = textScaleInt;
+        }
+
+        public bool Equals(NodeTextKey other) =>
+            IsOnline == other.IsOnline &&
+            IsSelected == other.IsSelected &&
+            TextScaleInt == other.TextScaleInt &&
+            string.Equals(MacAddress, other.MacAddress, StringComparison.Ordinal) &&
+            string.Equals(DisplayName, other.DisplayName, StringComparison.Ordinal);
+
+        public override bool Equals(object? obj) => obj is NodeTextKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            var hash = new HashCode();
+            hash.Add(MacAddress, StringComparer.Ordinal);
+            hash.Add(DisplayName, StringComparer.Ordinal);
+            hash.Add(IsOnline);
+            hash.Add(IsSelected);
+            hash.Add(TextScaleInt);
+            return hash.ToHashCode();
+        }
+    }
+
+    private readonly Dictionary<NodeTextKey, FormattedText> _textCache = new();
+    private FormattedText? _cachedZoomText;
+    private double _cachedZoomLevel = -1;
 
     private static readonly IBrush _hubGlow = new ImmutableSolidColorBrush(new Color(60, PrimaryPurple.R, PrimaryPurple.G, PrimaryPurple.B));
     private static readonly IBrush _hubBrush = new ImmutableSolidColorBrush(PrimaryPurple);
@@ -77,8 +121,8 @@ public class RadarCanvas : Control
     private static readonly IBrush _offlineTextColor = new ImmutableSolidColorBrush(new Color(100, 220, 226, 247));
     private static readonly IBrush _zoomTextColor = new ImmutableSolidColorBrush(RingColor, 0.4);
 
-    private static readonly Typeface _typefaceNormal = new("Inter", FontStyle.Normal, FontWeight.Normal);
-    private static readonly Typeface _typefaceBold = new("Inter", FontStyle.Normal, FontWeight.Bold);
+    private static readonly Typeface _typefaceNormal = new(ThemeTokens.DefaultFont, FontStyle.Normal, FontWeight.Normal);
+    private static readonly Typeface _typefaceBold = new(ThemeTokens.DefaultFont, FontStyle.Normal, FontWeight.Bold);
 
     private static readonly FormattedText[] _coordinateLabels = InitCoordinateLabels();
 
@@ -106,7 +150,7 @@ public class RadarCanvas : Control
     private static FormattedText[] InitCoordinateLabels()
     {
         var labelBrush = new ImmutableSolidColorBrush(new Color(100, RingColor.R, RingColor.G, RingColor.B));
-        var labelTypeface = new Typeface("Inter", FontStyle.Normal, FontWeight.Bold);
+        var labelTypeface = new Typeface(ThemeTokens.DefaultFont, FontStyle.Normal, FontWeight.Bold);
         string[] labels = { "N", "E", "S", "W" };
         var list = new FormattedText[4];
         for (int i = 0; i < 4; i++)
@@ -146,6 +190,29 @@ public class RadarCanvas : Control
         _selectedMac = macAddress;
         _textCache.Clear();
         InvalidateVisual();
+    }
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        double w = double.IsInfinity(availableSize.Width) ? 400 : availableSize.Width;
+        double h = double.IsInfinity(availableSize.Height) ? 360 : availableSize.Height;
+        return new Size(Math.Max(100, w), Math.Max(100, h));
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty)
+        {
+            if (change.GetNewValue<bool>())
+            {
+                _radarTimer.Start();
+            }
+            else
+            {
+                _radarTimer.Stop();
+            }
+        }
     }
 
     protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
@@ -414,7 +481,7 @@ public class RadarCanvas : Control
         var textColor = node.IsOnline ? _onlineTextColor : _offlineTextColor;
         var typeface = isSelected ? _typefaceBold : _typefaceNormal;
 
-        string cacheKey = $"{node.MacAddress}|{node.DisplayName}|{node.IsOnline}|{isSelected}|{(int)(textScale * 100)}";
+        var cacheKey = new NodeTextKey(node.MacAddress, node.DisplayName, node.IsOnline, isSelected, (int)(textScale * 100));
         if (!_textCache.TryGetValue(cacheKey, out var formattedText))
         {
             formattedText = new FormattedText(
@@ -433,15 +500,19 @@ public class RadarCanvas : Control
     private void RenderZoomOverlay(DrawingContext context, Rect bounds)
     {
         // Zoom Level Indicator (Subtle overlay)
-        if (_zoomLevel != 1.0)
+        if (Math.Abs(_zoomLevel - 1.0) > 0.001)
         {
-            var zoomText = new FormattedText(
-                $"Zoom: {_zoomLevel:F1}x",
-                System.Globalization.CultureInfo.InvariantCulture,
-                FlowDirection.LeftToRight,
-                _typefaceNormal, 12, _zoomTextColor
-            );
-            context.DrawText(zoomText, new Point(bounds.Width - zoomText.Width - 10, bounds.Height - zoomText.Height - 10));
+            if (_cachedZoomText == null || Math.Abs(_zoomLevel - _cachedZoomLevel) > 0.001)
+            {
+                _cachedZoomLevel = _zoomLevel;
+                _cachedZoomText = new FormattedText(
+                    $"Zoom: {_zoomLevel:F1}x",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    FlowDirection.LeftToRight,
+                    _typefaceNormal, 12, _zoomTextColor
+                );
+            }
+            context.DrawText(_cachedZoomText, new Point(bounds.Width - _cachedZoomText.Width - 10, bounds.Height - _cachedZoomText.Height - 10));
         }
     }
 }

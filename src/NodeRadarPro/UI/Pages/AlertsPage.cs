@@ -24,6 +24,8 @@ public class AlertsPage : Border
     private readonly Button _resolveAllBtn;
     private readonly Button _clearResolvedBtn;
     private readonly Button _clearAllBtn;
+    private DispatcherTimer? _clearResolvedTimer;
+    private DispatcherTimer? _clearAllTimer;
     private const string FilterModeActive = "active";
     private string _filterMode = FilterModeActive;
 
@@ -191,6 +193,7 @@ public class AlertsPage : Border
         var titleTb = new TextBlock { Text = $"{typeText}: {alert.DeviceName}", FontSize = 15, FontWeight = FontWeight.SemiBold, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis };
         var msgTb = new TextBlock { Text = alert.Message, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 2, 0, 0) };
         var timeTb = new TextBlock { Text = GetTimeAgo(alert.Timestamp), FontSize = 13, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont };
+        ThemeTokens.SetToolTip(timeTb, alert.Timestamp.ToLocalTime().ToString("yyyy-MM-dd hh:mm:ss tt"));
 
         var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { titleTb, msgTb } };
 
@@ -229,9 +232,10 @@ public class AlertsPage : Border
         }
 
         row.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
+        var delIcon = ThemeTokens.VectorIcon(ThemeTokens.SvgTrash, 15, ThemeTokens.Error);
         var deleteBtn = new Button
         {
-            Content = ThemeTokens.VectorIcon(ThemeTokens.SvgTrash, 15, ThemeTokens.Error),
+            Content = delIcon,
             Background = Brushes.Transparent,
             Width = 36,
             Height = 36,
@@ -242,8 +246,29 @@ public class AlertsPage : Border
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
         ThemeTokens.SetToolTip(deleteBtn, "Delete this alert permanently from the database.");
+        bool isDelArmed = false;
+        DispatcherTimer? delArmTimer = null;
         deleteBtn.Click += (s, e) =>
         {
+            if (!isDelArmed)
+            {
+                isDelArmed = true;
+                deleteBtn.Background = ThemeTokens.ErrorContainerSubtle;
+                ThemeTokens.SetToolTip(deleteBtn, "Click again to confirm deletion.");
+                delArmTimer?.Stop();
+                delArmTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                delArmTimer.Tick += (s2, e2) =>
+                {
+                    delArmTimer.Stop();
+                    isDelArmed = false;
+                    deleteBtn.Background = Brushes.Transparent;
+                    ThemeTokens.SetToolTip(deleteBtn, "Delete this alert permanently from the database.");
+                };
+                delArmTimer.Start();
+                return;
+            }
+
+            delArmTimer?.Stop();
             _db.DeleteAlert(alert.Id);
             RefreshAlerts();
             AlertsChanged?.Invoke();
@@ -265,12 +290,13 @@ public class AlertsPage : Border
     private void OnClearResolvedClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _clearResolvedBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear?", 13, Brushes.White, Brushes.White);
-        _clearResolvedBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearResolvedBtn.Background = ThemeTokens.Error;
         _clearResolvedBtn.Click -= OnClearResolvedClicked;
         _clearResolvedBtn.Click += DoActualClearResolved;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, ev) => { ResetClearResolvedButton(); timer.Stop(); };
-        timer.Start();
+        _clearResolvedTimer?.Stop();
+        _clearResolvedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _clearResolvedTimer.Tick += (s, ev) => ResetClearResolvedButton();
+        _clearResolvedTimer.Start();
     }
 
     private void DoActualClearResolved(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -283,6 +309,7 @@ public class AlertsPage : Border
 
     private void ResetClearResolvedButton()
     {
+        _clearResolvedTimer?.Stop();
         _clearResolvedBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear Resolved", 13, ThemeTokens.Error, ThemeTokens.Error);
         _clearResolvedBtn.Background = Brushes.Transparent;
         _clearResolvedBtn.Click -= DoActualClearResolved;
@@ -293,12 +320,13 @@ public class AlertsPage : Border
     private void OnClearAllAlertsClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _clearAllBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgAlertTriangle, "Confirm Clear All?", 13, Brushes.White, Brushes.White);
-        _clearAllBtn.Background = SolidColorBrush.Parse("#8B0000");
+        _clearAllBtn.Background = ThemeTokens.Error;
         _clearAllBtn.Click -= OnClearAllAlertsClicked;
         _clearAllBtn.Click += DoActualClearAllAlerts;
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, ev) => { ResetClearAllButton(); timer.Stop(); };
-        timer.Start();
+        _clearAllTimer?.Stop();
+        _clearAllTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _clearAllTimer.Tick += (s, ev) => ResetClearAllButton();
+        _clearAllTimer.Start();
     }
 
     private void DoActualClearAllAlerts(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -311,6 +339,7 @@ public class AlertsPage : Border
 
     private void ResetClearAllButton()
     {
+        _clearAllTimer?.Stop();
         _clearAllBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgTrash, "Clear All", 13, ThemeTokens.Error, ThemeTokens.Error);
         _clearAllBtn.Background = Brushes.Transparent;
         _clearAllBtn.Click -= DoActualClearAllAlerts;
