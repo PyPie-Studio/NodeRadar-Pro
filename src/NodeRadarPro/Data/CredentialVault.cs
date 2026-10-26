@@ -157,11 +157,24 @@ public static class CredentialVault
 
                     byte[] key = DeriveKeyPbkdf2(salt);
                     byte[] plainBytes = new byte[cipherText.Length];
-                    using (var aesGcm = new AesGcm(key, 16))
+                    try
                     {
-                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                        using (var aesGcm = new AesGcm(key, 16))
+                        {
+                            aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                        }
+                        return plainBytes;
                     }
-                    return plainBytes;
+                    catch (CryptographicException)
+                    {
+                        // Fallback to legacy machine-name based key derivation for backward compatibility
+                        byte[] legacyKey = DeriveKeyPbkdf2Legacy(salt);
+                        using (var aesGcm = new AesGcm(legacyKey, 16))
+                        {
+                            aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
+                        }
+                        return plainBytes;
+                    }
                 }
                 catch
                 {
@@ -197,9 +210,88 @@ public static class CredentialVault
         }
     }
 
-    // ── Internal Key Derivation ──
+    // ── Internal Key Derivation & Secret Management ──
+
+    private static readonly object SecretLock = new();
+    private static byte[]? _cachedVaultSecret;
+
+    internal static byte[] GetOrCreateVaultSecret()
+    {
+        lock (SecretLock)
+        {
+            if (_cachedVaultSecret != null)
+            {
+                return (byte[])_cachedVaultSecret.Clone();
+            }
+
+            string dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "NodeRadarPro");
+            string secretFile = Path.Combine(dir, ".vault_secret");
+
+            if (File.Exists(secretFile))
+            {
+                try
+                {
+                    byte[] secretBytes = File.ReadAllBytes(secretFile);
+                    if (secretBytes.Length == 32)
+                    {
+                        _cachedVaultSecret = secretBytes;
+                        return (byte[])secretBytes.Clone();
+                    }
+                }
+                catch
+                {
+                    // Fallback to generating a new key if read fails
+                }
+            }
+
+            byte[] newSecret = new byte[32];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(newSecret);
+            }
+
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.WriteAllBytes(secretFile, newSecret);
+
+                if (!OperatingSystem.IsWindows())
+                {
+                    try
+                    {
+                        File.SetUnixFileMode(secretFile, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+                    }
+                    catch
+                    {
+                        // Platform or filesystem doesn't support Unix file permissions
+                    }
+                }
+            }
+            catch
+            {
+                // Fallback ignore writing error, keep in-memory secret
+            }
+
+            _cachedVaultSecret = newSecret;
+            return (byte[])newSecret.Clone();
+        }
+    }
+
+    internal static void ResetCachedSecretForTesting()
+    {
+        lock (SecretLock)
+        {
+            _cachedVaultSecret = null;
+        }
+    }
 
     internal static byte[] DeriveKeyPbkdf2(byte[] salt)
+    {
+        byte[] secret = GetOrCreateVaultSecret();
+        return Rfc2898DeriveBytes.Pbkdf2(secret, salt, 100000, HashAlgorithmName.SHA256, 32);
+    }
+
+    internal static byte[] DeriveKeyPbkdf2Legacy(byte[] salt)
     {
         string password = $"{Environment.MachineName}_{Environment.UserName}_NodeRadarPro_Pbkdf2Secret";
         return Rfc2898DeriveBytes.Pbkdf2(password, salt, 100000, HashAlgorithmName.SHA256, 32);

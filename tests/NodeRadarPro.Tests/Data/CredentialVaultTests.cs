@@ -202,4 +202,47 @@ public class CredentialVaultTests : IDisposable
         byte[] result = CredentialVault.UnprotectData(corruptPayload);
         Assert.Equal(corruptPayload, result);
     }
+    [Fact]
+    public void GetOrCreateVaultSecret_Returns32BytesAndCaches()
+    {
+        CredentialVault.ResetCachedSecretForTesting();
+        byte[] secret1 = CredentialVault.GetOrCreateVaultSecret();
+        byte[] secret2 = CredentialVault.GetOrCreateVaultSecret();
+
+        Assert.NotNull(secret1);
+        Assert.Equal(32, secret1.Length);
+        Assert.Equal(secret1, secret2);
+    }
+
+    [Fact]
+    public void UnprotectData_WithLegacyV2MachineNamePayload_DecryptsCorrectly()
+    {
+        byte[] salt = new byte[16];
+        byte[] nonce = new byte[12];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+            rng.GetBytes(nonce);
+        }
+
+        byte[] legacyKey = CredentialVault.DeriveKeyPbkdf2Legacy(salt);
+        byte[] plainBytes = Encoding.UTF8.GetBytes("LegacyV2MachineNameSecretPayload");
+        byte[] cipherText = new byte[plainBytes.Length];
+        byte[] tag = new byte[16];
+
+        using (var aesGcm = new AesGcm(legacyKey, 16))
+        {
+            aesGcm.Encrypt(nonce, plainBytes, cipherText, tag);
+        }
+
+        byte[] payload = new byte[1 + 16 + 12 + 16 + cipherText.Length];
+        payload[0] = 0x02;
+        Buffer.BlockCopy(salt, 0, payload, 1, 16);
+        Buffer.BlockCopy(nonce, 0, payload, 17, 12);
+        Buffer.BlockCopy(tag, 0, payload, 29, 16);
+        Buffer.BlockCopy(cipherText, 0, payload, 45, cipherText.Length);
+
+        byte[] decrypted = CredentialVault.UnprotectData(payload);
+        Assert.Equal("LegacyV2MachineNameSecretPayload", Encoding.UTF8.GetString(decrypted));
+    }
 }
