@@ -34,57 +34,98 @@ if ($CheckCoverage) { $totalSteps++ }
 
 Write-Host "== NodeRadar Pro Master Gate ==" -ForegroundColor Cyan
 
+function Start-GateStep([string]$title) {
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Write-Host "::group::$title"
+    }
+    Write-Host $title -ForegroundColor Yellow
+}
+
+function End-GateStep {
+    if ($env:GITHUB_ACTIONS -eq "true") {
+        Write-Host "::endgroup::"
+    }
+}
+
 if (-not $SkipBuild) {
-    Write-Host "[$step/$totalSteps] Release build (NodeRadarPro.slnx)..." -ForegroundColor Yellow
+    Start-GateStep "[$step/$totalSteps] Release build (NodeRadarPro.slnx)..."
     Push-Location $root
     try {
         & dotnet build NodeRadarPro.slnx --configuration Release --nologo
         if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$step/$totalSteps] BUILD FAILED" -ForegroundColor Red }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+        End-GateStep
+    }
 } else {
     Write-Host "[$step/$totalSteps] Skipped (SkipBuild)" -ForegroundColor DarkGray
 }
 $step++
 
-Write-Host "[$step/$totalSteps] Application startup smoke verification..." -ForegroundColor Yellow
+Start-GateStep "[$step/$totalSteps] Application startup smoke verification..."
 Push-Location $root
 try {
     & dotnet run --project "src\NodeRadarPro\NodeRadarPro.csproj" --no-build -c Release -- --smoke-test
     if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$step/$totalSteps] STARTUP SMOKE TEST FAILED" -ForegroundColor Red }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    End-GateStep
+}
 $step++
 
-$coverageDir = Join-Path $root "TestResults"
+$coverageDir = if ($TestResultsDirectory) {
+    if ([System.IO.Path]::IsPathRooted($TestResultsDirectory)) {
+        $TestResultsDirectory
+    } else {
+        Join-Path $root $TestResultsDirectory
+    }
+} else {
+    Join-Path $root "TestResults"
+}
 
 if ($WithTests) {
-    Write-Host "[$step/$totalSteps] Running unit and integration tests (xUnit v3)..." -ForegroundColor Yellow
+    Start-GateStep "[$step/$totalSteps] Running unit and integration tests (xUnit v3)..."
     Push-Location $root
     try {
         $testArgs = @("test", "NodeRadarPro.slnx", "--configuration", "Release", "--nologo")
         if (-not $SkipBuild) { $testArgs += "--no-build" }
+        $runsettingsPath = Join-Path $root "test.runsettings"
+        if (Test-Path $runsettingsPath) {
+            $testArgs += @("--settings", $runsettingsPath)
+        }
+        $resolvedResultsDir = $null
         if ($TestResultsDirectory) {
-            $resolvedTestDir = if ([System.IO.Path]::IsPathRooted($TestResultsDirectory)) {
-                $TestResultsDirectory
-            } else {
-                Join-Path $root $TestResultsDirectory
+            $resolvedResultsDir = $coverageDir
+            if (-not (Test-Path $resolvedResultsDir)) {
+                New-Item -ItemType Directory -Path $resolvedResultsDir -Force | Out-Null
             }
-            if (-not (Test-Path $resolvedTestDir)) {
-                New-Item -ItemType Directory -Path $resolvedTestDir -Force | Out-Null
-            }
-            $testArgs += @("--logger", "trx;LogFileName=test-results.trx", "--results-directory", $resolvedTestDir)
+            $trxFile = Join-Path $resolvedResultsDir "test-results.trx"
+            if (Test-Path $trxFile) { Remove-Item $trxFile -Force -ErrorAction SilentlyContinue }
+            $testArgs += @("--logger", "trx;LogFileName=test-results.trx")
         }
         if ($CheckCoverage) {
-            if (Test-Path $coverageDir) { Remove-Item $coverageDir -Recurse -Force -ErrorAction SilentlyContinue }
-            $testArgs += @('--collect:"XPlat Code Coverage"', "--results-directory", $coverageDir)
+            if (-not $resolvedResultsDir) {
+                $resolvedResultsDir = $coverageDir
+            }
+            if (Test-Path $resolvedResultsDir) {
+                Get-ChildItem -Path $resolvedResultsDir -Filter "*.cobertura.xml" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+            }
+            $testArgs += @('--collect:"XPlat Code Coverage"')
+        }
+        if ($resolvedResultsDir) {
+            $testArgs += @("--results-directory", $resolvedResultsDir)
         }
         & dotnet @testArgs
         if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$step/$totalSteps] TEST SUITE FAILED" -ForegroundColor Red }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+        End-GateStep
+    }
     $step++
 }
 
 if ($CheckCoverage) {
-    Write-Host "[$step/$totalSteps] Evaluating code coverage against threshold..." -ForegroundColor Yellow
+    Start-GateStep "[$step/$totalSteps] Evaluating code coverage against threshold..."
     Push-Location $root
     try {
         $thresholdFile = Join-Path (Join-Path $root "scripts") "coverage-threshold.txt"
@@ -96,9 +137,9 @@ if ($CheckCoverage) {
 
         $coverageScript = Join-Path (Join-Path $root "scripts") "Get-CoverageRate.ps1"
         if (Test-Path $coverageScript) {
-            $rate = & powershell -NoProfile -ExecutionPolicy Bypass -File $coverageScript -Path $coverageDir 2>&1
-            if ($rate -match '^\d+(\.\d+)?$') {
-                $rateNum = [double]$rate
+            $rateOutput = (& powershell -NoProfile -ExecutionPolicy Bypass -File $coverageScript -Path $coverageDir 2>&1 | Out-String).Trim()
+            if ($LASTEXITCODE -eq 0 -and $rateOutput -match '\b(\d+(\.\d+)?)\b') {
+                $rateNum = [double]$matches[1]
                 Write-Host "[$step/$totalSteps] Coverage: ${rateNum}% (threshold: ${threshold}%)" -ForegroundColor Cyan
                 if ($rateNum -lt $threshold) {
                     $fail = $true
@@ -106,24 +147,30 @@ if ($CheckCoverage) {
                 }
             } else {
                 $fail = $true
-                Write-Host "[$step/$totalSteps] ERROR: Could not parse coverage rate: $rate" -ForegroundColor Red
+                Write-Host "[$step/$totalSteps] ERROR: Could not parse coverage rate: $rateOutput" -ForegroundColor Red
             }
         } else {
             Write-Host "[$step/$totalSteps] WARNING: Get-CoverageRate.ps1 not found - skipping coverage check" -ForegroundColor Yellow
         }
-    } finally { Pop-Location }
+    } finally {
+        Pop-Location
+        End-GateStep
+    }
     $step++
 }
 
-Write-Host "[$step/$totalSteps] Roslyn format verification (style + analyzers)..." -ForegroundColor Yellow
+Start-GateStep "[$step/$totalSteps] Roslyn format verification (style + analyzers)..."
 Push-Location $root
 try {
     & dotnet format NodeRadarPro.slnx --verify-no-changes --no-restore
     if ($LASTEXITCODE -ne 0) { $fail = $true; Write-Host "[$step/$totalSteps] FORMAT VIOLATIONS - run 'dotnet format NodeRadarPro.slnx' and re-verify" -ForegroundColor Red }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    End-GateStep
+}
 $step++
 
-Write-Host "[$step/$totalSteps] NuGet package vulnerability check..." -ForegroundColor Yellow
+Start-GateStep "[$step/$totalSteps] NuGet package vulnerability check..."
 Push-Location $root
 try {
     $out = dotnet list NodeRadarPro.slnx package --vulnerable --include-transitive 2>&1
@@ -136,7 +183,10 @@ try {
         Write-Host "[$step/$totalSteps] VULNERABLE NUGET PACKAGES DETECTED:" -ForegroundColor Red
         Write-Host ($out -join "`n") -ForegroundColor Red
     }
-} finally { Pop-Location }
+} finally {
+    Pop-Location
+    End-GateStep
+}
 
 $sw.Stop()
 if ($fail) {

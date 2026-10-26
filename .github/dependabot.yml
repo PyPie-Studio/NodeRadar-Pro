@@ -11,9 +11,17 @@ updates:
       - "dependencies"
       - "nuget"
     groups:
-      nuget-dependencies:
+      nuget-safe-updates:
         patterns:
           - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      nuget-major-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
 
   - package-ecosystem: "github-actions"
     directory: "/"

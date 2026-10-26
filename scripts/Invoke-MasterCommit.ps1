@@ -48,6 +48,11 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 
+if ($Push -and -not $WithTests) {
+    Write-Host "[WARN] -Push specified without -WithTests; auto-enabling full test suite for pre-push verification." -ForegroundColor DarkYellow
+    $WithTests = $true
+}
+
 Write-Host "== NodeRadar Pro Master Commit Workflow ==" -ForegroundColor Cyan
 
 # 1. Validate Working Tree Status

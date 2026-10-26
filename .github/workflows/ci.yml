@@ -6,10 +6,15 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   build-and-test:
     name: Build & Test (Windows / .NET 10)
     runs-on: windows-latest
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository
@@ -19,15 +24,66 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: 'Directory.Packages.props'
 
-      - name: Restore dependencies
-        run: dotnet restore NodeRadarPro.slnx
+      - name: Run Master Quality Gate (Smoke, Tests, Coverage, Format, Vulns)
+        shell: pwsh
+        run: |
+          ./scripts/Test-MasterGate.ps1 -WithTests -CheckCoverage -TestResultsDirectory "test-results"
 
-      - name: Build solution (Release)
-        run: dotnet build NodeRadarPro.slnx --configuration Release --no-restore --nologo
+      - name: Publish Test Summary to GitHub Actions
+        if: always()
+        shell: pwsh
+        run: |
+          $trxPath = "test-results/test-results.trx"
+          if (Test-Path $trxPath) {
+            [xml]$trx = Get-Content $trxPath
+            $counters = $trx.TestRun.ResultSummary.Counters
+            $total = $counters.total
+            $passed = $counters.passed
+            $failed = $counters.failed
+            $skipped = [int]$counters.notExecuted + [int]$counters.notRunnable
+            $times = $trx.TestRun.Times
+            $durationSec = 0
+            if ($times.start -and $times.finish) {
+              $durationSec = [math]::Round(([datetime]$times.finish - [datetime]$times.start).TotalSeconds, 1)
+            }
+            
+            $status = if ([int]$failed -gt 0) { 'FAILED' } else { 'PASSED' }
+            $summaryLines = @(
+              "## CI Test Suite Results ($status)",
+              "",
+              "| Metric | Value |",
+              "| :--- | :--- |",
+              "| **Total Tests** | $total |",
+              "| **Passed** | $passed |",
+              "| **Failed** | $failed |",
+              "| **Skipped / Not Run** | $skipped |",
+              "| **Duration** | ${durationSec}s |"
+            )
+            if ($env:GITHUB_STEP_SUMMARY) {
+              ($summaryLines -join "`n") | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            }
 
-      - name: Run test suite (xUnit v3)
-        run: dotnet test NodeRadarPro.slnx --configuration Release --no-build --nologo
+            if ([int]$failed -gt 0) {
+              foreach ($unitTestResult in $trx.SelectNodes("//UnitTestResult[@outcome='Failed']")) {
+                $testName = $unitTestResult.testName
+                $errorInfo = $unitTestResult.Output.ErrorInfo
+                $msg = if ($errorInfo -and $errorInfo.Message) {
+                  $errorInfo.Message.Trim() -replace '\r?\n', ' '
+                } else {
+                  "Test failed without detailed error message."
+                }
+                Write-Host "::error title=Test Failure::$($testName): $msg"
+              }
+            }
+          }
 
-      - name: Verify code formatting
-        run: dotnet format NodeRadarPro.slnx --verify-no-changes --no-restore
+      - name: Upload Test Results Artifact
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-results-ci
+          path: test-results/
+          if-no-files-found: ignore

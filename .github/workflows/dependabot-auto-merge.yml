@@ -17,11 +17,12 @@ jobs:
     steps:
       - name: Fetch Dependabot Metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@dbb9949bd7679ad46a2a0a256b107e3240e945c1 # v2.3.0
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      - name: Enable Auto-Merge
+      - name: Enable Auto-Merge for Non-Major Updates
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}

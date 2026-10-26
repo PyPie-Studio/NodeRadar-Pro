@@ -24,6 +24,8 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: 'Directory.Packages.props'
 
       - name: Run Master Quality Gate (with Tests)
         shell: pwsh
@@ -67,7 +69,12 @@ jobs:
             if ([int]$failed -gt 0) {
               foreach ($unitTestResult in $trx.SelectNodes("//UnitTestResult[@outcome='Failed']")) {
                 $testName = $unitTestResult.testName
-                $msg = $unitTestResult.Output.ErrorInfo.Message.Trim() -replace '\r?\n', ' '
+                $errorInfo = $unitTestResult.Output.ErrorInfo
+                $msg = if ($errorInfo -and $errorInfo.Message) {
+                  $errorInfo.Message.Trim() -replace '\r?\n', ' '
+                } else {
+                  "Test failed without detailed error message."
+                }
                 Write-Host "::error title=Test Failure::$($testName): $msg"
               }
             }
@@ -98,11 +105,27 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+          cache: true
+          cache-dependency-path: 'Directory.Packages.props'
+
+      - name: Cache Inno Setup
+        id: cache-inno
+        uses: actions/cache@v4
+        with:
+          path: |
+            C:\Program Files\Inno Setup 7
+            C:\Program Files (x86)\Inno Setup 7
+          key: inno-setup-7-${{ runner.os }}
 
       - name: Install Inno Setup
+        if: steps.cache-inno.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           choco install innosetup -y --no-progress
+
+      - name: Configure Inno Setup PATH
+        shell: pwsh
+        run: |
           $candidates = @(
             "C:\Program Files\Inno Setup 7",
             "C:\Program Files (x86)\Inno Setup 7"
@@ -166,7 +189,7 @@ jobs:
                   $header = "# NodeRadar Pro $tag`n`n$notesBody`n`n---`n`n"
                   $footerLines = @(
                       "## Installation Options",
-                      "- **Installer**: Download ``NodeRadar.Pro_${tag}_Setup.exe`` and run the setup wizard.",
+                      "- **Installer**: Download ``NodeRadar Pro_v${version}_Setup.exe`` and run the setup wizard.",
                       "- **Portable**: Download ``NodeRadarPro-${tag}-win-x64-portable.zip`` and extract to any folder.",
                       "",
                       "## Verification & Integrity",
