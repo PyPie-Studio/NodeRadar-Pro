@@ -137,9 +137,7 @@ public class TracerouteEngineTests
         engine.HopDiscovered += h => hops.Add(h);
         engine.TracerouteCompleted += c => completed = c;
 
-        Func<IPingClient> pingClientFactory = () => throw new PingException("Simulated ping failure");
-
-        await engine.RunTracerouteAsync("127.0.0.1", maxHops: 1, timeoutMs: 2000, pingClientFactory: pingClientFactory, token: default);
+        await engine.RunTracerouteAsync("127.0.0.1", maxHops: 1, timeoutMs: 2000, pingClientFactory: () => throw new PingException("Simulated ping failure"), token: default);
 
         Assert.True(completed);
         Assert.Single(hops);
