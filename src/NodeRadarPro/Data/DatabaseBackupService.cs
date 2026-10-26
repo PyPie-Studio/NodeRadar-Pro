@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using LiteDB;
@@ -153,10 +154,19 @@ public class DatabaseBackupService
                 .Skip(7) // Keep last 7 backups
                 .ToList();
 
+            if (files.Count == 0) return;
+
+            var logItems = new List<(LogLevel level, string source, string message)>(files.Count);
+
             foreach (var file in files)
             {
                 file.Delete();
-                _database.Log(LogLevel.Info, LogSource, $"Cleaned up old backup: {file.Name}");
+                logItems.Add((LogLevel.Info, LogSource, $"Cleaned up old backup: {file.Name}"));
+            }
+
+            if (logItems.Count > 0)
+            {
+                _database.LogBulk(logItems);
             }
         }
         catch

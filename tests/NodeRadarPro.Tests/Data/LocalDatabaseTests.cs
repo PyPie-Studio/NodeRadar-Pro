@@ -753,4 +753,36 @@ public class LocalDatabaseTests : IDisposable
         Assert.DoesNotContain(remaining, l => l.Message == "Expired Log");
         Assert.Contains(remaining, l => l.Message == "Valid Log");
     }
+
+    [Fact]
+    public void InsertLogs_BulkInsertsMultipleEntries()
+    {
+        var entries = new List<LogEntry>
+        {
+            new LogEntry { Message = "Bulk 1", Level = LogLevel.Info, Source = "Test" },
+            new LogEntry { Message = "Bulk 2", Level = LogLevel.Warning, Source = "Test" }
+        };
+
+        _db.InsertLogs(entries);
+
+        var logs = _db.GetLogs();
+        Assert.Contains(logs, l => l.Message == "Bulk 1");
+        Assert.Contains(logs, l => l.Message == "Bulk 2");
+    }
+
+    [Fact]
+    public void LogBulk_InsertsMultipleLogItemsInBatch()
+    {
+        var items = new List<(LogLevel level, string source, string message)>
+        {
+            (LogLevel.Info, "BulkSource", "Item 1"),
+            (LogLevel.Error, "BulkSource", "Item 2")
+        };
+
+        _db.LogBulk(items);
+
+        var logs = _db.GetLogs();
+        Assert.Contains(logs, l => l.Message == "Item 1" && l.Source == "BulkSource");
+        Assert.Contains(logs, l => l.Message == "Item 2" && l.Level == LogLevel.Error);
+    }
 }

@@ -652,6 +652,48 @@ public class LocalDatabase : IDisposable
         }
     }
 
+    public void InsertLogs(IEnumerable<LogEntry> entries)
+    {
+        var list = entries as IList<LogEntry> ?? entries.ToList();
+        if (list.Count == 0) return;
+        lock (SyncRoot)
+        {
+            var col = _db.GetCollection<LogEntry>(LogsCollection);
+            col.InsertBulk(list);
+        }
+    }
+
+    public void LogBulk(IEnumerable<(LogLevel level, string source, string message, string? deviceMac)> logItems)
+    {
+        var itemsList = logItems as IList<(LogLevel level, string source, string message, string? deviceMac)> ?? logItems.ToList();
+        if (itemsList.Count == 0) return;
+
+        var now = DateTime.UtcNow;
+        var entries = new List<LogEntry>(itemsList.Count);
+
+        foreach (var item in itemsList)
+        {
+            entries.Add(new LogEntry
+            {
+                Level = item.level,
+                Source = item.source,
+                Message = item.message,
+                DeviceMac = item.deviceMac,
+                Timestamp = now
+            });
+
+            // Physical File log (for Technical Support)
+            Logger.Log(item.level, item.source, item.message, item.deviceMac);
+        }
+
+        InsertLogs(entries);
+    }
+
+    public void LogBulk(IEnumerable<(LogLevel level, string source, string message)> logItems)
+    {
+        LogBulk(logItems.Select(x => (x.level, x.source, x.message, (string?)null)));
+    }
+
     public void Log(LogLevel level, string source, string message, string? deviceMac = null)
     {
         // 1. Database log (for UI viewer)
