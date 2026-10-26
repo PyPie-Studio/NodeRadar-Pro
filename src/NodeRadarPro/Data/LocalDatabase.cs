@@ -95,16 +95,8 @@ public class LocalDatabase : IDisposable
             }
             catch (IOException)
             {
-                // Transient file lock (antivirus, backup process) — retry once after backoff
-                System.Threading.Thread.Sleep(500);
-                try
-                {
-                    _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
-                }
-                catch
-                {
-                    _db = new LiteDatabase(new MemoryStream());
-                }
+                // Transient file lock (antivirus, backup process) — retry with fine-grained backoff
+                _db = OpenDatabaseWithRetry(_dbPath, _dbPassword);
             }
             catch
             {
@@ -112,6 +104,37 @@ public class LocalDatabase : IDisposable
             }
 
             InitializeSchema();
+        }
+    }
+
+
+    private static LiteDatabase OpenDatabaseWithRetry(string dbPath, string dbPassword, int timeoutMs = 500, int pollIntervalMs = 10)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < timeoutMs)
+        {
+            System.Threading.Thread.Sleep(pollIntervalMs);
+            try
+            {
+                return new LiteDatabase($"Filename={dbPath};Password={dbPassword};Connection=shared;");
+            }
+            catch (IOException)
+            {
+                // Continue retry polling until timeout
+            }
+            catch
+            {
+                return new LiteDatabase(new MemoryStream());
+            }
+        }
+
+        try
+        {
+            return new LiteDatabase($"Filename={dbPath};Password={dbPassword};Connection=shared;");
+        }
+        catch
+        {
+            return new LiteDatabase(new MemoryStream());
         }
     }
 

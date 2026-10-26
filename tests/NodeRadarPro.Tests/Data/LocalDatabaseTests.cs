@@ -753,4 +753,40 @@ public class LocalDatabaseTests : IDisposable
         Assert.DoesNotContain(remaining, l => l.Message == "Expired Log");
         Assert.Contains(remaining, l => l.Message == "Valid Log");
     }
+    [Fact]
+    public void DefaultConstructor_WhenTransientIOExceptionIsResolvedQuickly_RecoversFast()
+    {
+        string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
+        Directory.CreateDirectory(myFolder);
+        string dbPath = Path.Combine(myFolder, "noderadar.db");
+
+        using var readyEvt = new ManualResetEventSlim(false);
+        using var releaseEvt = new ManualResetEventSlim(false);
+
+        var lockTask = Task.Run(() =>
+        {
+            using var fs = new FileStream(dbPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            readyEvt.Set();
+            releaseEvt.Wait(3000);
+        });
+
+        readyEvt.Wait(1000);
+
+        // Schedule lock release after 20ms
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(20);
+            releaseEvt.Set();
+        });
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        using var db = new LocalDatabase();
+        sw.Stop();
+
+        lockTask.Wait(1000);
+
+        Assert.NotNull(db);
+        Assert.True(sw.ElapsedMilliseconds < 450, $"Expected recovery in < 450ms, took {sw.ElapsedMilliseconds} ms");
+    }
 }
