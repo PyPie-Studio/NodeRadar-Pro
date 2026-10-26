@@ -127,4 +127,18 @@ public class TracerouteEngineTests
         // Should not have discovered any hops since it was cancelled before loop execution
         Assert.Empty(hops);
     }
+
+    [Fact]
+    public async Task RunTracerouteAsync_ExceptionThrown_TracerouteCompletedFiresFalse()
+    {
+        var engine = new TracerouteEngine();
+        bool? completed = null;
+        engine.TracerouteCompleted += c => completed = c;
+
+        // An invalid hostname triggers a DNS lookup exception in Dns.GetHostEntryAsync,
+        // which hits the catch block in RunTracerouteAsync.
+        await engine.RunTracerouteAsync("invalid..hostname..test", maxHops: 1, timeoutMs: 1000);
+
+        Assert.False(completed);
+    }
 }
