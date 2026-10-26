@@ -753,4 +753,109 @@ public class LocalDatabaseTests : IDisposable
         Assert.DoesNotContain(remaining, l => l.Message == "Expired Log");
         Assert.Contains(remaining, l => l.Message == "Valid Log");
     }
+
+    [Fact]
+    public void MergeWithHistoryBulk_EmptyOrInvalidNodes_ReturnsEmptyAndDoesNotModifyDb()
+    {
+        var resultEmpty = _db.MergeWithHistoryBulk(new List<NetworkNode>());
+        Assert.Empty(resultEmpty);
+
+        var invalidNodes = new List<NetworkNode?>
+        {
+            null,
+            new NetworkNode { MacAddress = "Unknown", IpAddress = "192.168.1.1" }
+        };
+
+        var resultInvalid = _db.MergeWithHistoryBulk(invalidNodes!);
+        Assert.Empty(resultInvalid);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Empty(devices);
+    }
+
+    [Fact]
+    public void MergeWithHistoryBulk_NewValidNodes_InsertsNodesAndReturnsNewList()
+    {
+        var node1 = new NetworkNode { MacAddress = "AA:BB:CC:11:22:33", IpAddress = "192.168.1.10" };
+        var node2 = new NetworkNode { MacAddress = "AA:BB:CC:11:22:44", IpAddress = "192.168.1.11" };
+
+        var newNodes = _db.MergeWithHistoryBulk(new[] { node1, node2 });
+
+        Assert.Equal(2, newNodes.Count);
+        Assert.Contains(node1, newNodes);
+        Assert.Contains(node2, newNodes);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Equal(2, devices.Count);
+        Assert.Contains(devices, d => d.MacAddress == "AA:BB:CC:11:22:33");
+        Assert.Contains(devices, d => d.MacAddress == "AA:BB:CC:11:22:44");
+    }
+
+    [Fact]
+    public void MergeWithHistoryBulk_ExistingNodes_UpdatesFieldsAndReturnsEmptyList()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:66",
+            IpAddress = "10.0.0.1",
+            CustomName = "User Named Server",
+            Notes = "Rack 1",
+            Vendor = "Old Vendor"
+        };
+        _db.MergeWithHistory(initialNode);
+
+        var scannedUpdated = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:66",
+            IpAddress = "10.0.0.100",
+            Hostname = "server-01",
+            Vendor = "New Vendor"
+        };
+
+        var newNodes = _db.MergeWithHistoryBulk(new[] { scannedUpdated });
+
+        Assert.Empty(newNodes);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Single(devices);
+        Assert.Equal("10.0.0.100", devices[0].IpAddress);
+        Assert.Equal("User Named Server", devices[0].CustomName);
+        Assert.Equal("Rack 1", devices[0].Notes);
+        Assert.Equal("server-01", devices[0].Hostname);
+        Assert.Equal("New Vendor", devices[0].Vendor);
+    }
+
+    [Fact]
+    public void MergeWithHistoryBulk_MixedNodes_HandlesNewExistingAndInvalidCorrectly()
+    {
+        var existingNode = new NetworkNode { MacAddress = "AA:11:22:33:44:55", IpAddress = "192.168.1.5", CustomName = "Existing Device" };
+        _db.MergeWithHistory(existingNode);
+
+        var batch = new List<NetworkNode?>
+        {
+            null,
+            new NetworkNode { MacAddress = "Unknown", IpAddress = "192.168.1.99" },
+            new NetworkNode { MacAddress = "AA:11:22:33:44:55", IpAddress = "192.168.1.50", Hostname = "updated-host" },
+            new NetworkNode { MacAddress = "BB:22:33:44:55:66", IpAddress = "192.168.1.60", Hostname = "brand-new-host" }
+        };
+
+        var newNodes = _db.MergeWithHistoryBulk(batch!);
+
+        Assert.Single(newNodes);
+        Assert.Equal("BB:22:33:44:55:66", newNodes[0].MacAddress);
+
+        var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
+        Assert.Equal(2, devices.Count);
+
+        var updatedInDb = devices.FirstOrDefault(d => d.MacAddress == "AA:11:22:33:44:55");
+        Assert.NotNull(updatedInDb);
+        Assert.Equal("192.168.1.50", updatedInDb.IpAddress);
+        Assert.Equal("Existing Device", updatedInDb.CustomName);
+        Assert.Equal("updated-host", updatedInDb.Hostname);
+
+        var insertedInDb = devices.FirstOrDefault(d => d.MacAddress == "BB:22:33:44:55:66");
+        Assert.NotNull(insertedInDb);
+        Assert.Equal("192.168.1.60", insertedInDb.IpAddress);
+        Assert.Equal("brand-new-host", insertedInDb.Hostname);
+    }
 }
