@@ -448,36 +448,28 @@ public class SubnetScanner
         bool isReachable = false;
         long latency = -1;
         string mac = UnknownMac;
-        int pingTimeout = Math.Min(TimeoutMs, 2000);
+        int pingTimeout = FastScanMode ? 150 : Math.Min(TimeoutMs, 400);
 
-        try
+        // Microsecond path: Check pre-cached OS ARP table first
+        if (_arpResolver.TryGetMacFromArpTable(ip, out var cachedMac) && !string.IsNullOrEmpty(cachedMac) && cachedMac != UnknownMac)
         {
-            var reply = await _pingProvider.SendPingAsync(ip, pingTimeout);
-            if (reply.Status == IPStatus.Success)
-            {
-                isReachable = true;
-                latency = reply.RoundtripTime;
-            }
+            mac = cachedMac;
+            isReachable = true;
         }
-        catch { }
 
-        try
+        if (!isReachable)
         {
-            mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
-            if (string.IsNullOrEmpty(mac)) mac = UnknownMac;
-
-            // Fallback: If direct SendARP failed, check the full system ARP table
-            if (mac == UnknownMac)
+            try
             {
-                if (_arpResolver.TryGetMacFromArpTable(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
+                var reply = await _pingProvider.SendPingAsync(ip, pingTimeout);
+                if (reply.Status == IPStatus.Success)
                 {
-                    mac = foundMac;
+                    isReachable = true;
+                    latency = reply.RoundtripTime;
                 }
             }
-
-            if (!string.IsNullOrEmpty(mac) && mac != UnknownMac) isReachable = true;
+            catch { }
         }
-        catch { }
 
         // Broaden port sweep for "stealth" Windows devices that block ICMP and fail SendARP over VPNs
         if (!isReachable && !token.IsCancellationRequested)
@@ -505,16 +497,27 @@ public class SubnetScanner
             if (probeResults.Any(r => r))
             {
                 isReachable = true;
+            }
+        }
+
+        // Only perform Win32 SendARP if host proved reachable (via ping or stealth probe) but MAC is still unknown
+        if (isReachable && mac == UnknownMac)
+        {
+            try
+            {
+                mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
+                if (string.IsNullOrEmpty(mac)) mac = UnknownMac;
+
+                // Fallback: If direct SendARP failed, check the full system ARP table
                 if (mac == UnknownMac)
                 {
-                    mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
-                    if (string.IsNullOrEmpty(mac)) mac = UnknownMac;
-                    if (mac == UnknownMac && _arpResolver.TryGetMacFromArpTable(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
+                    if (_arpResolver.TryGetMacFromArpTable(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
                     {
                         mac = foundMac;
                     }
                 }
             }
+            catch { }
         }
 
         if (!isReachable) return null;
@@ -571,22 +574,6 @@ public class SubnetScanner
                 node.Hostname = await TryGetHostnameAsync(node.IpAddress);
             else
                 node.Hostname = UnknownDevice;
-
-            // NetBIOS fallback
-            if (node.Hostname == UnknownDevice && EnableDnsResolve && !token.IsCancellationRequested)
-            {
-                try
-                {
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                    cts.CancelAfter(3000);
-
-                    string netbios = await _arpResolver.TryResolveNetBiosNameAsync(node.IpAddress, cts.Token);
-                    if (!string.IsNullOrEmpty(netbios))
-                        node.Hostname = netbios;
-                }
-                catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"NetBIOS resolution timed out for {node.IpAddress}"); }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"NetBIOS resolution failed for {node.IpAddress}: {ex.Message}"); }
-            }
 
             // Inline port scanning (if enabled)
             // OS detection and FastScan mode implicitly require port scanning to function properly

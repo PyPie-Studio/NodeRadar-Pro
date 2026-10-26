@@ -313,4 +313,100 @@ public class SubnetScannerTests
         var resultOffline = await SubnetScanner.QuickProbeAsync("192.168.1.4", pingProvider: mockPingFail.Object, arpResolver: mockArpFail.Object, tcpPortProber: mockTcpFail.Object);
         Assert.False(resultOffline.IsOnline);
     }
+
+    [Fact]
+    public async Task ScanRangeAsync_WhenHostInArpTable_ShortCircuitsPingAndSendArp()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 5 });
+
+        var mockArp = new Mock<IArpResolver>();
+        string outMac = "00:AA:BB:CC:DD:EE";
+        mockArp.Setup(a => a.TryGetMacFromArpTable("192.168.1.10", out outMac))
+            .Returns(true);
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>());
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object)
+        {
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        var results = await scanner.ScanRangeAsync("192.168.1", 10, 10, CancellationToken.None);
+
+        Assert.Single(results);
+        Assert.Equal("192.168.1.10", results[0].IpAddress);
+        Assert.Equal("00:AA:BB:CC:DD:EE", results[0].MacAddress);
+        mockPing.Verify(p => p.SendPingAsync("192.168.1.10", It.IsAny<int>()), Times.Never);
+        mockArp.Verify(a => a.ResolveMacAddress("192.168.1.10", It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ScanRangeAsync_WhenPingAndStealthProbesFail_NeverCallsSendArp()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut });
+
+        var mockArp = new Mock<IArpResolver>();
+        string outMac = "";
+        mockArp.Setup(a => a.TryGetMacFromArpTable(It.IsAny<string>(), out outMac))
+            .Returns(false);
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>());
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        var results = await scanner.ScanRangeAsync("192.168.1", 99, 99, CancellationToken.None);
+
+        Assert.Empty(results);
+        mockArp.Verify(a => a.ResolveMacAddress("192.168.1.99", It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ScanRangeAsync_WhenPingFails_StealthProbeSucceeds_ResolvesMacAddressViaSendArp()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut });
+
+        var mockArp = new Mock<IArpResolver>();
+        string outMac = "";
+        mockArp.Setup(a => a.TryGetMacFromArpTable(It.IsAny<string>(), out outMac))
+            .Returns(false);
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.55", It.IsAny<string>()))
+            .Returns("11:22:33:44:55:66");
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>());
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync("192.168.1.55", 445, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false
+        };
+
+        var results = await scanner.ScanRangeAsync("192.168.1", 55, 55, CancellationToken.None);
+
+        Assert.Single(results);
+        Assert.Equal("192.168.1.55", results[0].IpAddress);
+        Assert.Equal("11:22:33:44:55:66", results[0].MacAddress);
+        mockArp.Verify(a => a.ResolveMacAddress("192.168.1.55", It.IsAny<string>()), Times.Once);
+    }
 }

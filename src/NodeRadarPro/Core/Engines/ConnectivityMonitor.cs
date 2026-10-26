@@ -134,6 +134,8 @@ public class ConnectivityMonitor
 
     private async Task CheckAllDevicesAsync(CancellationToken token)
     {
+        if (token.IsCancellationRequested) return;
+
         var devices = _trackedDevices.Values.ToList();
         if (devices.Count == 0) return;
 
@@ -143,10 +145,39 @@ public class ConnectivityMonitor
         var arpTableDict = await Task.Run(() => _arpResolver.GetFullArpTableAsDictionary())
                            ?? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>();
 
-        var tasks = devices.Select(device =>
-            CheckDeviceAsync(device, arpTableDict, uptimeSnapshots, alertsToInsert, token));
+        using var throttle = new SemaphoreSlim(32);
+        var tasks = devices.Select(async device =>
+        {
+            try
+            {
+                await throttle.WaitAsync(token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            try
+            {
+                await CheckDeviceAsync(device, arpTableDict, uptimeSnapshots, alertsToInsert, token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Graceful cancellation per device
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Warning, "ConnectivityMonitor", $"Device connectivity check failed for {device.IpAddress}: {ex.Message}");
+            }
+            finally
+            {
+                throttle.Release();
+            }
+        });
 
         await Task.WhenAll(tasks);
+
+        if (token.IsCancellationRequested) return;
 
         PersistAlertsAndSnapshots(alertsToInsert, uptimeSnapshots);
         StatusUpdated?.Invoke(_trackedDevices.Values.ToList());

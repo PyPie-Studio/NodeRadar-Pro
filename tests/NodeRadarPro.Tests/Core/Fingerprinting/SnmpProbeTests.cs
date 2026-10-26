@@ -142,4 +142,55 @@ public class SnmpProbeTests
         Assert.Equal("SNMP (sysDescr)", result.Source);
         Assert.Empty(result.RawData);
     }
+
+    [Fact]
+    public async Task ProbeAsync_WhenPort161NotOpen_SkipsUdpProbe()
+    {
+        var probe = new SnmpProbe();
+        var node = new NetworkNode
+        {
+            IpAddress = "192.168.1.1",
+            OpenPorts = new List<int> { 80, 443 }
+        };
+
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.Equal("SNMP (sysDescr)", result.Source);
+        Assert.Empty(result.RawData);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_WhenNodeUnscanned_DoesNotSkipEarly()
+    {
+        var probe = new SnmpProbe();
+        var node = new NetworkNode
+        {
+            IpAddress = "127.0.0.1",
+            OpenPorts = new List<int>()
+        };
+        using var cts = new CancellationTokenSource(50);
+
+        var result = await probe.ProbeAsync(node, cts.Token);
+
+        Assert.NotNull(result);
+        Assert.Equal("SNMP (sysDescr)", result.Source);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_WhenPort161Open_DoesNotSkipEarly()
+    {
+        var probe = new SnmpProbe();
+        var node = new NetworkNode
+        {
+            IpAddress = "127.0.0.1",
+            OpenPorts = new List<int> { 161 }
+        };
+        using var cts = new CancellationTokenSource(50);
+
+        var result = await probe.ProbeAsync(node, cts.Token);
+
+        Assert.NotNull(result);
+        Assert.Equal("SNMP (sysDescr)", result.Source);
+    }
 }

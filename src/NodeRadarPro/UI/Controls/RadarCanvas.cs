@@ -199,6 +199,24 @@ public class RadarCanvas : Control
         return new Size(Math.Max(100, w), Math.Max(100, h));
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (IsVisible && !_radarTimer.IsEnabled)
+        {
+            _radarTimer.Start();
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (_radarTimer.IsEnabled)
+        {
+            _radarTimer.Stop();
+        }
+    }
+
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);

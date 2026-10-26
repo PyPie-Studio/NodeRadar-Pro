@@ -4,6 +4,7 @@ using Moq;
 
 namespace NodeRadarPro.Tests
 {
+    [Collection("LoggerStaticState")]
     public class IntrusionAlerterTests
     {
         [Fact]

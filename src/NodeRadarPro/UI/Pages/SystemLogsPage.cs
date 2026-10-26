@@ -34,6 +34,7 @@ public class SystemLogsPage : Border
     private readonly Button _clearLogsBtn;
     private DispatcherTimer? _purgeOldTimer;
     private DispatcherTimer? _clearLogsTimer;
+    private readonly DispatcherTimer _searchDebounceTimer;
 
     public SystemLogsPage(LocalDatabase db)
     {
@@ -119,6 +120,13 @@ public class SystemLogsPage : Border
         searchIcon.Margin = new Thickness(12, 0, 8, 0);
         _searchBox = ThemeTokens.Input("Search logs..."); _searchBox.Width = 200; _searchBox.FontSize = 14; _searchBox.Padding = new Thickness(10, 6); _searchBox.Background = Brushes.Transparent;
 
+        _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _searchDebounceTimer.Tick += (s, e) =>
+        {
+            _searchDebounceTimer.Stop();
+            RefreshLogs();
+        };
+
         var clearSearchBtn = new Button
         {
             Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 10, ThemeTokens.OnSurfaceVariant),
@@ -128,11 +136,19 @@ public class SystemLogsPage : Border
             IsVisible = false,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
         };
-        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; RefreshLogs(); };
+        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; };
         _searchBox.TextChanged += (s, e) =>
         {
             clearSearchBtn.IsVisible = !string.IsNullOrEmpty(_searchBox.Text);
-            RefreshLogs();
+            _searchDebounceTimer.Stop();
+            if (string.IsNullOrEmpty(_searchBox.Text))
+            {
+                RefreshLogs();
+            }
+            else
+            {
+                _searchDebounceTimer.Start();
+            }
         };
         ThemeTokens.SetToolTip(_searchBox, "Live search through message content, log sources, or device MAC addresses.");
         var searchWrap = new Border { Background = ThemeTokens.SurfaceContainerLowest, CornerRadius = new CornerRadius(8), Padding = new Thickness(10, 0), Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { searchIcon, _searchBox, clearSearchBtn } } };
@@ -170,19 +186,18 @@ public class SystemLogsPage : Border
 
         Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
 
-        RefreshLogs();
+        UpdateLevelChips();
     }
 
     public void RefreshLogs()
     {
+        _searchDebounceTimer.Stop();
         _logBody.Children.Clear();
 
-        // Rebuild filter chips with current active state
-        _filterRow.Children.Clear();
-        _filterRow.Children.Add(MakeLevelChip("All", null));
-        _filterRow.Children.Add(MakeLevelChip("Info", LogLevel.Info));
-        _filterRow.Children.Add(MakeLevelChip("Warning", LogLevel.Warning));
-        _filterRow.Children.Add(MakeLevelChip("Error", LogLevel.Error));
+        if (_filterRow.Children.Count == 0)
+        {
+            UpdateLevelChips();
+        }
 
         string search = _searchBox?.Text?.Trim().ToLower() ?? "";
 
@@ -229,10 +244,18 @@ public class SystemLogsPage : Border
 
     public void ClearAllFilters()
     {
+        _searchDebounceTimer.Stop();
         _levelFilter = null;
         _deviceFilter = null;
-        if (_searchBox != null) _searchBox.Text = "";
-        RefreshLogs();
+        UpdateLevelChips();
+        if (_searchBox != null && !string.IsNullOrEmpty(_searchBox.Text))
+        {
+            _searchBox.Text = "";
+        }
+        else
+        {
+            RefreshLogs();
+        }
     }
 
     private Border BuildLogRow(LogEntry log)
@@ -380,11 +403,20 @@ public class SystemLogsPage : Border
         _clearLogsBtn.Click += OnClearLogsClicked;
     }
 
+    private void UpdateLevelChips()
+    {
+        _filterRow.Children.Clear();
+        _filterRow.Children.Add(MakeLevelChip("All", null));
+        _filterRow.Children.Add(MakeLevelChip("Info", LogLevel.Info));
+        _filterRow.Children.Add(MakeLevelChip("Warning", LogLevel.Warning));
+        _filterRow.Children.Add(MakeLevelChip("Error", LogLevel.Error));
+    }
+
     private Border MakeLevelChip(string text, LogLevel? level)
     {
         bool active = _levelFilter == level;
         var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
-        chip.PointerPressed += (s, e) => { _levelFilter = level; RefreshLogs(); };
+        chip.PointerPressed += (s, e) => { _levelFilter = level; UpdateLevelChips(); RefreshLogs(); };
         return chip;
     }
 

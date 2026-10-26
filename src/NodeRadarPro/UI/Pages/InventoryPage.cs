@@ -38,6 +38,7 @@ public class InventoryPage : Border
     private string? _selectedMac;
     private string _activeFilter = "all";
     private readonly WrapPanel _chipPanel;
+    private readonly DispatcherTimer _searchDebounceTimer;
 
     private readonly Border _detailArea;
     private readonly Border _emptyDetail;
@@ -97,6 +98,7 @@ public class InventoryPage : Border
     internal void SetActiveFilter(string filter)
     {
         _activeFilter = filter;
+        UpdateFilterChips();
         RefreshDeviceList();
     }
 
@@ -138,6 +140,13 @@ public class InventoryPage : Border
         searchIcon.Margin = new Thickness(0, 0, 8, 0);
         _searchBox = ThemeTokens.Input("Search devices, IPs, or tags...");
         _searchBox.Background = Brushes.Transparent;
+        _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        _searchDebounceTimer.Tick += (s, e) =>
+        {
+            _searchDebounceTimer.Stop();
+            RefreshDeviceList();
+        };
+
         var clearSearchBtn = new Button
         {
             Content = ThemeTokens.VectorIcon(ThemeTokens.SvgClose, 10, ThemeTokens.OnSurfaceVariant),
@@ -147,18 +156,25 @@ public class InventoryPage : Border
             IsVisible = false,
             Cursor = ThemeTokens.HandCursor
         };
-        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; RefreshDeviceList(); };
+        clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; };
         _searchBox.TextChanged += (s, e) =>
         {
             clearSearchBtn.IsVisible = !string.IsNullOrEmpty(_searchBox.Text);
-            RefreshDeviceList();
+            _searchDebounceTimer.Stop();
+            if (string.IsNullOrEmpty(_searchBox.Text))
+            {
+                RefreshDeviceList();
+            }
+            else
+            {
+                _searchDebounceTimer.Start();
+            }
         };
         _searchBox.KeyDown += (s, e) =>
         {
             if (e.Key == Key.Escape)
             {
                 _searchBox.Text = "";
-                RefreshDeviceList();
             }
         };
         ThemeTokens.SetToolTip(_searchBox, "Filter the device list by IP, MAC, Vendor, or Custom Name.");
@@ -176,12 +192,13 @@ public class InventoryPage : Border
             }
         };
 
-        // Filter chips — built as field, rebuilt in RefreshDeviceList (B2)
+        // Filter chips — populated once, updated on filter change
         _chipPanel = new WrapPanel
         {
             Orientation = Orientation.Horizontal,
             Margin = new Thickness(12, 0, 12, 6)
         };
+        UpdateFilterChips();
 
         // Device list header
         _deviceCountText = ThemeTokens.Body("(0)", 14);
@@ -968,16 +985,13 @@ public class InventoryPage : Border
 
     private void RefreshDeviceList()
     {
+        _searchDebounceTimer.Stop();
         _deviceListContainer.Children.Clear();
 
-        // Rebuild filter chips with current active state (B2 fix)
-        _chipPanel.Children.Clear();
-        _chipPanel.Children.Add(MakeFilterChip("All", "all", _activeFilter == "all"));
-        _chipPanel.Children.Add(MakeFilterChip("Online", "online", _activeFilter == "online"));
-        _chipPanel.Children.Add(MakeFilterChip("Offline", "offline", _activeFilter == "offline"));
-        _chipPanel.Children.Add(MakeFilterChip("Critical", "critical", _activeFilter == "critical"));
-        _chipPanel.Children.Add(MakeFilterChip("Servers", "servers", _activeFilter == "servers"));
-        _chipPanel.Children.Add(MakeFilterChip("IoT", "iot", _activeFilter == "iot"));
+        if (_chipPanel.Children.Count == 0)
+        {
+            UpdateFilterChips();
+        }
 
         string search = _searchBox.Text?.Trim().ToLower() ?? "";
 
@@ -1389,6 +1403,17 @@ public class InventoryPage : Border
     // UI FACTORY HELPERS
     // ══════════════════════════════════
 
+    private void UpdateFilterChips()
+    {
+        _chipPanel.Children.Clear();
+        _chipPanel.Children.Add(MakeFilterChip("All", "all", _activeFilter == "all"));
+        _chipPanel.Children.Add(MakeFilterChip("Online", "online", _activeFilter == "online"));
+        _chipPanel.Children.Add(MakeFilterChip("Offline", "offline", _activeFilter == "offline"));
+        _chipPanel.Children.Add(MakeFilterChip("Critical", "critical", _activeFilter == "critical"));
+        _chipPanel.Children.Add(MakeFilterChip("Servers", "servers", _activeFilter == "servers"));
+        _chipPanel.Children.Add(MakeFilterChip("IoT", "iot", _activeFilter == "iot"));
+    }
+
     private Border MakeFilterChip(string text, string filterKey, bool active)
     {
         var chip = new Border
@@ -1402,7 +1427,7 @@ public class InventoryPage : Border
             Cursor = ThemeTokens.HandCursor,
             Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
-        chip.PointerPressed += (s, e) => { _activeFilter = filterKey; RefreshDeviceList(); };
+        chip.PointerPressed += (s, e) => { _activeFilter = filterKey; UpdateFilterChips(); RefreshDeviceList(); };
         return chip;
     }
 

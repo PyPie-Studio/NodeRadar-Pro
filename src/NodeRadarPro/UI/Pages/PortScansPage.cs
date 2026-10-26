@@ -217,27 +217,22 @@ public class PortScansPage : Border
         int scanned = 0;
         int found = 0;
 
-        var throttle = new SemaphoreSlim(64);
-
         try
         {
             var openPorts = new ConcurrentBag<int>();
             var token = _cts.Token;
-            var tasks = portsToScan.Select(async port =>
+            var parallelOptions = new ParallelOptions
             {
-                if (token.IsCancellationRequested) return;
-                try
-                {
-                    await throttle.WaitAsync(token);
-                }
-                catch (OperationCanceledException) { return; }
-                catch (ObjectDisposedException) { return; }
+                MaxDegreeOfParallelism = 64,
+                CancellationToken = token
+            };
 
+            await Parallel.ForEachAsync(portsToScan, parallelOptions, async (port, ct) =>
+            {
                 try
                 {
-                    if (token.IsCancellationRequested) return;
                     using var tcp = new System.Net.Sockets.TcpClient();
-                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                    using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     cts.CancelAfter(500);
 
                     await tcp.ConnectAsync(ip, port, cts.Token);
@@ -254,10 +249,6 @@ public class PortScansPage : Border
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception) { }
-                finally
-                {
-                    try { throttle.Release(); } catch (ObjectDisposedException) { }
-                }
 
                 int c = Interlocked.Increment(ref scanned);
                 if (c % 50 == 0 || c == totalPorts)
@@ -272,7 +263,6 @@ public class PortScansPage : Border
                     });
                 }
             });
-            await Task.WhenAll(tasks);
 
             if (!_cts.IsCancellationRequested)
             {
@@ -287,7 +277,6 @@ public class PortScansPage : Border
             _isScanning = false;
             _progressBar.Value = _cts?.IsCancellationRequested == true ? 0 : 100;
             _progressPct.Text = _cts?.IsCancellationRequested == true ? "0%" : "100%";
-            throttle.Dispose();
         }
     }
 

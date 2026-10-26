@@ -10,6 +10,7 @@ namespace NodeRadarPro.Data;
 public static class VendorLookup
 {
     private static readonly Dictionary<string, string> _vendors = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, string>.AlternateLookup<ReadOnlySpan<char>> _alternateLookup = _vendors.GetAlternateLookup<ReadOnlySpan<char>>();
 
     static VendorLookup()
     {
@@ -3836,14 +3837,24 @@ public static class VendorLookup
 
     private static void Add(string key, string value) => _vendors[key] = value;
 
-    public static string GetVendor(string macAddress)
+    public static string GetVendor(string? macAddress) =>
+        GetVendor(macAddress.AsSpan());
+
+    public static string GetVendor(ReadOnlySpan<char> macAddress)
     {
-        if (string.IsNullOrEmpty(macAddress) || macAddress.Length < 8)
+        if (macAddress.Length < 8)
             return "Unknown Vendor";
 
-        string prefix = macAddress[..8].Replace('-', ':').ToUpperInvariant();
+        Span<char> span = stackalloc char[8];
+        for (int i = 0; i < 8; i++)
+        {
+            char c = macAddress[i];
+            if (c == '-') c = ':';
+            else if (c >= 'a' && c <= 'z') c = (char)(c - 32);
+            span[i] = c;
+        }
 
-        if (_vendors.TryGetValue(prefix, out string? vendor))
+        if (_alternateLookup.TryGetValue(span, out string? vendor))
             return vendor;
 
         // Check for MAC Randomization (Locally Administered Bit is set)

@@ -28,9 +28,18 @@ public class VendorLookupTests
     [Fact]
     public void GetVendor_NullOrEmptyMacAddress_ReturnsUnknownVendor()
     {
-        Assert.Equal("Unknown Vendor", VendorLookup.GetVendor(null!));
+        Assert.Equal("Unknown Vendor", VendorLookup.GetVendor(null));
         Assert.Equal("Unknown Vendor", VendorLookup.GetVendor(""));
         Assert.Equal("Unknown Vendor", VendorLookup.GetVendor("  "));
+    }
+
+    [Fact]
+    public void GetVendor_LowercaseAndHyphens_ReturnsCorrectVendor()
+    {
+        Assert.Equal("Apple", VendorLookup.GetVendor("00:03:93:11:22:33".ToLowerInvariant()));
+        Assert.Equal("Apple", VendorLookup.GetVendor("00-03-93-11-22-33".ToLowerInvariant()));
+        Assert.Equal("Google", VendorLookup.GetVendor("a4:77:33:44:55:66"));
+        Assert.Equal("Google", VendorLookup.GetVendor("a4-77-33-44-55-66".AsSpan()));
     }
 
     [Fact]

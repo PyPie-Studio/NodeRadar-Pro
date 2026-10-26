@@ -20,6 +20,10 @@ public class SnmpProbe : IFingerprintProbe
     {
         var result = new ProbeResult { Source = Name };
 
+        // Skip SNMP probe if port scan was performed and proved UDP/TCP 161/162 is not open
+        if (node.OpenPorts != null && node.OpenPorts.Count > 0 && !node.OpenPorts.Contains(161) && !node.OpenPorts.Contains(162))
+            return result;
+
         string[] communities = { "public", "private" };
 
         foreach (var community in communities)
@@ -30,7 +34,7 @@ public class SnmpProbe : IFingerprintProbe
             {
                 using var udp = new UdpClient();
                 using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                timeoutCts.CancelAfter(2000);
+                timeoutCts.CancelAfter(400);
 
                 var target = new IPEndPoint(IPAddress.Parse(node.IpAddress), 161);
                 byte[] packet = BuildSnmpSysDescrRequest(community);

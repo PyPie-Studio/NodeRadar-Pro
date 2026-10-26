@@ -115,18 +115,17 @@ public class AlertsPage : Border
 
         Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
 
-        RefreshAlerts();
+        UpdateFilterChips();
     }
 
     public void RefreshAlerts()
     {
         _alertListBody.Children.Clear();
 
-        // Rebuild filter chips with current active state (B3 fix)
-        _filterRow.Children.Clear();
-        _filterRow.Children.Add(MakeFilterChip("Active", FilterModeActive, _filterMode == FilterModeActive));
-        _filterRow.Children.Add(MakeFilterChip("Resolved", "resolved", _filterMode == "resolved"));
-        _filterRow.Children.Add(MakeFilterChip("All", "all", _filterMode == "all"));
+        if (_filterRow.Children.Count == 0)
+        {
+            UpdateFilterChips();
+        }
 
         var allAlerts = _db.GetAlerts(500);
 
@@ -347,10 +346,18 @@ public class AlertsPage : Border
         _clearAllBtn.Click += OnClearAllAlertsClicked;
     }
 
+    private void UpdateFilterChips()
+    {
+        _filterRow.Children.Clear();
+        _filterRow.Children.Add(MakeFilterChip("Active", FilterModeActive, _filterMode == FilterModeActive));
+        _filterRow.Children.Add(MakeFilterChip("Resolved", "resolved", _filterMode == "resolved"));
+        _filterRow.Children.Add(MakeFilterChip("All", "all", _filterMode == "all"));
+    }
+
     private Border MakeFilterChip(string text, string key, bool active)
     {
         var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
-        chip.PointerPressed += (s, e) => { _filterMode = key; RefreshAlerts(); };
+        chip.PointerPressed += (s, e) => { _filterMode = key; UpdateFilterChips(); RefreshAlerts(); };
         return chip;
     }
 
