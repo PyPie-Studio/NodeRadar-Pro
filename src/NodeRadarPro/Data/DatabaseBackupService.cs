@@ -51,6 +51,7 @@ public class DatabaseBackupService
                 if (!string.IsNullOrEmpty(backupDir) && !Directory.Exists(backupDir))
                     Directory.CreateDirectory(backupDir);
 
+                _database.Checkpoint();
                 File.Copy(sourcePath, destPath, true);
                 _database.Log(LogLevel.Info, LogSource, $"Database backed up to: {destPath}");
 
@@ -106,7 +107,7 @@ public class DatabaseBackupService
                 // 5. Re-initialize connection to restored database with isolated rollback guard
                 try
                 {
-                    var connectionString = new ConnectionString { Filename = dbPath, Password = _database.DbPassword, Connection = ConnectionType.Shared };
+                    var connectionString = new ConnectionString { Filename = dbPath, Password = _database.DbPassword, Connection = ConnectionType.Direct };
                     var newDb = new LiteDatabase(connectionString);
                     _database.ReplaceConnection(newDb);
                 }
@@ -186,19 +187,42 @@ public class DatabaseBackupService
 
     public static void RotateCorruptDatabase(string dbPath)
     {
-        if (File.Exists(dbPath))
+        try
         {
-            try
+            string? dir = Path.GetDirectoryName(dbPath);
+            string folder = string.IsNullOrEmpty(dir) ? Environment.CurrentDirectory : dir;
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+
+            if (File.Exists(dbPath))
             {
-                string? dir = Path.GetDirectoryName(dbPath);
-                string folder = string.IsNullOrEmpty(dir) ? Environment.CurrentDirectory : dir;
-                string corruptPath = Path.Combine(folder, $"noderadar.db.corrupt_{DateTime.Now:yyyyMMdd_HHmmss}");
-                File.Move(dbPath, corruptPath, true);
+                try
+                {
+                    string corruptPath = Path.Combine(folder, $"noderadar.db.corrupt_{timestamp}");
+                    File.Move(dbPath, corruptPath, true);
+                }
+                catch
+                {
+                    // Best-effort rotation for database file
+                }
             }
-            catch
+
+            string logPath = Path.Combine(folder, Path.GetFileNameWithoutExtension(dbPath) + "-log.db");
+            if (File.Exists(logPath))
             {
-                // Best-effort rotation
+                try
+                {
+                    string corruptLogPath = Path.Combine(folder, $"noderadar-log.db.corrupt_{timestamp}");
+                    File.Move(logPath, corruptLogPath, true);
+                }
+                catch
+                {
+                    // Best-effort rotation for log file
+                }
             }
+        }
+        catch
+        {
+            // Best-effort rotation
         }
     }
 

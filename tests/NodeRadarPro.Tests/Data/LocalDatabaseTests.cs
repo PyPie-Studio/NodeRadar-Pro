@@ -1001,4 +1001,291 @@ public class LocalDatabaseTests : IDisposable
             catch { /* Ignore cleanup */ }
         }
     }
+
+    [Fact]
+    public void MergeExistingNode_PreservesScannedThreatLevelAndVulnerabilityScore()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            IpAddress = "192.168.1.50",
+            ThreatLevel = ThreatLevel.Safe,
+            VulnerabilityScore = 0
+        };
+        _db.MergeWithHistory(initialNode);
+
+        // Freshly scanned node with Critical risk
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            IpAddress = "192.168.1.50",
+            ThreatLevel = ThreatLevel.Critical,
+            VulnerabilityScore = 85
+        };
+        var (mergedNode, isNew) = _db.MergeWithHistory(scannedNode);
+
+        Assert.False(isNew);
+        Assert.Equal(ThreatLevel.Critical, mergedNode.ThreatLevel);
+        Assert.Equal(85, mergedNode.VulnerabilityScore);
+
+        var dbNode = _liteDb.GetCollection<NetworkNode>("devices").FindOne(x => x.MacAddress == "00:11:22:33:44:55");
+        Assert.NotNull(dbNode);
+        Assert.Equal(ThreatLevel.Critical, dbNode.ThreatLevel);
+        Assert.Equal(85, dbNode.VulnerabilityScore);
+
+        // Unevaluated scan preserves prior Critical risk
+        var pingOnlyScan = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:55",
+            IpAddress = "192.168.1.50",
+            ThreatLevel = ThreatLevel.Safe,
+            VulnerabilityScore = 0
+        };
+        var (pingMerged, _) = _db.MergeWithHistory(pingOnlyScan);
+        Assert.Equal(ThreatLevel.Critical, pingMerged.ThreatLevel);
+        Assert.Equal(85, pingMerged.VulnerabilityScore);
+    }
+
+    [Fact]
+    public void MergeExistingNode_UnionsOpenPorts()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:11",
+            IpAddress = "192.168.1.60",
+            OpenPorts = new List<int> { 80, 443 }
+        };
+        _db.MergeWithHistory(initialNode);
+
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:11",
+            IpAddress = "192.168.1.60",
+            OpenPorts = new List<int> { 22, 80 }
+        };
+        var (mergedNode, _) = _db.MergeWithHistory(scannedNode);
+
+        Assert.Equal(3, mergedNode.OpenPorts.Count);
+        Assert.Contains(22, mergedNode.OpenPorts);
+        Assert.Contains(80, mergedNode.OpenPorts);
+        Assert.Contains(443, mergedNode.OpenPorts);
+
+        var dbNode = _liteDb.GetCollection<NetworkNode>("devices").FindOne(x => x.MacAddress == "AA:BB:CC:DD:EE:11");
+        Assert.NotNull(dbNode);
+        Assert.Equal(3, dbNode.OpenPorts.Count);
+    }
+
+    [Fact]
+    public void MergeExistingNode_SetsIdAndLastSeenOnScannedNode()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:22",
+            IpAddress = "192.168.1.70"
+        };
+        _db.MergeWithHistory(initialNode);
+        var originalId = initialNode.Id;
+
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:22",
+            IpAddress = "192.168.1.70",
+            IsOnline = false
+        };
+        var (mergedNode, isNew) = _db.MergeWithHistory(scannedNode);
+
+        Assert.False(isNew);
+        Assert.Equal(originalId, mergedNode.Id);
+        Assert.True(mergedNode.IsOnline);
+        Assert.True(mergedNode.LastSeen >= initialNode.FirstSeen);
+    }
+
+    [Fact]
+    public void ResolveAlert_PerformsCheckpoint()
+    {
+        var alert = new AlertEvent
+        {
+            MacAddress = "AA:BB:CC:DD:EE:33",
+            DeviceName = "Test Device",
+            AlertType = AlertType.ConnectionLost,
+            Message = "Connection lost",
+            IsResolved = false,
+            Timestamp = DateTime.UtcNow
+        };
+        _db.InsertAlert(alert);
+
+        _db.ResolveAlert(alert.Id);
+
+        var alerts = _db.GetAlerts(isResolved: true);
+        Assert.Contains(alerts, a => a.Id == alert.Id && a.IsResolved);
+    }
+
+    [Fact]
+    public void PruneOldData_RebuildsDatabaseWhenThresholdExceeded()
+    {
+        var oldDate = DateTime.UtcNow.AddDays(-60);
+        var oldLogs = Enumerable.Range(0, 120).Select(i => new LogEntry
+        {
+            Message = $"Old log {i}",
+            Level = LogLevel.Info,
+            Timestamp = oldDate
+        }).ToList();
+
+        foreach (var log in oldLogs)
+        {
+            _db.InsertLog(log);
+        }
+
+        int pruned = _db.PruneOldData(logRetentionDays: 14);
+        Assert.True(pruned >= 120);
+    }
+
+    [Fact]
+    public void GetUptimeHistory_DownsamplesWhenExceedingMaxPoints()
+    {
+        string mac = "AA:BB:CC:DD:EE:44";
+        var now = DateTime.UtcNow;
+        var snapshots = Enumerable.Range(0, 240).Select(i => new UptimeSnapshot
+        {
+            MacAddress = mac,
+            IsOnline = true,
+            LatencyMs = 10 + (i % 20),
+            Timestamp = now.AddHours(-24).AddMinutes(i * 6)
+        }).ToList();
+
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var downsampled = _db.GetUptimeHistory(mac, hours: 24, maxPoints: 120);
+
+        Assert.NotEmpty(downsampled);
+        Assert.True(downsampled.Count <= 120);
+        Assert.All(downsampled, s =>
+        {
+            Assert.True(s.IsOnline);
+            Assert.True(s.LatencyMs >= 0);
+        });
+    }
+
+    [Fact]
+    public void GetAlerts_WithIsResolvedFilter_ReturnsFilteredResults()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            _db.InsertAlert(new AlertEvent
+            {
+                MacAddress = $"AA:BB:CC:DD:EE:0{i}",
+                DeviceName = $"Device {i}",
+                AlertType = AlertType.ConnectionLost,
+                Message = $"Alert {i}",
+                IsResolved = false,
+                Timestamp = DateTime.UtcNow.AddMinutes(-i)
+            });
+            _db.InsertAlert(new AlertEvent
+            {
+                MacAddress = $"AA:BB:CC:DD:EE:1{i}",
+                DeviceName = $"Resolved Device {i}",
+                AlertType = AlertType.HighLatency,
+                Message = $"Resolved Alert {i}",
+                IsResolved = true,
+                Timestamp = DateTime.UtcNow.AddMinutes(-10 - i)
+            });
+        }
+
+        var activeAlerts = _db.GetAlerts(isResolved: false);
+        var resolvedAlerts = _db.GetAlerts(isResolved: true);
+        int total = _db.GetTotalAlertCount();
+        int unresolved = _db.GetUnresolvedAlertCount();
+
+        Assert.Equal(5, activeAlerts.Count);
+        Assert.All(activeAlerts, a => Assert.False(a.IsResolved));
+
+        Assert.Equal(5, resolvedAlerts.Count);
+        Assert.All(resolvedAlerts, a => Assert.True(a.IsResolved));
+
+        Assert.Equal(10, total);
+        Assert.Equal(5, unresolved);
+    }
+
+    [Fact]
+    public void MergeExistingNode_WhenScannedHasLowerThreatScore_PreservesHigherExistingRisk()
+    {
+        // Existing node has Critical risk (port 445 = score 85)
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:88",
+            IpAddress = "192.168.1.80",
+            OpenPorts = new List<int> { 445 },
+            ThreatLevel = ThreatLevel.Critical,
+            VulnerabilityScore = 85
+        };
+        _db.MergeWithHistory(initialNode);
+
+        // Scanned node finds port 80 (HTTP = score 10, Safe)
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:88",
+            IpAddress = "192.168.1.80",
+            OpenPorts = new List<int> { 80 },
+            ThreatLevel = ThreatLevel.Safe,
+            VulnerabilityScore = 10
+        };
+        var (mergedNode, isNew) = _db.MergeWithHistory(scannedNode);
+
+        Assert.False(isNew);
+        // Both ports should be present
+        Assert.Contains(445, mergedNode.OpenPorts);
+        Assert.Contains(80, mergedNode.OpenPorts);
+        // The Critical risk from port 445 must NOT be downgraded to Safe/10
+        Assert.Equal(ThreatLevel.Critical, mergedNode.ThreatLevel);
+        Assert.Equal(85, mergedNode.VulnerabilityScore);
+    }
+
+    [Fact]
+    public void MergeExistingNode_WhenScannedHasHigherThreatScore_UpgradesExistingRisk()
+    {
+        // Existing node has Warning risk (port 21 = score 40)
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:77",
+            IpAddress = "192.168.1.81",
+            OpenPorts = new List<int> { 21 },
+            ThreatLevel = ThreatLevel.Warning,
+            VulnerabilityScore = 40
+        };
+        _db.MergeWithHistory(initialNode);
+
+        // Scanned node discovers port 23 (Telnet = score 90, Critical)
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "AA:BB:CC:DD:EE:77",
+            IpAddress = "192.168.1.81",
+            OpenPorts = new List<int> { 23 },
+            ThreatLevel = ThreatLevel.Critical,
+            VulnerabilityScore = 90
+        };
+        var (mergedNode, isNew) = _db.MergeWithHistory(scannedNode);
+
+        Assert.False(isNew);
+        Assert.Contains(21, mergedNode.OpenPorts);
+        Assert.Contains(23, mergedNode.OpenPorts);
+        Assert.Equal(ThreatLevel.Critical, mergedNode.ThreatLevel);
+        Assert.Equal(90, mergedNode.VulnerabilityScore);
+    }
+
+    [Fact]
+    public void GetAlerts_WhenDatabaseDisposed_ReturnsEmptyListWithoutThrowing()
+    {
+        using var tempStream = new MemoryStream();
+        using var tempLiteDb = new LiteDatabase(tempStream);
+        var localDb = new LocalDatabase(tempLiteDb);
+        localDb.Dispose();
+
+        var alerts = localDb.GetAlerts(isResolved: false);
+        int total = localDb.GetTotalAlertCount();
+        int unresolved = localDb.GetUnresolvedAlertCount();
+
+        Assert.Empty(alerts);
+        Assert.Equal(0, total);
+        Assert.Equal(0, unresolved);
+    }
 }

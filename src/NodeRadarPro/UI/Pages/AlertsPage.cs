@@ -127,38 +127,31 @@ public class AlertsPage : Border
             UpdateFilterChips();
         }
 
-        var allAlerts = _db.GetAlerts(500);
+        int activeCount = _db.GetUnresolvedAlertCount();
+        int totalCount = _db.GetTotalAlertCount();
+        int resolvedCount = Math.Max(0, totalCount - activeCount);
 
-        int activeCount = 0;
-        int resolvedCount = 0;
-        var filtered = new List<NodeRadarPro.Core.AlertEvent>();
-
-        foreach (var a in allAlerts)
+        List<NodeRadarPro.Core.AlertEvent> filtered;
+        if (_filterMode == "resolved")
         {
-            if (a.IsResolved)
-            {
-                resolvedCount++;
-                if (_filterMode == "resolved") filtered.Add(a);
-            }
-            else
-            {
-                activeCount++;
-                if (_filterMode == FilterModeActive) filtered.Add(a);
-            }
+            filtered = _db.GetAlerts(isResolved: true, limit: 500);
         }
-
-        if (_filterMode == "all")
+        else if (_filterMode == FilterModeActive)
         {
-            filtered = allAlerts;
+            filtered = _db.GetAlerts(isResolved: false, limit: 500);
+        }
+        else
+        {
+            filtered = _db.GetAlerts(limit: 500);
         }
 
         _activeCount.Text = activeCount.ToString();
         _resolvedCount.Text = resolvedCount.ToString();
-        _totalCount.Text = allAlerts.Count.ToString();
+        _totalCount.Text = totalCount.ToString();
 
         _resolveAllBtn.IsEnabled = activeCount > 0;
         _clearResolvedBtn.IsEnabled = resolvedCount > 0;
-        _clearAllBtn.IsEnabled = allAlerts.Count > 0;
+        _clearAllBtn.IsEnabled = totalCount > 0;
 
         if (filtered.Count == 0)
         {

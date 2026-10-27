@@ -509,16 +509,6 @@ public class DarkPurpleTheme
             activeNodesMap.UpdateNode(node);
             syncGlobalStats();
         };
-
-        pages.Inventory.DeviceSelected += (node) =>
-        {
-            // Fix Issue 4: Fetch history when device is selected in inventory
-            Task.Run(() =>
-            {
-                var history = db.GetUptimeHistory(node.MacAddress, 24);
-                Dispatcher.UIThread.Post(() => pages.Inventory.UpdateUptimeChart(history));
-            });
-        };
     }
 
     private static void WireNavigationEvents(

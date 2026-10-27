@@ -948,17 +948,36 @@ public class InventoryPage : Border
 
     private void RefreshUptimeChart()
     {
-        if (_currentNode == null)
+        var node = _currentNode;
+        if (node == null || string.IsNullOrEmpty(node.MacAddress))
         {
             _uptimeChart.SetData(new List<UptimeSnapshot>());
             return;
         }
-        try
+
+        string mac = node.MacAddress;
+        int hours = _uptimeHours;
+
+        Task.Run(() =>
         {
-            var history = _db.GetUptimeHistory(_currentNode.MacAddress, _uptimeHours);
-            _uptimeChart.SetData(history);
-        }
-        catch { _uptimeChart.SetData(new List<UptimeSnapshot>()); }
+            List<UptimeSnapshot> history;
+            try
+            {
+                history = _db.GetUptimeHistory(mac, hours);
+            }
+            catch
+            {
+                history = new List<UptimeSnapshot>();
+            }
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_currentNode?.MacAddress == mac && _uptimeHours == hours)
+                {
+                    _uptimeChart.SetData(history);
+                }
+            });
+        });
     }
 
     private static void RefreshTimeTabs(Border active, Border inactive1, Border inactive2)

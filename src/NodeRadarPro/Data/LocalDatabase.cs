@@ -79,7 +79,7 @@ public class LocalDatabase : IDisposable
 
         try
         {
-            var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+            var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Direct };
             _db = new LiteDatabase(connectionString);
             InitializeSchema();
         }
@@ -88,7 +88,7 @@ public class LocalDatabase : IDisposable
             DatabaseBackupService.RotateCorruptDatabase(_dbPath);
             try
             {
-                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Direct };
                 _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }
@@ -104,7 +104,7 @@ public class LocalDatabase : IDisposable
             System.Threading.Thread.Sleep(500);
             try
             {
-                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Direct };
                 _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }
@@ -150,7 +150,7 @@ public class LocalDatabase : IDisposable
                 {
                     dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
                 }
-                var connectionString = new ConnectionString { Filename = dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+                var connectionString = new ConnectionString { Filename = dbPath, Password = _dbPassword, Connection = ConnectionType.Direct };
                 _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }
@@ -171,6 +171,7 @@ public class LocalDatabase : IDisposable
             var devices = _db.GetCollection<NetworkNode>(DevicesCollection);
             devices.EnsureIndex(MacAddressField, "$.MacAddress", unique: true);
             devices.EnsureIndex(IpAddressField, "$.IpAddress");
+            devices.EnsureIndex("IsRegistered", "$.IsRegistered");
 
             // alerts
             var alerts = _db.GetCollection<AlertEvent>(AlertsCollection);
@@ -181,7 +182,6 @@ public class LocalDatabase : IDisposable
             var uptime = _db.GetCollection<UptimeSnapshot>(UptimeCollection);
             uptime.EnsureIndex(MacAddressField, "$.MacAddress");
             uptime.EnsureIndex(TimestampField, "$.Timestamp");
-            uptime.EnsureIndex("Mac_Time", "$.MacAddress + '_' + $.Timestamp");
 
             // logs
             var logs = _db.GetCollection<LogEntry>(LogsCollection);
@@ -204,6 +204,7 @@ public class LocalDatabase : IDisposable
         lock (SyncRoot)
         {
             _db?.Dispose();
+            _db = null!;
         }
         GC.SuppressFinalize(this);
     }
@@ -268,6 +269,10 @@ public class LocalDatabase : IDisposable
 
     private static NetworkNode MergeExistingNode(NetworkNode scannedNode, NetworkNode existing, DateTime now)
     {
+        scannedNode.Id = existing.Id;
+        scannedNode.LastSeen = now;
+        scannedNode.IsOnline = true;
+
         scannedNode.CustomName = existing.CustomName;
         scannedNode.Notes = existing.Notes;
         scannedNode.Location = existing.Location;
@@ -283,15 +288,25 @@ public class LocalDatabase : IDisposable
         scannedNode.FirstSeen = existing.FirstSeen;
         scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
         scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
-        scannedNode.ThreatLevel = existing.ThreatLevel;
-        scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
         if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
 
         if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
             scannedNode.Vendor = existing.Vendor;
 
-        if (existing.OpenPorts?.Count > 0 && (scannedNode.OpenPorts == null || scannedNode.OpenPorts.Count == 0))
+        if (existing.OpenPorts?.Count > 0 && scannedNode.OpenPorts?.Count > 0)
+        {
+            var mergedPorts = existing.OpenPorts.Union(scannedNode.OpenPorts).Distinct().OrderBy(p => p).ToList();
+            scannedNode.OpenPorts = mergedPorts;
+            existing.OpenPorts = mergedPorts;
+        }
+        else if (existing.OpenPorts?.Count > 0)
+        {
             scannedNode.OpenPorts = existing.OpenPorts;
+        }
+        else if (scannedNode.OpenPorts?.Count > 0)
+        {
+            existing.OpenPorts = scannedNode.OpenPorts;
+        }
 
         MergePortBanners(scannedNode, existing);
 
@@ -305,8 +320,6 @@ public class LocalDatabase : IDisposable
         existing.Hostname = scannedNode.Hostname;
         if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
             existing.Vendor = scannedNode.Vendor;
-        if (scannedNode.OpenPorts?.Count > 0)
-            existing.OpenPorts = scannedNode.OpenPorts;
 
         if (scannedNode.PortBanners?.Count > 0)
             existing.PortBanners = scannedNode.PortBanners;
@@ -314,8 +327,26 @@ public class LocalDatabase : IDisposable
         if (!string.IsNullOrEmpty(scannedNode.OsGuess))
             existing.OsGuess = scannedNode.OsGuess;
 
-        existing.ThreatLevel = scannedNode.ThreatLevel;
-        existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
+        if (existing.OpenPorts?.Count > 0)
+        {
+            VulnerabilityEngine.UpdateThreatLevel(existing);
+            scannedNode.ThreatLevel = existing.ThreatLevel;
+            scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+        }
+        else
+        {
+            if (scannedNode.ThreatLevel != ThreatLevel.Safe || scannedNode.VulnerabilityScore > 0)
+            {
+                existing.ThreatLevel = scannedNode.ThreatLevel;
+                existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
+            }
+            else
+            {
+                scannedNode.ThreatLevel = existing.ThreatLevel;
+                scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+            }
+        }
+
         if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
         if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
         if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
@@ -500,12 +531,28 @@ public class LocalDatabase : IDisposable
         }
     }
 
-    public List<AlertEvent> GetAlerts(int limit = 200)
+    public List<AlertEvent> GetAlerts(int limit = 200) => GetAlerts(null, limit);
+
+    public List<AlertEvent> GetAlerts(bool? isResolved, int limit = 200)
     {
         lock (SyncRoot)
         {
-            return _db.GetCollection<AlertEvent>(AlertsCollection)
-                .Find(Query.All(TimestampField, Query.Descending), limit: limit).ToList();
+            if (_db == null) return new List<AlertEvent>();
+            var col = _db.GetCollection<AlertEvent>(AlertsCollection);
+            var query = col.Query();
+            if (isResolved.HasValue)
+            {
+                query = query.Where(x => x.IsResolved == isResolved.Value);
+            }
+            return query.OrderByDescending(x => x.Timestamp).Limit(limit).ToList();
+        }
+    }
+
+    public int GetTotalAlertCount()
+    {
+        lock (SyncRoot)
+        {
+            return _db?.GetCollection<AlertEvent>(AlertsCollection).Count() ?? 0;
         }
     }
 
@@ -513,7 +560,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
-            return _db.GetCollection<AlertEvent>(AlertsCollection).Count(x => !x.IsResolved);
+            return _db?.GetCollection<AlertEvent>(AlertsCollection).Count(x => !x.IsResolved) ?? 0;
         }
     }
 
@@ -521,6 +568,7 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
+            if (_db == null) return;
             var col = _db.GetCollection<AlertEvent>(AlertsCollection);
             var alert = col.FindById(alertId);
             if (alert != null)
@@ -528,6 +576,7 @@ public class LocalDatabase : IDisposable
                 alert.IsResolved = true;
                 alert.ResolvedAt = DateTime.UtcNow;
                 col.Update(alert);
+                Checkpoint();
             }
         }
     }
@@ -536,12 +585,14 @@ public class LocalDatabase : IDisposable
     {
         lock (SyncRoot)
         {
+            if (_db == null) return;
             var col = _db.GetCollection(AlertsCollection);
             var now = DateTime.UtcNow;
             col.UpdateMany(
                 BsonExpression.Create("{ IsResolved: true, ResolvedAt: @0 }", now),
                 BsonExpression.Create("IsResolved = false")
             );
+            Checkpoint();
         }
     }
 
@@ -635,16 +686,89 @@ public class LocalDatabase : IDisposable
         }
     }
 
-    public List<UptimeSnapshot> GetUptimeHistory(string macAddress, int hours = 24)
+    public List<UptimeSnapshot> GetUptimeHistory(string macAddress, int hours = 24, int maxPoints = 120)
     {
         if (hours <= 0 || string.IsNullOrEmpty(macAddress)) return new List<UptimeSnapshot>();
         lock (SyncRoot)
         {
-            var cutoff = DateTime.UtcNow.AddHours(-hours);
-            return _db.GetCollection<UptimeSnapshot>(UptimeCollection)
+            if (_db == null) return new List<UptimeSnapshot>();
+            var now = DateTime.UtcNow;
+            var cutoff = now.AddHours(-hours);
+            var raw = _db.GetCollection<UptimeSnapshot>(UptimeCollection)
                 .Find(x => x.MacAddress == macAddress && x.Timestamp >= cutoff)
                 .OrderBy(x => x.Timestamp).ToList();
+
+            if (maxPoints <= 0 || raw.Count <= maxPoints)
+                return raw;
+
+            return DownsampleSnapshots(raw, macAddress, cutoff, now, maxPoints);
         }
+    }
+
+    private static List<UptimeSnapshot> DownsampleSnapshots(
+        List<UptimeSnapshot> rawSnapshots,
+        string macAddress,
+        DateTime cutoff,
+        DateTime now,
+        int maxPoints)
+    {
+        if (rawSnapshots.Count <= maxPoints || maxPoints <= 0)
+            return rawSnapshots;
+
+        double totalSeconds = (now - cutoff).TotalSeconds;
+        if (totalSeconds <= 0) return rawSnapshots;
+
+        double intervalSeconds = totalSeconds / maxPoints;
+        var downsampled = new List<UptimeSnapshot>(maxPoints);
+
+        int rawIndex = 0;
+        int rawCount = rawSnapshots.Count;
+
+        for (int i = 0; i < maxPoints; i++)
+        {
+            var bucketStart = cutoff.AddSeconds(i * intervalSeconds);
+            var bucketEnd = (i == maxPoints - 1) ? DateTime.MaxValue : cutoff.AddSeconds((i + 1) * intervalSeconds);
+
+            long latencySum = 0;
+            int latencyCount = 0;
+            int onlineCount = 0;
+            int totalInBucket = 0;
+
+            while (rawIndex < rawCount && rawSnapshots[rawIndex].Timestamp < bucketEnd)
+            {
+                var s = rawSnapshots[rawIndex];
+                if (s.Timestamp >= bucketStart)
+                {
+                    totalInBucket++;
+                    if (s.IsOnline)
+                    {
+                        onlineCount++;
+                        if (s.LatencyMs >= 0)
+                        {
+                            latencySum += s.LatencyMs;
+                            latencyCount++;
+                        }
+                    }
+                }
+                rawIndex++;
+            }
+
+            if (totalInBucket > 0)
+            {
+                bool isOnline = onlineCount * 2 >= totalInBucket;
+                long avgLatency = latencyCount > 0 ? (long)Math.Round((double)latencySum / latencyCount) : (isOnline ? 0 : -1);
+
+                downsampled.Add(new UptimeSnapshot
+                {
+                    MacAddress = macAddress,
+                    IsOnline = isOnline,
+                    LatencyMs = avgLatency,
+                    Timestamp = bucketStart.AddSeconds(intervalSeconds / 2)
+                });
+            }
+        }
+
+        return downsampled;
     }
 
     // ══════════════════════════════════
@@ -844,7 +968,18 @@ public class LocalDatabase : IDisposable
             if (deleted > 0)
             {
                 Checkpoint();
-                Logger.Log(LogLevel.Info, DatabaseSource, $"Pruned {deleted} expired records (uptime>{uptimeDays}d, logs>{logDays}d, resolved alerts>{alertDays}d).");
+                if (deleted >= 100)
+                {
+                    try
+                    {
+                        _db.Rebuild();
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log(LogLevel.Warning, DatabaseSource, $"Storage compaction skipped: {ex.Message}");
+                    }
+                }
+                Logger.Log(LogLevel.Info, DatabaseSource, $"Pruned {deleted} expired records and compacted storage.");
             }
 
             return deleted;

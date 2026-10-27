@@ -1,3 +1,4 @@
+using LiteDB;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 
@@ -209,8 +210,8 @@ public class DatabaseBackupServiceTests : IDisposable
         // Create valid backup first
         string validBackup = _db.Backup.BackupDatabase();
 
-        // Lock the source db file or destination path by holding an exclusive stream
-        using (var stream = new FileStream(_dbPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        // Lock the backup file by holding an exclusive stream
+        using (var stream = new FileStream(validBackup, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
             bool result = _db.Backup.RestoreDatabase(validBackup);
             Assert.False(result);
@@ -249,5 +250,65 @@ public class DatabaseBackupServiceTests : IDisposable
         Assert.Equal("", result);
         var logs = _db.GetLogs(levelFilter: LogLevel.Error);
         Assert.Contains(logs, l => l.Message.StartsWith("Backup failed:"));
+    }
+
+    [Fact]
+    public void BackupDatabase_FlushesWalCheckpointBeforeCopy()
+    {
+        // Insert record right before backup
+        _db.InsertLog(new LogEntry { Message = "Checkpoint verification log", Level = LogLevel.Warning });
+
+        string backupPath = _db.Backup.BackupDatabase();
+        Assert.True(File.Exists(backupPath));
+
+        // Open the backup file independently and verify the log made it into the backup file
+        var conn = new ConnectionString { Filename = backupPath, Password = "testpass", Connection = ConnectionType.Direct };
+        using (var testDb = new LiteDatabase(conn))
+        {
+            var logs = testDb.GetCollection<LogEntry>("logs").FindAll().ToList();
+            Assert.Contains(logs, l => l.Message == "Checkpoint verification log");
+        }
+    }
+
+    [Fact]
+    public void RotateCorruptDatabase_RotatesOrphanedWalLog()
+    {
+        string corruptDb = Path.Combine(_tempDir, "corrupt_with_wal.db");
+        string corruptLog = Path.Combine(_tempDir, "corrupt_with_wal-log.db");
+
+        File.WriteAllText(corruptDb, "corrupt db data");
+        File.WriteAllText(corruptLog, "corrupt wal data");
+
+        DatabaseBackupService.RotateCorruptDatabase(corruptDb);
+
+        Assert.False(File.Exists(corruptDb));
+        Assert.False(File.Exists(corruptLog));
+
+        var dbRotated = Directory.GetFiles(_tempDir, "noderadar.db.corrupt_*");
+        var logRotated = Directory.GetFiles(_tempDir, "noderadar-log.db.corrupt_*");
+
+        Assert.NotEmpty(dbRotated);
+        Assert.NotEmpty(logRotated);
+    }
+
+    [Fact]
+    public void RotateCorruptDatabase_WhenDbFileLocked_StillRotatesWalLog()
+    {
+        string corruptDb = Path.Combine(_tempDir, "locked_corrupt.db");
+        string corruptLog = Path.Combine(_tempDir, "locked_corrupt-log.db");
+
+        File.WriteAllText(corruptDb, "locked corrupt db");
+        File.WriteAllText(corruptLog, "corrupt wal data");
+
+        // Lock the db file exclusively so File.Move fails on it
+        using (var stream = new FileStream(corruptDb, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            DatabaseBackupService.RotateCorruptDatabase(corruptDb);
+        }
+
+        // Even though corruptDb was locked, corruptLog should have been rotated!
+        Assert.False(File.Exists(corruptLog));
+        var logRotated = Directory.GetFiles(_tempDir, "noderadar-log.db.corrupt_*");
+        Assert.NotEmpty(logRotated);
     }
 }

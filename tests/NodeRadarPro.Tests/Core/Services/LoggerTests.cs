@@ -74,19 +74,44 @@ public class LoggerTests : IDisposable
     [Fact]
     public void Log_HandlesWriteFailureGracefullyWithoutThrowing()
     {
-        // Simulate write failure by creating a directory with the log file name
-        Directory.CreateDirectory(_testLogFilePath);
-
-        string source = "UnitTestFailure";
-        string message = "Test write failure message " + Guid.NewGuid().ToString();
-
-        var exception = Record.Exception(() =>
+        // Flush any pending logs and clean up existing log file before setting up failure simulation
+        Logger.FlushForTesting();
+        FileStream? fileLock = null;
+        try
         {
-            Logger.Log(LogLevel.Error, source, message);
-            Logger.FlushForTesting();
-        });
+            if (File.Exists(_testLogFilePath))
+            {
+                try { File.Delete(_testLogFilePath); } catch { }
+            }
 
-        Assert.Null(exception);
+            if (!Directory.Exists(_testLogFilePath) && !File.Exists(_testLogFilePath))
+            {
+                Directory.CreateDirectory(_testLogFilePath);
+            }
+            else if (File.Exists(_testLogFilePath))
+            {
+                fileLock = new FileStream(_testLogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+            }
+
+            string source = "UnitTestFailure";
+            string message = "Test write failure message " + Guid.NewGuid().ToString();
+
+            var exception = Record.Exception(() =>
+            {
+                Logger.Log(LogLevel.Error, source, message);
+                Logger.FlushForTesting();
+            });
+
+            Assert.Null(exception);
+        }
+        finally
+        {
+            fileLock?.Dispose();
+            if (Directory.Exists(_testLogFilePath))
+            {
+                try { Directory.Delete(_testLogFilePath); } catch { }
+            }
+        }
     }
 
     [Fact]
