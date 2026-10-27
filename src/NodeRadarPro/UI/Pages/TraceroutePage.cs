@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -128,15 +129,32 @@ public class TraceroutePage : Border
         _progressBar.Value = 0;
         _statusText.Text = $"Tracing route to {target}...";
         _cts = new CancellationTokenSource();
+        var currentCts = _cts;
 
-        await Task.Run(() => _engine.RunTracerouteAsync(target, 30, 2000, token: _cts.Token));
+        try
+        {
+            await Task.Run(() => _engine.RunTracerouteAsync(target, 30, 2000, token: currentCts.Token));
+        }
+        catch (OperationCanceledException)
+        {
+            _statusText.Text = "Trace cancelled.";
+        }
+        catch (Exception ex)
+        {
+            _statusText.Text = $"Trace failed: {ex.Message}";
+        }
+        finally
+        {
+            ResetButtons();
+        }
     }
 
     private void OnStopTrace(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _cts?.Cancel();
-        _statusText.Text = "Trace cancelled.";
-        ResetButtons();
+        _statusText.Text = "Cancelling trace...";
+        _stopBtn.IsEnabled = false;
+
     }
 
     private void OnHopDiscovered(RouteHop hop)
@@ -155,7 +173,7 @@ public class TraceroutePage : Border
         Dispatcher.UIThread.Post(() =>
         {
             _statusText.Text = success ? "Traceroute complete." : "Trace failed to resolve target.";
-            ResetButtons();
+
         });
     }
 

@@ -307,10 +307,11 @@ public class DarkPurpleTheme
         window.Closing += (s, e) =>
         {
             services.Cts.Cancel();
-            services.Cts.Dispose();
+
             pages.Scanner.Cleanup();
             try { services.Monitor.Dispose(); } catch { }
             try { services.Db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
+            try { services.Db.Dispose(); } catch { }
         };
     }
 

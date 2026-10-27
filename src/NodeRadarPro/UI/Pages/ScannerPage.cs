@@ -564,11 +564,13 @@ public class ScannerPage : Border
         }
 
         string baseIp = $"{startBytes[0]}.{startBytes[1]}.{startBytes[2]}";
+        CancellationTokenSource? currentCts = null;
 
         try
         {
             _isScanning = true;
             _scanCts = new CancellationTokenSource();
+            currentCts = _scanCts;
             _scanResults.Clear();
             _scanResultMacs.Clear();
             _resultsBody.Children.Clear();
@@ -585,7 +587,7 @@ public class ScannerPage : Border
             // Issue 1: Force inline port scan if OS detection is requested, otherwise OS info will be empty
             _scanner.EnableInlinePortScan = _osDetectCheck.IsChecked == true || _fastScanCheck.IsChecked == true;
 
-            await _scanner.ScanRangeAsync(baseIp, rStart, rEnd, _scanCts.Token);
+            await _scanner.ScanRangeAsync(baseIp, rStart, rEnd, currentCts.Token);
 
             // Wait for all in-flight discovery tasks to finish before updating final status
             while (Volatile.Read(ref _inFlightDiscoveryCount) > 0)
@@ -596,7 +598,7 @@ public class ScannerPage : Border
             // Final UI sync to catch the last posted discovery events
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                if (!_scanCts.IsCancellationRequested)
+                if (!currentCts.IsCancellationRequested)
                     _statusText.Text = $"Scan complete — {_scanResults.Count} devices found.";
             });
         }
@@ -617,11 +619,14 @@ public class ScannerPage : Border
         finally
         {
             _isScanning = false;
-            _progressBar.Value = _scanCts?.IsCancellationRequested == true ? 0 : 100;
-            _progressPct.Text = _scanCts?.IsCancellationRequested == true ? "0%" : "100%";
+            _progressBar.Value = (currentCts?.IsCancellationRequested ?? false) ? 0 : 100;
+            _progressPct.Text = (currentCts?.IsCancellationRequested ?? false) ? "0%" : "100%";
+
             _scanningBadgeText.Text = "Idle";
             _scanningBadge.Background = ThemeTokens.TertiaryContainerSubtle;
             _scanningBadgeText.Foreground = ThemeTokens.Tertiary;
+
+
             DataChanged?.Invoke();
         }
     }
@@ -629,11 +634,11 @@ public class ScannerPage : Border
     private void OnStopScan(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _scanCts?.Cancel();
-        _isScanning = false; // Allow immediate restart
-        _statusText.Text = "Scan cancelled.";
-        _scanningBadgeText.Text = "Idle";
-        _scanningBadge.Background = ThemeTokens.TertiaryContainerSubtle;
-        _scanningBadgeText.Foreground = ThemeTokens.Tertiary;
+
+        _statusText.Text = "Cancelling scan...";
+
+
+
     }
 
     private void RefreshFilteredResults()
@@ -857,12 +862,13 @@ public class ScannerPage : Border
         if (_scanResults.Count == 0) return;
         try
         {
+            var snapshot = new List<NetworkNode>(_scanResults);
             string path = "";
-            int count = _scanResults.Count;
+            int count = snapshot.Count;
 
             await Task.Run(async () =>
             {
-                string csv = CsvExportService.ExportNodesToCsv(_scanResults);
+                string csv = CsvExportService.ExportNodesToCsv(snapshot);
                 string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
                 System.IO.Directory.CreateDirectory(folder);
                 path = System.IO.Path.Combine(folder, $"scan_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");

@@ -248,4 +248,27 @@ public class EmailServiceTests : IDisposable
 
         mockClient.Verify(c => c.ConnectAsync(settings.SmtpHost, 465, SecureSocketOptions.SslOnConnect, default), Times.Once);
     }
+    [Fact]
+    public async Task SendAlertAsync_CancelledToken_LogsWarning()
+    {
+        var settings = new AppSettings
+        {
+            EnableEmailAlerts = true,
+            SmtpHost = "smtp.example.com",
+            SmtpPort = 587,
+            SmtpEmail = "test@example.com"
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var mockClient = new Mock<ISmtpClient>();
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, cts.Token))
+                  .ThrowsAsync(new OperationCanceledException(cts.Token));
+
+        await EmailService.SendAlertAsync(settings, "Subject", "Body", _db, mockClient.Object, cts.Token);
+
+        var logs = _db.GetLogs();
+        Assert.Contains(logs, l => l.Source == "EmailService" && l.Message.Contains("timed out or was cancelled"));
+    }
 }

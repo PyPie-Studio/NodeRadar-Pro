@@ -49,7 +49,7 @@ public static class CsvExportService
         if (nodes == null)
             return "IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess\r\n";
 
-        var nodeList = nodes as IList<NetworkNode> ?? new List<NetworkNode>(nodes);
+        var nodeList = new List<NetworkNode>(nodes);
         var sb = new StringBuilder(nodeList.Count * 128 + 128);
         sb.AppendLine("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess");
 

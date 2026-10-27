@@ -242,4 +242,16 @@ public class CredentialVaultTests : IDisposable
         string[] rotatedFiles = Directory.GetFiles(_tempFolder, "noderadar.db.corrupt*");
         Assert.Single(rotatedFiles);
     }
+    [Fact]
+    public void ProtectDataFallback_And_UnprotectData_RoundTrips_Correctly()
+    {
+        byte[] payload = "HeadlessOrCorruptedProfileSecret"u8.ToArray();
+        byte[] protectedBytes = CredentialVault.ProtectDataFallback(payload);
+
+        Assert.NotEmpty(protectedBytes);
+        Assert.Equal(0x02, protectedBytes[0]);
+
+        byte[] unprotectedBytes = CredentialVault.UnprotectData(protectedBytes);
+        Assert.Equal(payload, unprotectedBytes);
+    }
 }

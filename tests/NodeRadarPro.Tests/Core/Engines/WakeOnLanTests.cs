@@ -62,5 +62,14 @@ namespace NodeRadarPro.Tests
             bool result = await WakeOnLan.WakeAsync(macAddress);
             Assert.True(result);
         }
+        [Fact]
+        public async Task WakeAsync_CancelledToken_ReturnsFalse()
+        {
+            using var cts = new CancellationTokenSource();
+            cts.Cancel();
+
+            bool result = await WakeOnLan.WakeAsync("AA:BB:CC:DD:EE:FF", cts.Token);
+            Assert.False(result);
+        }
     }
 }

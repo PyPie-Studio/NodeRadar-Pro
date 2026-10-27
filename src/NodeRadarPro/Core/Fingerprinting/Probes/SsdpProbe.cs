@@ -23,6 +23,8 @@ public class SsdpProbe : IFingerprintProbe
     }
 
     private static readonly ConcurrentDictionary<string, SsdpData> _cache = new();
+    private static readonly ConcurrentDictionary<string, byte> _fetchedUrls = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly SemaphoreSlim _httpThrottle = new(8, 8);
     private static readonly HttpClient _httpClient = new HttpClient(new SocketsHttpHandler
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(15)
@@ -35,6 +37,7 @@ public class SsdpProbe : IFingerprintProbe
     public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Discovery.IMulticastSocket>? socketFactory = null)
     {
         _cache.Clear();
+        _fetchedUrls.Clear();
         try
         {
             using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Discovery.DefaultMulticastSocket(0);
@@ -81,7 +84,10 @@ public class SsdpProbe : IFingerprintProbe
         string? url = ExtractHeaderValue(data, "LOCATION:");
         if (!string.IsNullOrEmpty(url) && IsValidSsdpLocationUrl(url, senderIp))
         {
-            _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
+            if (_fetchedUrls.TryAdd(url, 0))
+            {
+                _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
+            }
         }
     }
 
@@ -127,19 +133,27 @@ public class SsdpProbe : IFingerprintProbe
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
             cts.CancelAfter(2000);
-            string xml = await _httpClient.GetStringAsync(url, cts.Token);
+            await _httpThrottle.WaitAsync(cts.Token);
+            try
+            {
+                string xml = await _httpClient.GetStringAsync(url, cts.Token);
 
-            string fn = ExtractXmlValue(xml, "friendlyName");
-            if (!string.IsNullOrEmpty(fn)) data.FriendlyName = fn;
+                string fn = ExtractXmlValue(xml, "friendlyName");
+                if (!string.IsNullOrEmpty(fn)) data.FriendlyName = fn;
 
-            string mfg = ExtractXmlValue(xml, "manufacturer");
-            if (!string.IsNullOrEmpty(mfg)) data.Manufacturer = mfg;
+                string mfg = ExtractXmlValue(xml, "manufacturer");
+                if (!string.IsNullOrEmpty(mfg)) data.Manufacturer = mfg;
 
-            string mn = ExtractXmlValue(xml, "modelName");
-            if (!string.IsNullOrEmpty(mn)) data.ModelName = mn;
+                string mn = ExtractXmlValue(xml, "modelName");
+                if (!string.IsNullOrEmpty(mn)) data.ModelName = mn;
 
-            string dt = ExtractXmlValue(xml, "deviceType");
-            if (!string.IsNullOrEmpty(dt)) data.DeviceType = dt;
+                string dt = ExtractXmlValue(xml, "deviceType");
+                if (!string.IsNullOrEmpty(dt)) data.DeviceType = dt;
+            }
+            finally
+            {
+                _httpThrottle.Release();
+            }
         }
         catch { }
     }

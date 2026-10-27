@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NodeRadarPro.Core;
@@ -19,7 +20,7 @@ public static class WakeOnLan
     /// </summary>
     /// <param name="macAddress">Target MAC address in AA:BB:CC:DD:EE:FF format.</param>
     /// <returns>True if the packet was successfully broadcasted.</returns>
-    public static async Task<bool> WakeAsync(string macAddress)
+    public static async Task<bool> WakeAsync(string macAddress, CancellationToken token = default)
     {
         if (string.IsNullOrWhiteSpace(macAddress)) return false;
 
@@ -47,8 +48,13 @@ public static class WakeOnLan
             Array.Copy(macBytes, 0, packet, i * 6, 6);
         }
 
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        cts.CancelAfter(TimeSpan.FromSeconds(5));
+        var ct = cts.Token;
+
         try
         {
+            ct.ThrowIfCancellationRequested();
             using var client = new UdpClient();
             client.EnableBroadcast = true;
 
@@ -93,12 +99,13 @@ public static class WakeOnLan
             string? lastError = null;
             foreach (var endpoint in uniqueEndpoints)
             {
+                ct.ThrowIfCancellationRequested();
                 try
                 {
-                    await client.SendAsync(packet, packet.Length, endpoint);
+                    await client.SendAsync(packet, endpoint, ct);
                     sentAny = true;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is not OperationCanceledException)
                 {
                     lastError = ex.Message;
                 }
@@ -107,13 +114,15 @@ public static class WakeOnLan
             // Send multiple times (delay 50ms) for reliability
             if (sentAny)
             {
-                await Task.Delay(50);
+                await Task.Delay(50, ct);
                 foreach (var endpoint in uniqueEndpoints)
                 {
+                    ct.ThrowIfCancellationRequested();
                     try
                     {
-                        await client.SendAsync(packet, packet.Length, endpoint);
+                        await client.SendAsync(packet, endpoint, ct);
                     }
+                    catch (OperationCanceledException) { throw; }
                     catch { }
                 }
             }

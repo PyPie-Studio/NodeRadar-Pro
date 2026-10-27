@@ -255,7 +255,8 @@ public class SubnetScanner
             try
             {
                 var arpTable = _arpResolver.GetFullArpTable();
-                var postSweepTasks = new List<Task<NetworkNode>>();
+                var postSweepTasks = new List<Task<NetworkNode?>>();
+                using var postThrottle = new SemaphoreSlim(32);
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
@@ -264,16 +265,32 @@ public class SubnetScanner
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
-                        var node = BuildNode(ip, mac);
-                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                        resolveCts.CancelAfter(5000);
                         try
                         {
-                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                            await postThrottle.WaitAsync(token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
-                        return node;
+                        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+                        {
+                            return null;
+                        }
+
+                        try
+                        {
+                            var node = BuildNode(ip, mac);
+                            using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            resolveCts.CancelAfter(5000);
+                            try
+                            {
+                                await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                            }
+                            catch (OperationCanceledException) { }
+                            catch { }
+                            return node;
+                        }
+                        finally
+                        {
+                            try { postThrottle.Release(); } catch (ObjectDisposedException) { }
+                        }
                     }, token));
                 }
 

@@ -257,4 +257,33 @@ public class MdnsProbeTests : IDisposable
         Assert.NotNull(result);
         Assert.True(result.RawData.ContainsKey("InstanceName") || result.RawData.ContainsKey("Services"));
     }
+    [Fact]
+    public async Task ProbeAsync_ConcurrentServicesMutation_DoesNotThrow()
+    {
+        var mdnsData = new MdnsProbe.MdnsData { InstanceName = "SmartDevice" };
+        MdnsProbe.InjectCacheForTesting("192.168.1.130", mdnsData);
+
+        var probe = new MdnsProbe();
+        var node = new NetworkNode { IpAddress = "192.168.1.130" };
+
+        var writerTasks = Enumerable.Range(0, 4).Select(id => Task.Run(() =>
+        {
+            for (int i = 0; i < 250; i++)
+            {
+                mdnsData.Services.Add($"Service-{id}-{i}");
+            }
+        })).ToArray();
+
+        var readerTasks = Enumerable.Range(0, 4).Select(_ => Task.Run(async () =>
+        {
+            for (int i = 0; i < 250; i++)
+            {
+                var result = await probe.ProbeAsync(node, CancellationToken.None);
+                Assert.NotNull(result);
+            }
+        })).ToArray();
+
+        await Task.WhenAll(writerTasks.Concat(readerTasks));
+        Assert.Equal(1000, mdnsData.Services.Count);
+    }
 }

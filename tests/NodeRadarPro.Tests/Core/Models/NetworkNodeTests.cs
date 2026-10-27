@@ -77,4 +77,30 @@ public class NetworkNodeTests
         Assert.Equal(100, node.PingHistory.Count);
         Assert.Equal(10.0, node.PacketLossPct);
     }
+    [Fact]
+    public async Task PingHistory_ConcurrentRecordAndPacketLossPct_DoesNotThrow()
+    {
+        var node = new NetworkNode();
+
+        var writerTasks = Enumerable.Range(0, 8).Select(id => Task.Run(() =>
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                node.RecordPing(i % 2 == 0);
+            }
+        })).ToArray();
+
+        var readerTasks = Enumerable.Range(0, 8).Select(id => Task.Run(() =>
+        {
+            for (int i = 0; i < 200; i++)
+            {
+                double loss = node.PacketLossPct;
+                int count = node.PingHistory.Count;
+                if (loss < 0 || count < 0) break;
+            }
+        })).ToArray();
+
+        await Task.WhenAll(writerTasks.Concat(readerTasks));
+        Assert.Equal(100, node.PingHistory.Count);
+    }
 }

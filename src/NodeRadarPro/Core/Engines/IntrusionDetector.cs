@@ -55,7 +55,7 @@ public class IntrusionDetector
 
                 Database.InsertAlert(new AlertEvent
                 {
-                    Timestamp = DateTime.Now,
+                    Timestamp = DateTime.UtcNow,
                     AlertType = AlertType.NewDeviceDiscovered,
                     MacAddress = node.MacAddress,
                     DeviceName = node.DisplayName,

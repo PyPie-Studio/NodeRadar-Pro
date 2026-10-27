@@ -1,6 +1,18 @@
-# NodeRadar Pro Changelog
+﻿# NodeRadar Pro Changelog
  
 ## NodeRadar Pro v2.2.0 (2026-10-25)
+
+### Subsystem Concurrency and Multi-Threaded Hardening
+- **Synchronized Ping Ring Buffer (NetworkNode.cs)**: Encapsulated PingHistory with internal System.Threading.Lock monitor and snapshot collection copy on retrieval, synchronizing RecordPing and PacketLossPct to eliminate InvalidOperationException collection mutation crashes during concurrent connectivity sweeps and UI datagrid rendering.
+- **Concurrent mDNS Service Discovery (MdnsProbe.cs)**: Replaced List<string> with ConcurrentBag<string> in MdnsData, ensuring thread-safe addition during UDP multicast parsing and snapshot-isolated enumeration during Services.Distinct() evaluation.
+- **Defensive UI Thread CSV Snapshotting (ScannerPage.cs, CsvExportService.cs)**: Cloned _scanResults into a local list snapshot on the UI thread prior to dispatching background file export workers, preventing collection mutation races during live subnet discovery sweeps.
+- **Port Scanner Progress Scale and Cancellation Re-entrancy (PortScansPage.cs, ScannerPage.cs, TraceroutePage.cs)**: Standardized progress bar scaling to normalized 0â€“100% ranges on PortScansPage. Centralized scan state teardown into inally blocks, captured local token references and deferred _isScanning = false; resets to prevent task overwrites during rapid start/stop sequences.
+- **Device Detail View Mutation Isolation (InventoryPage.cs)**: Captured local target node instances in asynchronous ping, wake and port scan handlers, gating UI updates and logging behind reference equality to prevent detail pane cross-device state pollution.
+- **Range Sweep Post-Sweep Concurrency Throttling (SubnetScanner.cs)**: Added SemaphoreSlim(32) throttling across post-sweep ARP table resolution tasks in ScanRangeAsync, aligning range scans with subnet sweep thread ceilings.
+- **SSDP URL Deduplication and Request Throttling (SsdpProbe.cs)**: Added ConcurrentDictionary<string, byte> URL tracking and a SemaphoreSlim(8) ceiling for XML device descriptors, eliminating redundant HTTP traffic across UPnP advertisement bursts.
+- **Socket and Protocol Cancellation Propagation (EmailService.cs, WakeOnLan.cs)**: Propagated CancellationToken timeouts across SMTP socket operations and Magic Packet UDP broadcasts with automatic 15-second and 5-second ceilings.
+- **Symmetric DPAPI Protection Fallback (CredentialVault.cs)**: Caught CryptographicException in ProtectData alongside PlatformNotSupportedException to ensure graceful PBKDF2 and AES-GCM fallback in headless and unmapped user environments.
+- **UTC Timestamp Standardization and Lifecycle Teardown (IntrusionDetector.cs, DarkPurpleTheme.cs)**: Aligned intrusion alert records to DateTime.UtcNow for consistent B-tree indexing and TTL pruning. Removed premature CancellationTokenSource.Dispose() on window close and explicitly invoked services.Db.Dispose() to flush LiteDB write-ahead logs on shutdown.
 
 ### Database Subsystem Hardening and Performance Overhaul
 - **Direct Connection Mode and Schema Indexing (`LocalDatabase.cs`, `DatabaseBackupService.cs`)**: Switched LiteDB connection mode to `Connection=direct;`, boosting write throughput by 97.5x (from 4,289ms to 44ms for 300 records). Added B-tree index on `IsRegistered` in `InitializeSchema()` to eliminate collection scans and removed dead compound index `Mac_Time` to eliminate 31.5% disk bloat.

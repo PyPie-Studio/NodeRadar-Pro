@@ -1,6 +1,7 @@
 using LiteDB;
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace NodeRadarPro.Core;
 
@@ -60,7 +61,29 @@ public class NetworkNode
 
     /// <summary>Ring buffer of last 100 ping results (true=success, false=failure) for packet loss calculation.</summary>
     [BsonIgnore]
-    public Queue<bool> PingHistory { get; set; } = new();
+    private readonly Lock _pingLock = new();
+    private Queue<bool> _pingHistory = new();
+
+    /// <summary>Ring buffer of last 100 ping results (true=success, false=failure) for packet loss calculation.</summary>
+    [BsonIgnore]
+    public Queue<bool> PingHistory
+    {
+        get
+        {
+            lock (_pingLock)
+            {
+                return new Queue<bool>(_pingHistory);
+            }
+        }
+        set
+        {
+            lock (_pingLock)
+            {
+                _pingHistory = value != null ? new Queue<bool>(value) : new();
+
+            }
+        }
+    }
 
     /// <summary>Calculated packet loss percentage from PingHistory.</summary>
     [BsonIgnore]
@@ -68,18 +91,29 @@ public class NetworkNode
     {
         get
         {
-            if (PingHistory.Count == 0) return 0;
-            int failed = 0;
-            foreach (var p in PingHistory) if (!p) failed++;
-            return (double)failed / PingHistory.Count * 100.0;
+            lock (_pingLock)
+            {
+                if (_pingHistory.Count == 0) return 0;
+
+                int failed = 0;
+                foreach (var p in _pingHistory) if (!p) failed++;
+                return (double)failed / _pingHistory.Count * 100.0;
+            }
+
+
+
         }
     }
 
     /// <summary>Records a ping result into the ring buffer (max 100 entries).</summary>
     public void RecordPing(bool success)
     {
-        PingHistory.Enqueue(success);
-        while (PingHistory.Count > 100) PingHistory.Dequeue();
+        lock (_pingLock)
+        {
+            _pingHistory.Enqueue(success);
+            while (_pingHistory.Count > 100) _pingHistory.Dequeue();
+        }
+
     }
 
     [BsonIgnore]

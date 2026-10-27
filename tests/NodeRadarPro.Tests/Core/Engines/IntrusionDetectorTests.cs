@@ -247,4 +247,45 @@ public class IntrusionDetectorTests : IDisposable
         Assert.False(scanner.EnableOsDetection);
         Assert.True(scanner.EnableInlinePortScan);
     }
+    [Fact]
+    public async Task SweepOnceAsync_InsertsAlertWithUtcTimestamp()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 5 });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns("00:AA:BB:CC:DD:EE");
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)> { ("192.168.1.50", "00:AA:BB:CC:DD:EE") });
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            TimeoutMs = 1,
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false,
+            ScanAllSubnets = false
+        };
+
+        var detector = new IntrusionDetector(scanner, _db)
+        {
+            BaseIpOverride = "192.168.1"
+        };
+
+        var beforeSweep = DateTime.UtcNow.AddSeconds(-1);
+        await detector.SweepOnceAsync();
+        var afterSweep = DateTime.UtcNow.AddSeconds(1);
+
+        var alerts = _db.GetAlerts();
+        Assert.NotEmpty(alerts);
+        var alert = alerts.First(a => a.MacAddress == "00:AA:BB:CC:DD:EE");
+        var utcTimestamp = alert.Timestamp.ToUniversalTime();
+        Assert.True(utcTimestamp >= beforeSweep && utcTimestamp <= afterSweep);
+    }
 }

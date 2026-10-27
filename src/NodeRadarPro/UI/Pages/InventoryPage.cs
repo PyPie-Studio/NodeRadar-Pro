@@ -1301,17 +1301,22 @@ public class InventoryPage : Border
     private async void OnPingClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
-        if (_currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
+        var targetNode = _currentNode;
+        if (targetNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
         {
             string ipText = _detailIpInput.Text?.Trim() ?? "";
             if (IPAddress.TryParse(ipText, out _))
             {
-                _currentNode.IpAddress = ipText;
-                UpdatePill(_detailIpPill, ipText);
+                targetNode.IpAddress = ipText;
+                if (_currentNode == targetNode) UpdatePill(_detailIpPill, ipText);
             }
         }
-        string ip = _currentNode.IpAddress;
-        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _pingResult.Text = "Set a valid IP first."; _pingResult.Foreground = ThemeTokens.Error; return; }
+        string ip = targetNode.IpAddress;
+        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0")
+        {
+            if (_currentNode == targetNode) { _pingResult.Text = "Set a valid IP first."; _pingResult.Foreground = ThemeTokens.Error; }
+            return;
+        }
 
         _pingBtn.IsEnabled = false; _pingBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgRadar, "Pinging...", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface); _pingResult.Text = "";
         try
@@ -1319,19 +1324,41 @@ public class InventoryPage : Border
             var (isOnline, mac, latency) = await SubnetScanner.QuickProbeAsync(ip);
             if (isOnline)
             {
-                _pingResult.Text = $"Reachable ({(latency >= 0 ? $"{latency}ms" : "ARP/TCP")})";
-                _pingResult.Foreground = ThemeTokens.Tertiary;
-                _currentNode.IsOnline = true; _currentNode.PingLatencyMs = latency; _currentNode.LastSeen = DateTime.UtcNow;
-                await TryFingerprintDiscoveredNodeAsync(_currentNode, mac);
+                if (_currentNode == targetNode)
+                {
+                    _pingResult.Text = $"Reachable ({(latency >= 0 ? $"{latency}ms" : "ARP/TCP")})";
+                    _pingResult.Foreground = ThemeTokens.Tertiary;
+                }
+                targetNode.IsOnline = true; targetNode.PingLatencyMs = latency; targetNode.LastSeen = DateTime.UtcNow;
+                await TryFingerprintDiscoveredNodeAsync(targetNode, mac);
             }
-            else { _pingResult.Text = "Not reachable"; _pingResult.Foreground = ThemeTokens.Error; _currentNode.IsOnline = false; }
+            else
+            {
+                if (_currentNode == targetNode)
+                {
+                    _pingResult.Text = "Not reachable";
+                    _pingResult.Foreground = ThemeTokens.Error;
+                }
+                targetNode.IsOnline = false;
+            }
         }
-        catch (System.Net.NetworkInformation.PingException ex) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
-        catch (PlatformNotSupportedException ex) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
+        catch (System.Net.NetworkInformation.PingException ex)
+        {
+            if (_currentNode == targetNode) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            if (_currentNode == targetNode) { _pingResult.Text = ex.Message; _pingResult.Foreground = ThemeTokens.Error; }
+        }
         finally
         {
-            _pingBtn.IsEnabled = true; _pingBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgRadar, "Ping Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
-            if (_currentNode != null) { UpdateStatusDot(_currentNode.IsOnline); RefreshDetailView(); DeviceStatusChanged?.Invoke(_currentNode); }
+            if (_currentNode == targetNode)
+            {
+                _pingBtn.IsEnabled = true; _pingBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgRadar, "Ping Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
+                UpdateStatusDot(targetNode.IsOnline);
+                RefreshDetailView();
+            }
+            DeviceStatusChanged?.Invoke(targetNode);
         }
     }
 
@@ -1368,54 +1395,75 @@ public class InventoryPage : Border
     private async void OnWakeClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
+        var targetNode = _currentNode;
         _wakeBtn.IsEnabled = false;
         _wakeBtn.Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, Children = { ThemeTokens.VectorIcon(ThemeTokens.SvgBolt, 16, ThemeTokens.OnSurfaceVariant), new TextBlock { Text = "Sending...", VerticalAlignment = VerticalAlignment.Center, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont } } };
 
-        bool success = await WakeOnLan.WakeAsync(_currentNode.MacAddress);
+        bool success = await WakeOnLan.WakeAsync(targetNode.MacAddress);
 
         if (success)
         {
-            _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Magic Packet Sent", 16, ThemeTokens.Tertiary, ThemeTokens.Tertiary);
-            _db.Log(LogLevel.Info, "WoL", $"Magic Packet broadcasted to {_currentNode.MacAddress} ({_currentNode.DisplayName})");
+            if (_currentNode == targetNode) _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgCheck, "Magic Packet Sent", 16, ThemeTokens.Tertiary, ThemeTokens.Tertiary);
+            _db.Log(LogLevel.Info, "WoL", $"Magic Packet broadcasted to {targetNode.MacAddress} ({targetNode.DisplayName})");
         }
         else
         {
-            _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgClose, "Failed", 16, ThemeTokens.Error, ThemeTokens.Error);
+            if (_currentNode == targetNode) _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgClose, "Failed", 16, ThemeTokens.Error, ThemeTokens.Error);
         }
 
         await Task.Delay(2000);
-        _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgBolt, "Wake Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
-        _wakeBtn.IsEnabled = !_currentNode.IsOnline;
+        if (_currentNode == targetNode)
+        {
+            _wakeBtn.Content = ThemeTokens.ButtonContent(ThemeTokens.SvgBolt, "Wake Device", 16, ThemeTokens.OnSurface, ThemeTokens.OnSurface);
+            _wakeBtn.IsEnabled = !targetNode.IsOnline;
+        }
     }
 
     private async void OnPortScanClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (_currentNode == null) return;
-        if (_currentNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
+        var targetNode = _currentNode;
+        if (targetNode.MacAddress.StartsWith(ManualDevicePrefix, StringComparison.OrdinalIgnoreCase) && _detailIpInput.IsVisible)
         {
             string ipText = _detailIpInput.Text?.Trim() ?? "";
             if (IPAddress.TryParse(ipText, out _))
             {
-                _currentNode.IpAddress = ipText;
-                UpdatePill(_detailIpPill, ipText);
+                targetNode.IpAddress = ipText;
+                if (_currentNode == targetNode) UpdatePill(_detailIpPill, ipText);
             }
         }
-        string ip = _currentNode.IpAddress;
-        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0") { _portResult.Text = "Set a valid IP first."; _portResult.Foreground = ThemeTokens.Error; return; }
+        string ip = targetNode.IpAddress;
+        if (string.IsNullOrEmpty(ip) || ip == "0.0.0.0")
+        {
+            if (_currentNode == targetNode) { _portResult.Text = "Set a valid IP first."; _portResult.Foreground = ThemeTokens.Error; }
+            return;
+        }
         _portScanBtn.IsEnabled = false; _portResult.Text = "";
         try
         {
             var openPorts = await PortScanner.ScanCommonPortsAsync(ip);
-            _portResult.Text = openPorts.Count > 0 ? "Open: " + string.Join(", ", openPorts) : "No common ports open.";
-            _portResult.Foreground = ThemeTokens.Tertiary;
+            if (_currentNode == targetNode)
+            {
+                _portResult.Text = openPorts.Count > 0 ? "Open: " + string.Join(", ", openPorts) : "No common ports open.";
+                _portResult.Foreground = ThemeTokens.Tertiary;
+            }
         }
         catch (Exception ex)
         {
-            _db.Log(LogLevel.Error, "InventoryPage", $"Port scan failed for {ip}: {ex.Message}", _currentNode?.MacAddress);
-            _portResult.Text = "Port scan failed.";
-            _portResult.Foreground = ThemeTokens.Error;
+            _db.Log(LogLevel.Error, "InventoryPage", $"Port scan failed for {ip}: {ex.Message}", targetNode.MacAddress);
+            if (_currentNode == targetNode)
+            {
+                _portResult.Text = "Port scan failed.";
+                _portResult.Foreground = ThemeTokens.Error;
+            }
         }
-        finally { _portScanBtn.IsEnabled = true; }
+        finally
+        {
+            if (_currentNode == targetNode)
+            {
+                _portScanBtn.IsEnabled = true;
+            }
+        }
     }
 
     // ══════════════════════════════════

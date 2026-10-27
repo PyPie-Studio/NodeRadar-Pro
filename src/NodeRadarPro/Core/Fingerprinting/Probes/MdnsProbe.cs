@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
+
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -17,7 +17,7 @@ public class MdnsProbe : IFingerprintProbe
     public class MdnsData
     {
         public string InstanceName { get; set; } = "";
-        public List<string> Services { get; } = new();
+        public ConcurrentBag<string> Services { get; } = new();
         public string Model { get; set; } = "";
         public string Manufacturer { get; set; } = "";
     }
@@ -141,7 +141,7 @@ public class MdnsProbe : IFingerprintProbe
             if (!string.IsNullOrEmpty(data.Manufacturer))
                 result.RawData["Manufacturer"] = data.Manufacturer;
 
-            if (data.Services.Count > 0)
+            if (!data.Services.IsEmpty)
                 result.RawData["Services"] = string.Join(", ", data.Services.Distinct());
         }
 

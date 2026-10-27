@@ -110,7 +110,7 @@ public static class CredentialVault
         {
             return ProtectedData.Protect(userData, null, DataProtectionScope.CurrentUser);
         }
-        catch (PlatformNotSupportedException)
+        catch (Exception ex) when (ex is PlatformNotSupportedException or CryptographicException)
         {
             return ProtectDataFallback(userData);
         }

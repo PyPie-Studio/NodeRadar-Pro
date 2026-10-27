@@ -217,9 +217,11 @@ public class PortScansPage : Border
 
         _isScanning = true;
         _cts = new CancellationTokenSource();
+        var currentCts = _cts;
         _resultsBody.Children.Clear();
-        _progressBar.Maximum = totalPorts;
+        _progressBar.Maximum = 100;
         _progressBar.Value = 0;
+
         _scanStartTime = DateTime.UtcNow;
         _elapsedTime.Text = "ELAPSED: 00:00";
         _openCount.Text = "OPEN PORTS: 0";
@@ -230,7 +232,8 @@ public class PortScansPage : Border
         try
         {
             var openPorts = new ConcurrentBag<int>();
-            var token = _cts.Token;
+
+            var token = currentCts.Token;
             var parallelOptions = new ParallelOptions
             {
                 MaxDegreeOfParallelism = 32,
@@ -274,7 +277,7 @@ public class PortScansPage : Border
                 }
             });
 
-            if (!_cts.IsCancellationRequested)
+            if (!currentCts.IsCancellationRequested)
             {
                 _statusText.Text = $"Scan complete — {found} open ports found.";
                 string os = PortScanner.GuessOs(openPorts.ToList());
@@ -285,19 +288,20 @@ public class PortScansPage : Border
         catch (Exception ex) { _statusText.Text = $"Scan failed: {ex.Message}"; }
         finally
         {
+
             _isScanning = false;
-            _progressBar.Value = _cts?.IsCancellationRequested == true ? 0 : 100;
-            _progressPct.Text = _cts?.IsCancellationRequested == true ? "0%" : "100%";
+            _progressBar.Value = (currentCts?.IsCancellationRequested ?? false) ? 0 : 100;
+            _progressPct.Text = (currentCts?.IsCancellationRequested ?? false) ? "0%" : "100%";
         }
     }
 
     private void OnStopScan(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         _cts?.Cancel();
-        _isScanning = false;
-        _statusText.Text = "Scan cancelled.";
-        _progressBar.Value = 0;
-        _progressPct.Text = "0%";
+
+        _statusText.Text = "Cancelling scan...";
+
+
     }
 
     private Border MakeProfileChip(string name, string start, string end, string tooltip, int[]? discretePorts = null)

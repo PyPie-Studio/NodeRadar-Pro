@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using MailKit.Net.Smtp;
 using MimeKit;
@@ -16,7 +17,7 @@ public static class EmailService
 {
     private const string LogSource = "EmailService";
 
-    public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null, ISmtpClient? clientOverride = null)
+    public static async Task SendAlertAsync(AppSettings settings, string subject, string body, LocalDatabase? db = null, ISmtpClient? clientOverride = null, CancellationToken token = default)
     {
         if (!settings.EnableEmailAlerts || string.IsNullOrEmpty(settings.SmtpHost))
             return;
@@ -35,6 +36,20 @@ public static class EmailService
                 Text = body
             };
 
+            CancellationTokenSource? timeoutCts = null;
+            var ct = token;
+            if (clientOverride == null && token == default)
+            {
+                timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+                ct = timeoutCts.Token;
+            }
+            else if (clientOverride == null && token != default)
+            {
+                timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                timeoutCts.CancelAfter(TimeSpan.FromSeconds(15));
+                ct = timeoutCts.Token;
+            }
+
             var client = clientOverride ?? new SmtpClient();
             try
             {
@@ -43,23 +58,28 @@ public static class EmailService
                     : (settings.SmtpPort == 587
                         ? SecureSocketOptions.StartTls
                         : SecureSocketOptions.StartTlsWhenAvailable);
-                await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, secureOptions);
+                await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, secureOptions, ct);
 
                 if (!string.IsNullOrEmpty(settings.SmtpUser))
                 {
-                    await client.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword);
+                    await client.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, ct);
                 }
 
-                await client.SendAsync(message);
-                await client.DisconnectAsync(true);
+                await client.SendAsync(message, ct);
+                await client.DisconnectAsync(true, ct);
             }
             finally
             {
+                timeoutCts?.Dispose();
                 if (clientOverride == null)
                 {
                     client.Dispose();
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            targetDb.Log(LogLevel.Warning, LogSource, "SMTP operation timed out or was cancelled.");
         }
         catch (AuthenticationException ex)
         {
