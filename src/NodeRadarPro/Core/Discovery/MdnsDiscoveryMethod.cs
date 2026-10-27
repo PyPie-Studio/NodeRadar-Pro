@@ -17,34 +17,14 @@ public class MdnsDiscoveryMethod : IDiscoveryMethod
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, null, ct);
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, (Func<IMulticastSocket>?)null, ct);
     }
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<UdpClient>? udpClientFactory = null, CancellationToken ct = default)
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<IMulticastSocket>? socketFactory = null, CancellationToken ct = default)
     {
         try
         {
-            using var udp = udpClientFactory != null ? udpClientFactory() : new UdpClient();
-            if (udp?.Client == null) return;
-
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-
-            // Try to bind to port 5353 (standard mDNS port)
-            try
-            {
-                udp.Client.Bind(new IPEndPoint(IPAddress.Any, 5353));
-            }
-            catch
-            {
-                // If port 5353 is locked, bind to an ephemeral port
-                udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-            }
-
-            try
-            {
-                udp.JoinMulticastGroup(IPAddress.Parse("224.0.0.251"));
-            }
-            catch { }
+            using var udp = socketFactory != null ? socketFactory() : new DefaultMulticastSocket(5353, IPAddress.Parse("224.0.0.251"));
 
             var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
 

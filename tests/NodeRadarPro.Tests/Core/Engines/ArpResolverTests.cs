@@ -161,4 +161,135 @@ public class ArpResolverTests
         Assert.False(found);
         Assert.Equal("Unknown", mac);
     }
+    [Fact]
+    public void GetWindowsArpTable_WithValidEntries_ParsesIpAndMacSuccessfully()
+    {
+        byte[] mac = new byte[] { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 };
+        byte[] tableBuffer = BuildMibIpNetTableBuffer(("192.168.1.50", mac, 3));
+
+        int mockDelegate(IntPtr ptr, ref int size, bool order)
+        {
+            if (ptr == IntPtr.Zero)
+            {
+                size = tableBuffer.Length;
+                return 122; // ERROR_INSUFFICIENT_BUFFER
+            }
+            System.Runtime.InteropServices.Marshal.Copy(tableBuffer, 0, ptr, tableBuffer.Length);
+            return 0; // NO_ERROR
+        }
+
+        var entries = ArpResolver.GetWindowsArpTable(mockDelegate);
+
+        Assert.Single(entries);
+        Assert.Equal("192.168.1.50", entries[0].Ip);
+        Assert.Equal("00:11:22:33:44:55", entries[0].Mac);
+    }
+
+    [Fact]
+    public void GetWindowsArpTable_WithInvalidAndSpecialEntries_FiltersCorrectly()
+    {
+        byte[] validMac = new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+        byte[] invalidTypeMac = new byte[] { 0x00, 0x11, 0x22, 0x33, 0x44, 0x56 };
+        byte[] broadcastMac = new byte[] { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+        byte[] zeroMac = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+        byte[] multicastMac = new byte[] { 0x01, 0x00, 0x5E, 0x00, 0x00, 0x01 };
+
+        byte[] tableBuffer = BuildMibIpNetTableBuffer(
+            ("192.168.1.51", invalidTypeMac, 2),  // Type 2 = invalid, should filter
+            ("192.168.1.255", broadcastMac, 3),   // Broadcast MAC, should filter
+            ("192.168.1.52", zeroMac, 3),         // All zeros MAC, should filter
+            ("192.168.1.53", multicastMac, 3),    // Multicast MAC, should filter
+            ("127.0.0.1", validMac, 3),           // Loopback IP, should filter
+            ("224.0.0.1", validMac, 3),           // Multicast IP, should filter
+            ("239.255.255.250", validMac, 3),     // Multicast IP, should filter
+            ("192.168.1.99", validMac, 4)         // Valid static entry
+        );
+
+        int mockDelegate(IntPtr ptr, ref int size, bool order)
+        {
+            if (ptr == IntPtr.Zero)
+            {
+                size = tableBuffer.Length;
+                return 122;
+            }
+            System.Runtime.InteropServices.Marshal.Copy(tableBuffer, 0, ptr, tableBuffer.Length);
+            return 0;
+        }
+
+        var entries = ArpResolver.GetWindowsArpTable(mockDelegate);
+
+        Assert.Single(entries);
+        Assert.Equal("192.168.1.99", entries[0].Ip);
+        Assert.Equal("AA:BB:CC:DD:EE:FF", entries[0].Mac);
+    }
+
+    [Fact]
+    public void GetWindowsArpTable_WhenBufferNegotiationFails_ReturnsEmptyList()
+    {
+        static int failingDelegate(IntPtr ptr, ref int size, bool order)
+        {
+            return 5; // ERROR_ACCESS_DENIED
+        }
+
+        var entries = ArpResolver.GetWindowsArpTable(failingDelegate);
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public void GetWindowsArpTable_WhenDelegateThrows_CatchesAndReturnsEmptyList()
+    {
+        static int throwingDelegate(IntPtr ptr, ref int size, bool order)
+        {
+            throw new InvalidOperationException("Simulated Win32 fault");
+        }
+
+        var entries = ArpResolver.GetWindowsArpTable(throwingDelegate);
+        Assert.Empty(entries);
+    }
+
+    [Fact]
+    public void GetFullArpTable_WithInjectedDelegate_BypassesCache()
+    {
+        byte[] mac = new byte[] { 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC };
+        byte[] tableBuffer = BuildMibIpNetTableBuffer(("10.0.0.15", mac, 3));
+
+        int mockDelegate(IntPtr ptr, ref int size, bool order)
+        {
+            if (ptr == IntPtr.Zero)
+            {
+                size = tableBuffer.Length;
+                return 122;
+            }
+            System.Runtime.InteropServices.Marshal.Copy(tableBuffer, 0, ptr, tableBuffer.Length);
+            return 0;
+        }
+
+        var table = ArpResolver.GetFullArpTable(mockDelegate);
+        Assert.Contains(table, entry => entry.Ip == "10.0.0.15" && entry.Mac == "12:34:56:78:9A:BC");
+    }
+
+    private static byte[] BuildMibIpNetTableBuffer(params (string Ip, byte[] Mac, int Type)[] entries)
+    {
+        int rowCount = entries.Length;
+        int totalBytes = 4 + (rowCount * 24);
+        byte[] buffer = new byte[totalBytes];
+
+        BitConverter.GetBytes(rowCount).CopyTo(buffer, 0);
+
+        for (int i = 0; i < rowCount; i++)
+        {
+            int rowOffset = 4 + (i * 24);
+            var (ip, mac, type) = entries[i];
+
+            BitConverter.GetBytes(i + 1).CopyTo(buffer, rowOffset);
+            BitConverter.GetBytes(mac.Length).CopyTo(buffer, rowOffset + 4);
+            Array.Copy(mac, 0, buffer, rowOffset + 8, Math.Min(mac.Length, 8));
+
+            uint ipUint = BitConverter.ToUInt32(System.Net.IPAddress.Parse(ip).GetAddressBytes(), 0);
+            BitConverter.GetBytes(ipUint).CopyTo(buffer, rowOffset + 16);
+            BitConverter.GetBytes(type).CopyTo(buffer, rowOffset + 20);
+        }
+
+        return buffer;
+    }
 }

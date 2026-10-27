@@ -1,3 +1,4 @@
+using Moq;
 using System.Net;
 using System.Net.Sockets;
 using NodeRadarPro.Core.Discovery;
@@ -33,17 +34,58 @@ public class SsdpDiscoveryMethodTests
         var targetIps = new List<IPAddress> { IPAddress.Parse("127.0.0.1") };
         using var cts = new CancellationTokenSource(2000);
 
-        static UdpClient CustomUdpFactory()
-        {
-            var udp = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
-            udp.Client.Close();
-            return udp;
-        }
+        var mockSocket = new Mock<IMulticastSocket>();
+        mockSocket.Setup(s => s.ReceiveAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new SocketException((int)SocketError.AccessDenied));
 
         var discoveredDevices = new List<NetworkDevice>();
-        var ex = await Record.ExceptionAsync(() => ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), CustomUdpFactory, cts.Token));
+        var ex = await Record.ExceptionAsync(() => ssdp.DiscoverAsync("127.0.0", targetIps, device => discoveredDevices.Add(device), () => mockSocket.Object, cts.Token));
         Assert.Null(ex);
         Assert.Empty(discoveredDevices);
+    }
+
+    [Fact]
+    public async Task DiscoverAsync_WithSimulatedSsdpResponse_DiscoversDeviceSuccessfully()
+    {
+        var ssdp = new SsdpDiscoveryMethod();
+        var targetIps = new List<IPAddress> { IPAddress.Parse("192.168.1.1") };
+        using var cts = new CancellationTokenSource(3000);
+
+        string responseText = "HTTP/1.1 200 OK\r\n" +
+                              "CACHE-CONTROL: max-age=1800\r\n" +
+                              "SERVER: Linux/3.0 UPnP/1.0 Huawei-HG8120C/1.0\r\n" +
+                              "LOCATION: http://192.168.1.1:80/description.xml\r\n\r\n";
+        byte[] packet = System.Text.Encoding.UTF8.GetBytes(responseText);
+        var remoteEp = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 1900);
+        var receiveResult = new UdpReceiveResult(packet, remoteEp);
+
+        var mockSocket = new Mock<IMulticastSocket>();
+        bool firstCall = true;
+        mockSocket.Setup(s => s.ReceiveAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken token) =>
+            {
+                if (firstCall)
+                {
+                    firstCall = false;
+                    return Task.FromResult(receiveResult);
+                }
+                var tcs = new TaskCompletionSource<UdpReceiveResult>();
+                token.Register(() => tcs.TrySetCanceled());
+                return tcs.Task;
+            });
+
+        var discoveredDevices = new List<NetworkDevice>();
+        var discoverTask = ssdp.DiscoverAsync("192.168.1", targetIps, device =>
+        {
+            discoveredDevices.Add(device);
+            cts.Cancel();
+        }, () => mockSocket.Object, cts.Token);
+
+        await discoverTask;
+
+        Assert.Single(discoveredDevices);
+        Assert.Equal("192.168.1.1", discoveredDevices[0].IpAddress);
+        Assert.Equal("Huawei", discoveredDevices[0].Vendor);
     }
 
     [Theory]

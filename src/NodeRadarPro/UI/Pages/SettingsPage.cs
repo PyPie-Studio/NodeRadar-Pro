@@ -70,6 +70,8 @@ public class SettingsPage : Border
 
     private readonly Button _backupBtn;
     private readonly Button _restoreBtn;
+    private readonly Button _saveBtn;
+    private readonly Button _resetBtn;
     private readonly TextBlock _maintenanceStatus;
 
     public event Action<AppSettings>? SettingsSaved;
@@ -183,6 +185,18 @@ public class SettingsPage : Border
         ThemeTokens.SetToolTip(_restoreBtn, "Import a database file to overwrite the current system state.");
         _restoreBtn.Click += OnRestoreClicked;
 
+        _resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
+        ThemeTokens.SetToolTip(_resetBtn, "Wipe all custom configurations and restore system factory settings.");
+        _resetBtn.Height = 50;
+        _resetBtn.FontSize = 12;
+        _resetBtn.Click += OnResetClicked;
+
+        _saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
+        ThemeTokens.SetToolTip(_saveBtn, "Apply and persist all changed settings to the local database.");
+        _saveBtn.Height = 50;
+        _saveBtn.FontSize = 12;
+        _saveBtn.Click += OnSaveClicked;
+
         var headerSection = BuildHeaderSection();
         var generalCard = BuildGeneralSettingsCard();
         var scanCard = BuildScanParametersCard();
@@ -214,6 +228,8 @@ public class SettingsPage : Border
             Margin = new Thickness(32, 28),
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto
         };
+
+        Refresh();
     }
 
     private static StackPanel BuildHeaderSection()
@@ -337,62 +353,52 @@ public class SettingsPage : Border
         return ThemeTokens.GlassCard(notifContent, 28);
     }
 
-    private Grid BuildActionButtonsGrid()
+    private void OnResetClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var resetBtn = ThemeTokens.SecondaryButton("Reset\nDefaults");
-        ThemeTokens.SetToolTip(resetBtn, "Wipe all custom configurations and restore system factory settings.");
-        resetBtn.Height = 50;
-        resetBtn.FontSize = 12;
-        resetBtn.Click += (s, e) =>
+        if (!_isResetArmed)
         {
-            if (!_isResetArmed)
-            {
-                _isResetArmed = true;
-                resetBtn.Content = "Click to\nConfirm";
-                resetBtn.Background = ThemeTokens.Error;
-                resetBtn.Foreground = Brushes.White;
-
-                _resetArmTimer?.Stop();
-                _resetArmTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
-                _resetArmTimer.Tick += (s2, args) =>
-                {
-                    _resetArmTimer.Stop();
-                    _isResetArmed = false;
-                    resetBtn.Content = "Reset\nDefaults";
-                    resetBtn.Background = Brushes.Transparent;
-                    resetBtn.Foreground = ThemeTokens.OnSurface;
-                };
-                _resetArmTimer.Start();
-                return;
-            }
+            _isResetArmed = true;
+            _resetBtn.Content = "Click to\nConfirm";
+            _resetBtn.Background = ThemeTokens.Error;
+            _resetBtn.Foreground = Brushes.White;
 
             _resetArmTimer?.Stop();
-            _isResetArmed = false;
-            resetBtn.Content = "Reset\nDefaults";
-            resetBtn.Background = Brushes.Transparent;
-            resetBtn.Foreground = ThemeTokens.OnSurface;
+            _resetArmTimer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _resetArmTimer.Tick += (s2, args) =>
+            {
+                _resetArmTimer.Stop();
+                _isResetArmed = false;
+                _resetBtn.Content = "Reset\nDefaults";
+                _resetBtn.Background = Brushes.Transparent;
+                _resetBtn.Foreground = ThemeTokens.OnSurface;
+            };
+            _resetArmTimer.Start();
+            return;
+        }
 
-            _settings = new AppSettings();
-            _db.SaveSettings(_settings);
-            Refresh();
-            SettingsSaved?.Invoke(_settings);
-        };
+        _resetArmTimer?.Stop();
+        _isResetArmed = false;
+        _resetBtn.Content = "Reset\nDefaults";
+        _resetBtn.Background = Brushes.Transparent;
+        _resetBtn.Foreground = ThemeTokens.OnSurface;
 
-        var saveBtn = ThemeTokens.PrimaryButton("Save\nConfiguration");
-        ThemeTokens.SetToolTip(saveBtn, "Apply and persist all changed settings to the local database.");
-        saveBtn.Height = 50;
-        saveBtn.FontSize = 12;
-        saveBtn.Click += OnSaveClicked;
+        _settings = new AppSettings();
+        _db.SaveSettings(_settings);
+        Refresh();
+        SettingsSaved?.Invoke(_settings);
+    }
 
+    private Grid BuildActionButtonsGrid()
+    {
         var btnGrid = new Grid { Margin = new Thickness(0, 20, 0, 0) };
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         btnGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
-        Grid.SetColumn(resetBtn, 0);
-        Grid.SetColumn(saveBtn, 1);
-        resetBtn.Margin = new Thickness(0, 0, 4, 0);
-        saveBtn.Margin = new Thickness(4, 0, 0, 0);
-        btnGrid.Children.Add(resetBtn);
-        btnGrid.Children.Add(saveBtn);
+        Grid.SetColumn(_resetBtn, 0);
+        Grid.SetColumn(_saveBtn, 1);
+        _resetBtn.Margin = new Thickness(0, 0, 4, 0);
+        _saveBtn.Margin = new Thickness(4, 0, 0, 0);
+        btnGrid.Children.Add(_resetBtn);
+        btnGrid.Children.Add(_saveBtn);
 
         return btnGrid;
     }
@@ -595,6 +601,11 @@ public class SettingsPage : Border
 
     private async void OnPruneClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        await ExecutePruneAsync();
+    }
+
+    internal async System.Threading.Tasks.Task ExecutePruneAsync()
+    {
         if (!_isPruneArmed)
         {
             _isPruneArmed = true;
@@ -630,17 +641,21 @@ public class SettingsPage : Border
             int logDays = (int)_logRetentionSlider.Value;
             int alertDays = (int)_alertRetentionSlider.Value;
             int pruned = await System.Threading.Tasks.Task.Run(() => _db.PruneOldData(logRetentionDays: logDays, resolvedAlertRetentionDays: alertDays));
-            _maintenanceStatus.Text = $"Retention cleanup complete: {pruned} expired records removed.";
-            _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                _maintenanceStatus.Text = $"Retention cleanup complete: {pruned} expired records removed.";
+                _maintenanceStatus.Foreground = ThemeTokens.Tertiary;
+                _pruneBtn.IsEnabled = true;
+            });
         }
         catch (Exception ex)
         {
-            _maintenanceStatus.Text = $"Prune error: {ex.Message}";
-            _maintenanceStatus.Foreground = ThemeTokens.Error;
-        }
-        finally
-        {
-            _pruneBtn.IsEnabled = true;
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                _maintenanceStatus.Text = $"Prune error: {ex.Message}";
+                _maintenanceStatus.Foreground = ThemeTokens.Error;
+                _pruneBtn.IsEnabled = true;
+            });
         }
     }
 
@@ -785,4 +800,42 @@ public class SettingsPage : Border
             }
         };
     }
+
+    // ── Headless Test Accessors ──
+    internal ComboBox InterfaceSelector => _interfaceSelector;
+    internal CheckBox PromiscuousToggle => _promiscuousToggle;
+    internal Slider SweepFrequencySlider => _sweepFrequency;
+    internal TextBlock SweepFrequencyValue => _sweepFreqValue;
+    internal Slider ResponseTimeoutSlider => _responseTimeout;
+    internal TextBlock ResponseTimeoutValue => _responseTimeoutValue;
+    internal CheckBox SynScanToggle => _synScanToggle;
+    internal CheckBox DnsResolveToggle => _dnsResolveToggle;
+    internal CheckBox ToastToggle => _toastToggle;
+    internal CheckBox SoundToggle => _soundToggle;
+    internal CheckBox EmailToggle => _emailToggle;
+    internal StackPanel SmtpSettingsPanel => _smtpSettingsPanel;
+    internal TextBox SmtpHostInput => _smtpHost;
+    internal TextBox SmtpPortInput => _smtpPort;
+    internal TextBox SmtpUserInput => _smtpUser;
+    internal TextBox SmtpPassInput => _smtpPass;
+    internal Slider LatencyThresholdSlider => _latencyThresholdSlider;
+    internal TextBlock LatencyThresholdValue => _latencyThresholdValue;
+    internal Slider PacketLossThresholdSlider => _packetLossThresholdSlider;
+    internal TextBlock PacketLossThresholdValue => _packetLossThresholdValue;
+    internal CheckBox EnableAutoBackupToggle => _enableAutoBackupToggle;
+    internal Slider AutoBackupIntervalSlider => _autoBackupIntervalSlider;
+    internal TextBlock AutoBackupIntervalValue => _autoBackupIntervalValue;
+    internal Slider LogRetentionSlider => _logRetentionSlider;
+    internal TextBlock LogRetentionValue => _logRetentionValue;
+    internal Slider AlertRetentionSlider => _alertRetentionSlider;
+    internal TextBlock AlertRetentionValue => _alertRetentionValue;
+    internal Button PruneButton => _pruneBtn;
+    internal Button BackupButton => _backupBtn;
+    internal Button RestoreButton => _restoreBtn;
+    internal Button SaveButton => _saveBtn;
+    internal Button ResetButton => _resetBtn;
+    internal TextBlock MaintenanceStatus => _maintenanceStatus;
+    internal void TriggerSave() => OnSaveClicked(this, new Avalonia.Interactivity.RoutedEventArgs());
+    internal void TriggerReset() => OnResetClicked(this, new Avalonia.Interactivity.RoutedEventArgs());
+    internal void TriggerPrune() => OnPruneClicked(this, new Avalonia.Interactivity.RoutedEventArgs());
 }

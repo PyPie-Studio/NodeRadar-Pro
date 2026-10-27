@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,69 +23,107 @@ public class MdnsProbe : IFingerprintProbe
     }
 
     private static readonly ConcurrentDictionary<string, MdnsData> _cache = new();
-    private static readonly string[] ModelKeys = { "model=", "am=", "md=", "rpMd=" };
-    private static readonly string[] VendorKeys = { "man=", "mf=", "manufacturer=" };
+    private static readonly string[] ModelKeys = ["model=", "am=", "md=", "rpMd="];
+    private static readonly string[] VendorKeys = ["man=", "mf=", "manufacturer="];
 
+    private static readonly string[] DefaultQueryServices =
+    [
+        "_services._dns-sd._udp.local",
+        "_airplay._tcp.local", "_googlecast._tcp.local", "_raop._tcp.local",
+        "_spotify-connect._tcp.local", "_workstation._tcp.local", "_printer._tcp.local",
+        "_ipp._tcp.local", "_smb._tcp.local", "_apple-mobdev2._tcp.local",
+        "_companion-link._tcp.local", "_androidtv._tcp.local", "_amzn-alexa._tcp.local",
+        "_http._tcp.local", "_homekit._tcp.local", "_hap._tcp.local"
+    ];
 
-    public static async Task StartSweepAsync(CancellationToken token)
+    private static readonly (string[] Patterns, string Service)[] ServiceSignatures =
+    [
+        (["Apple", "AirPlay", "apple-mobdev2", "iPhone", "iPad", "MacBook", "iMac"], "Apple Device"),
+        (["Google", "Cast"], "Google Cast"),
+        (["Spotify"], "Spotify Connect"),
+        (["Printer", "ipp"], "Printer"),
+        (["Android", "androidtv"], "Android Device"),
+        (["amzn-alexa"], "Amazon Alexa"),
+        (["homekit", "hap"], "Apple HomeKit")
+    ];
+
+    private static ReadOnlySpan<byte> LocalSuffix => [0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00];
+
+    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Discovery.IMulticastSocket>? socketFactory = null)
     {
         _cache.Clear();
         try
         {
-            using var udp = new UdpClient();
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Discovery.DefaultMulticastSocket(0, IPAddress.Parse("224.0.0.251"));
             var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
 
-            // Extended service list including device-info and sleep-proxy for better Apple identification
-            string[] services = {
-                "_services._dns-sd._udp.local",
-                "_airplay._tcp.local", "_googlecast._tcp.local", "_raop._tcp.local",
-                "_spotify-connect._tcp.local", "_workstation._tcp.local", "_printer._tcp.local",
-                "_ipp._tcp.local", "_smb._tcp.local", "_apple-mobdev2._tcp.local",
-                "_companion-link._tcp.local", "_androidtv._tcp.local", "_amzn-alexa._tcp.local",
-                "_http._tcp.local", "_homekit._tcp.local", "_hap._tcp.local"
-            };
-
-            foreach (var service in services)
-            {
-                byte[] query = CreateMdnsQuery(service);
-                await udp.SendAsync(query, query.Length, target);
-            }
+            await SendInitialQueriesAsync(udp, target);
 
             while (!token.IsCancellationRequested)
             {
                 var result = await udp.ReceiveAsync(token);
                 string senderIp = result.RemoteEndPoint.Address.ToString();
-
-                // Filter out link-local addresses
-                if (senderIp.StartsWith("169.254.")) continue;
-
-                var data = _cache.GetOrAdd(senderIp, _ => new MdnsData());
-
-                string raw = Encoding.UTF8.GetString(result.Buffer);
-
-                // Extract instance name from DNS answer section
-                string instanceName = ExtractMdnsInstanceName(result.Buffer);
-
-                if (!string.IsNullOrEmpty(instanceName) && (string.IsNullOrEmpty(data.InstanceName) || data.InstanceName.Length < instanceName.Length))
-                {
-                    data.InstanceName = instanceName;
-                }
-
-                if (raw.Contains("Apple", StringComparison.OrdinalIgnoreCase) || raw.Contains("AirPlay", StringComparison.OrdinalIgnoreCase) || raw.Contains("apple-mobdev2", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple Device");
-                if (raw.Contains("Google", StringComparison.OrdinalIgnoreCase) || raw.Contains("Cast", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Google Cast");
-                if (raw.Contains("Spotify", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Spotify Connect");
-                if (raw.Contains("Printer", StringComparison.OrdinalIgnoreCase) || raw.Contains("ipp", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Printer");
-                if (raw.Contains("Android", StringComparison.OrdinalIgnoreCase) || raw.Contains("androidtv", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Android Device");
-                if (raw.Contains("iPhone", StringComparison.OrdinalIgnoreCase) || raw.Contains("iPad", StringComparison.OrdinalIgnoreCase) || raw.Contains("MacBook", StringComparison.OrdinalIgnoreCase) || raw.Contains("iMac", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple Device");
-                if (raw.Contains("amzn-alexa", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Amazon Alexa");
-                if (raw.Contains("homekit", StringComparison.OrdinalIgnoreCase) || raw.Contains("hap", StringComparison.OrdinalIgnoreCase)) data.Services.Add("Apple HomeKit");
-
-                ParseTxtRecords(result.Buffer, data);
+                ProcessResponse(senderIp, result.Buffer);
             }
         }
         catch { }
+    }
+
+    private static async Task SendInitialQueriesAsync(NodeRadarPro.Core.Discovery.IMulticastSocket udp, IPEndPoint target)
+    {
+        for (int i = 0; i < DefaultQueryServices.Length; i++)
+        {
+            byte[] query = CreateMdnsQuery(DefaultQueryServices[i]);
+            await udp.SendAsync(query, query.Length, target);
+        }
+    }
+
+    private static void ProcessResponse(string senderIp, byte[] buffer)
+    {
+        if (senderIp.StartsWith("169.254.", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var data = _cache.GetOrAdd(senderIp, _ => new MdnsData());
+        ApplyInstanceName(data, buffer);
+
+        string raw = Encoding.UTF8.GetString(buffer);
+        ClassifyServices(raw, data);
+        ParseTxtRecords(buffer, data);
+    }
+
+    private static void ApplyInstanceName(MdnsData data, byte[] buffer)
+    {
+        string instanceName = ExtractMdnsInstanceName(buffer);
+        if (!string.IsNullOrEmpty(instanceName) && (string.IsNullOrEmpty(data.InstanceName) || data.InstanceName.Length < instanceName.Length))
+        {
+            data.InstanceName = instanceName;
+        }
+    }
+
+    private static void ClassifyServices(string raw, MdnsData data)
+    {
+        for (int i = 0; i < ServiceSignatures.Length; i++)
+        {
+            var (patterns, service) = ServiceSignatures[i];
+            if (MatchesAnyPattern(raw, patterns))
+            {
+                data.Services.Add(service);
+            }
+        }
+    }
+
+    private static bool MatchesAnyPattern(string raw, string[] patterns)
+    {
+        for (int i = 0; i < patterns.Length; i++)
+        {
+            if (raw.Contains(patterns[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     public Task<ProbeResult> ProbeAsync(NetworkNode node, CancellationToken ct)
@@ -170,64 +207,85 @@ public class MdnsProbe : IFingerprintProbe
         try
         {
             string raw = Encoding.UTF8.GetString(buffer);
-
-            // Model keys used by various devices
-            var modelKeys = ModelKeys;
-            var vendorKeys = VendorKeys;
-
-            foreach (var key in modelKeys)
+            string? model = ExtractFirstMatchingValue(raw, ModelKeys);
+            if (!string.IsNullOrEmpty(model))
             {
-                int idx = raw.IndexOf(key, StringComparison.OrdinalIgnoreCase);
-                if (idx != -1)
-                {
-                    int start = idx + key.Length;
-                    int end = start;
-                    while (end < raw.Length && raw[end] >= 32 && raw[end] < 127) end++;
-                    if (end > start) data.Model = raw.Substring(start, end - start).Trim();
-                }
+                data.Model = model;
             }
 
-            foreach (var key in vendorKeys)
+            string? manufacturer = ExtractFirstMatchingValue(raw, VendorKeys);
+            if (!string.IsNullOrEmpty(manufacturer))
             {
-                int idx = raw.IndexOf(key, StringComparison.OrdinalIgnoreCase);
-                if (idx != -1)
-                {
-                    int start = idx + key.Length;
-                    int end = start;
-                    while (end < raw.Length && raw[end] >= 32 && raw[end] < 127) end++;
-                    if (end > start) data.Manufacturer = raw.Substring(start, end - start).Trim();
-                }
+                data.Manufacturer = manufacturer;
             }
         }
         catch { }
+    }
+
+    private static string? ExtractFirstMatchingValue(string raw, string[] keys)
+    {
+        for (int i = 0; i < keys.Length; i++)
+        {
+            string? value = ExtractValueForKey(raw, keys[i]);
+            if (!string.IsNullOrEmpty(value))
+            {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private static string? ExtractValueForKey(string raw, string key)
+    {
+        int idx = raw.IndexOf(key, StringComparison.OrdinalIgnoreCase);
+        if (idx == -1)
+        {
+            return null;
+        }
+
+        int start = idx + key.Length;
+        int end = start;
+        while (end < raw.Length && raw[end] >= 32 && raw[end] < 127)
+        {
+            end++;
+        }
+
+        if (end > start)
+        {
+            return raw.Substring(start, end - start).Trim();
+        }
+
+        return null;
     }
 
     internal static string ExtractMdnsInstanceName(byte[] buffer)
     {
         try
         {
-            byte[] localPattern = { 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00 };
-            int localIdx = -1;
-            for (int i = 0; i <= buffer.Length - 7; i++)
-            {
-                bool match = true;
-                for (int j = 0; j < 7; j++) if (buffer[i + j] != localPattern[j]) { match = false; break; }
-                if (match) { localIdx = i; break; }
-            }
-
+            ReadOnlySpan<byte> span = buffer;
+            int localIdx = span.IndexOf(LocalSuffix);
             if (localIdx > 2)
             {
-                for (int len = 1; len <= 63 && localIdx - 1 - len >= 0; len++)
-                {
-                    if (buffer[localIdx - 1 - len] == len)
-                    {
-                        string name = Encoding.UTF8.GetString(buffer, localIdx - len, len);
-                        if (!name.StartsWith('_') && name.Length > 2) return name;
-                    }
-                }
+                return FindInstanceLabel(buffer, localIdx);
             }
         }
         catch { }
+        return string.Empty;
+    }
+
+    private static string FindInstanceLabel(byte[] buffer, int localIdx)
+    {
+        for (int len = 1; len <= 63 && localIdx - 1 - len >= 0; len++)
+        {
+            if (buffer[localIdx - 1 - len] == len)
+            {
+                string name = Encoding.UTF8.GetString(buffer, localIdx - len, len);
+                if (!name.StartsWith('_') && name.Length > 2)
+                {
+                    return name;
+                }
+            }
+        }
         return string.Empty;
     }
 }

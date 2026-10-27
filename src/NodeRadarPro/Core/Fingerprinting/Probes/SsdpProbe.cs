@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -34,14 +32,12 @@ public class SsdpProbe : IFingerprintProbe
         MaxResponseContentBufferSize = 65536
     };
 
-    public static async Task StartSweepAsync(CancellationToken token)
+    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Discovery.IMulticastSocket>? socketFactory = null)
     {
         _cache.Clear();
         try
         {
-            using var udp = new UdpClient();
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Discovery.DefaultMulticastSocket(0);
 
             string mSearch = "M-SEARCH * HTTP/1.1\r\n" +
                              "HOST: 239.255.255.250:1900\r\n" +
@@ -58,30 +54,55 @@ public class SsdpProbe : IFingerprintProbe
                 var result = await udp.ReceiveAsync(token);
                 string data = Encoding.UTF8.GetString(result.Buffer);
                 string senderIp = result.RemoteEndPoint.Address.ToString();
-
-                var disc = _cache.GetOrAdd(senderIp, _ => new SsdpData());
-
-                if (data.Contains("SERVER:", StringComparison.OrdinalIgnoreCase))
-                {
-                    var serverLine = data.Split('\n').FirstOrDefault(l => l.StartsWith("SERVER:", StringComparison.OrdinalIgnoreCase));
-                    if (serverLine != null) disc.Server = serverLine.Substring(7).Trim();
-                }
-
-                if (data.Contains("LOCATION:", StringComparison.OrdinalIgnoreCase))
-                {
-                    var locationLine = data.Split('\n').FirstOrDefault(l => l.StartsWith("LOCATION:", StringComparison.OrdinalIgnoreCase));
-                    if (locationLine != null)
-                    {
-                        string url = locationLine.Substring(9).Trim();
-                        if (IsValidSsdpLocationUrl(url, senderIp))
-                        {
-                            _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
-                        }
-                    }
-                }
+                ProcessSsdpResponse(data, senderIp, token);
             }
         }
         catch { }
+    }
+
+    private static void ProcessSsdpResponse(string data, string senderIp, CancellationToken token)
+    {
+        var disc = _cache.GetOrAdd(senderIp, _ => new SsdpData());
+        ProcessServerHeader(data, disc);
+        ProcessLocationHeader(data, senderIp, disc, token);
+    }
+
+    private static void ProcessServerHeader(string data, SsdpData disc)
+    {
+        string? server = ExtractHeaderValue(data, "SERVER:");
+        if (!string.IsNullOrEmpty(server))
+        {
+            disc.Server = server;
+        }
+    }
+
+    private static void ProcessLocationHeader(string data, string senderIp, SsdpData disc, CancellationToken token)
+    {
+        string? url = ExtractHeaderValue(data, "LOCATION:");
+        if (!string.IsNullOrEmpty(url) && IsValidSsdpLocationUrl(url, senderIp))
+        {
+            _ = Task.Run(async () => await TryFetchSsdpLocationXmlAsync(url, disc, token), token);
+        }
+    }
+
+    private static string? ExtractHeaderValue(string data, string headerPrefix)
+    {
+        if (!data.Contains(headerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var lines = data.Split('\n');
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string line = lines[i].Trim();
+            if (line.StartsWith(headerPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                return line.Substring(headerPrefix.Length).Trim();
+            }
+        }
+
+        return null;
     }
 
     public Task<ProbeResult> ProbeAsync(NetworkNode node, CancellationToken ct)
@@ -132,7 +153,6 @@ public class SsdpProbe : IFingerprintProbe
     {
         _cache.Clear();
     }
-
 
     internal static bool IsValidSsdpLocationUrl(string url, string senderIp)
     {

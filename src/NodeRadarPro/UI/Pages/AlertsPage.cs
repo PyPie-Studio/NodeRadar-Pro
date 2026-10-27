@@ -116,6 +116,7 @@ public class AlertsPage : Border
         Child = new ScrollViewer { Content = root, VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto };
 
         UpdateFilterChips();
+        RefreshAlerts();
     }
 
     public void RefreshAlerts()
@@ -372,4 +373,17 @@ public class AlertsPage : Border
         if (diff.TotalHours < 24) return $"{(int)diff.TotalHours}h ago";
         return $"{(int)diff.TotalDays}d ago";
     }
+
+    // ── Headless Test Accessors ──
+    internal TextBlock ActiveCountText => _activeCount;
+    internal TextBlock ResolvedCountText => _resolvedCount;
+    internal TextBlock TotalCountText => _totalCount;
+    internal Button ResolveAllButton => _resolveAllBtn;
+    internal Button ClearResolvedButton => _clearResolvedBtn;
+    internal Button ClearAllButton => _clearAllBtn;
+    internal StackPanel AlertListBody => _alertListBody;
+    internal void SetFilterMode(string mode) { _filterMode = mode; UpdateFilterChips(); RefreshAlerts(); }
+    internal void TriggerResolveAll() => _resolveAllBtn.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    internal void TriggerClearResolved() => _clearResolvedBtn.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    internal void TriggerClearAll() => _clearAllBtn.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
 }

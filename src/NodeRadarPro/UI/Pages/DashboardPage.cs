@@ -259,4 +259,15 @@ public class DashboardPage : Border
             }
         }
     }
+
+    // ── Headless Test Accessors ──
+    internal TextBlock OnlineCountText => _onlineCount;
+    internal TextBlock LatencyValueText => _latencyValue;
+    internal TextBlock AlertCountText => _alertCount;
+    internal TextBlock HealthPercentText => _healthPercent;
+    internal TextBlock HealthStatusText => _healthStatusText;
+    internal Border HealthGauge => _healthGauge;
+    internal StackPanel PingsList => _pingsList;
+    internal RadarCanvas Radar => _radar;
+    internal void SetNodes(List<NetworkNode> nodes) { _nodes = nodes; RefreshData(); }
 }

@@ -1,3 +1,7 @@
+using NodeRadarPro.Core.Discovery;
+using System.Net.Sockets;
+using System.Net;
+using Moq;
 using System.Text;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting.Probes;
@@ -213,5 +217,44 @@ public class MdnsProbeTests : IDisposable
         Assert.Equal("HP LaserJet Pro MFP", result.RawData["Model"]);
         Assert.Equal("HP", result.RawData["Manufacturer"]);
         Assert.Equal("_ipp._tcp.local", result.RawData["Services"]);
+    }
+    [Fact]
+    public async Task StartSweepAsync_WithSimulatedMulticastSocket_PopulatesCache()
+    {
+        using var cts = new CancellationTokenSource(2000);
+
+        byte[] packet = new byte[]
+        {
+            0x00, 0x00, 0x00, 0x00,
+            0x06, (byte)'i', (byte)'p', (byte)'h', (byte)'o', (byte)'n', (byte)'e',
+            0x05, (byte)'l', (byte)'o', (byte)'c', (byte)'a', (byte)'l', 0x00
+        };
+        var remoteEp = new IPEndPoint(IPAddress.Parse("192.168.1.120"), 5353);
+        var receiveResult = new UdpReceiveResult(packet, remoteEp);
+
+        var mockSocket = new Mock<IMulticastSocket>();
+        bool firstCall = true;
+        mockSocket.Setup(s => s.ReceiveAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken token) =>
+            {
+                if (firstCall)
+                {
+                    firstCall = false;
+                    return Task.FromResult(receiveResult);
+                }
+                cts.Cancel();
+                var tcs = new TaskCompletionSource<UdpReceiveResult>();
+                token.Register(() => tcs.TrySetCanceled());
+                return tcs.Task;
+            });
+
+        await MdnsProbe.StartSweepAsync(cts.Token, () => mockSocket.Object);
+
+        var probe = new MdnsProbe();
+        var node = new NetworkNode { IpAddress = "192.168.1.120" };
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.RawData.ContainsKey("InstanceName") || result.RawData.ContainsKey("Services"));
     }
 }

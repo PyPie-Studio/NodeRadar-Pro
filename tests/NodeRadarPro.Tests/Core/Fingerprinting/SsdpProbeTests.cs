@@ -1,3 +1,7 @@
+using NodeRadarPro.Core.Discovery;
+using System.Net.Sockets;
+using System.Net;
+using Moq;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 
@@ -156,5 +160,42 @@ public class SsdpProbeTests : IDisposable
 
         var exception = await Record.ExceptionAsync(() => SsdpProbe.StartSweepAsync(cts.Token));
         Assert.Null(exception);
+    }
+    [Fact]
+    public async Task StartSweepAsync_WithSimulatedMulticastSocket_PopulatesCache()
+    {
+        using var cts = new CancellationTokenSource(2000);
+
+        string ssdpPacket = "HTTP/1.1 200 OK\r\n" +
+                            "SERVER: TP-Link Router OS 1.0\r\n\r\n";
+        byte[] packet = System.Text.Encoding.UTF8.GetBytes(ssdpPacket);
+        var remoteEp = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 1900);
+        var receiveResult = new UdpReceiveResult(packet, remoteEp);
+
+        var mockSocket = new Mock<IMulticastSocket>();
+        bool firstCall = true;
+        mockSocket.Setup(s => s.ReceiveAsync(It.IsAny<CancellationToken>()))
+            .Returns((CancellationToken token) =>
+            {
+                if (firstCall)
+                {
+                    firstCall = false;
+                    return Task.FromResult(receiveResult);
+                }
+                cts.Cancel();
+                var tcs = new TaskCompletionSource<UdpReceiveResult>();
+                token.Register(() => tcs.TrySetCanceled());
+                return tcs.Task;
+            });
+
+        await SsdpProbe.StartSweepAsync(cts.Token, () => mockSocket.Object);
+
+        var probe = new SsdpProbe();
+        var node = new NetworkNode { IpAddress = "192.168.1.1" };
+        var result = await probe.ProbeAsync(node, CancellationToken.None);
+
+        Assert.NotNull(result);
+        Assert.True(result.RawData.ContainsKey("Server"));
+        Assert.Equal("TP-Link Router OS 1.0", result.RawData["Server"]);
     }
 }

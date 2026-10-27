@@ -15,16 +15,15 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
 
     public Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, CancellationToken ct)
     {
-        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, null, ct);
+        return DiscoverAsync(baseIp, targetIps, onDeviceDiscovered, (Func<IMulticastSocket>?)null, ct);
     }
 
-    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<UdpClient>? udpClientFactory = null, CancellationToken ct = default)
+    public async Task DiscoverAsync(string baseIp, List<IPAddress> targetIps, Action<NetworkDevice> onDeviceDiscovered, Func<IMulticastSocket>? socketFactory = null, CancellationToken ct = default)
     {
-        using var udp = udpClientFactory?.Invoke() ?? new UdpClient();
+        IMulticastSocket udp;
         try
         {
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
+            udp = socketFactory?.Invoke() ?? new DefaultMulticastSocket(0);
         }
         catch (Exception ex)
         {
@@ -32,39 +31,42 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
             return;
         }
 
-        string mSearch = "M-SEARCH * HTTP/1.1\r\n" +
-                         "HOST: 239.255.255.250:1900\r\n" +
-                         "MAN: \"ssdp:discover\"\r\n" +
-                         "ST: ssdp:all\r\n" +
-                         "MX: 2\r\n\r\n";
-
-        byte[] query = Encoding.UTF8.GetBytes(mSearch);
-        var target = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
-
-        // Listen loop in background
-        _ = Task.Run(() => ProcessIncomingResponsesAsync(udp, Name, onDeviceDiscovered, ct), ct);
-
-        // Send query
-        try
+        using (udp)
         {
-            await udp.SendAsync(query, query.Length, target);
-            Logger.Log(LogLevel.Info, Name, "Broadcasted SSDP M-SEARCH discovery packet.");
-        }
-        catch (Exception ex)
-        {
-            Logger.Log(LogLevel.Info, Name, $"Error sending M-SEARCH query: {ex.Message}");
-        }
+            string mSearch = "M-SEARCH * HTTP/1.1\r\n" +
+                             "HOST: 239.255.255.250:1900\r\n" +
+                             "MAN: \"ssdp:discover\"\r\n" +
+                             "ST: ssdp:all\r\n" +
+                             "MX: 2\r\n\r\n";
 
-        // Keep listening for 3 seconds
-        try
-        {
-            await Task.Delay(3000, ct);
+            byte[] query = Encoding.UTF8.GetBytes(mSearch);
+            var target = new IPEndPoint(IPAddress.Parse("239.255.255.250"), 1900);
+
+            // Listen loop in background
+            _ = Task.Run(() => ProcessIncomingResponsesAsync(udp, Name, onDeviceDiscovered, ct), ct);
+
+            // Send query
+            try
+            {
+                await udp.SendAsync(query, query.Length, target);
+                Logger.Log(LogLevel.Info, Name, "Broadcasted SSDP M-SEARCH discovery packet.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(LogLevel.Info, Name, $"Error sending M-SEARCH query: {ex.Message}");
+            }
+
+            // Keep listening for 3 seconds
+            try
+            {
+                await Task.Delay(3000, ct);
+            }
+            catch (OperationCanceledException) { }
         }
-        catch (OperationCanceledException) { }
     }
 
     private static async Task ProcessIncomingResponsesAsync(
-        UdpClient udp,
+        IMulticastSocket udp,
         string protocolName,
         Action<NetworkDevice> onDeviceDiscovered,
         CancellationToken ct)

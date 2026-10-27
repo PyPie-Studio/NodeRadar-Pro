@@ -19,6 +19,7 @@ public static class ArpResolver
 {
     public const string UnknownMac = "Unknown";
     public delegate int SendArpDelegate(int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen);
+    public delegate int GetIpNetTableDelegate(IntPtr pIpNetTable, ref int pdwSize, bool bOrder);
     // Native Windows API for ARP resolution
     [DllImport("iphlpapi.dll", ExactSpelling = true)]
     private static extern int SendARP(int DestIP, int SrcIP, byte[] pMacAddr, ref uint PhyAddrLen);
@@ -55,9 +56,9 @@ public static class ArpResolver
     /// recently communicated on the network — including WiFi devices and phones
     /// that don't respond to ICMP ping.
     /// </summary>
-    public static List<(string Ip, string Mac)> GetFullArpTable()
+    public static List<(string Ip, string Mac)> GetFullArpTable(GetIpNetTableDelegate? getIpNetTable = null)
     {
-        UpdateCacheIfNeeded();
+        UpdateCacheIfNeeded(getIpNetTable);
         lock (_arpTableLock)
         {
             return new List<(string Ip, string Mac)>(_cachedArpTable);
@@ -67,9 +68,9 @@ public static class ArpResolver
     /// <summary>
     /// Gets the full ARP table as a dictionary mapping IP address to MAC address for O(1) lookups.
     /// </summary>
-    public static Dictionary<string, string> GetFullArpTableAsDictionary()
+    public static Dictionary<string, string> GetFullArpTableAsDictionary(GetIpNetTableDelegate? getIpNetTable = null)
     {
-        UpdateCacheIfNeeded();
+        UpdateCacheIfNeeded(getIpNetTable);
         lock (_arpTableLock)
         {
             return new Dictionary<string, string>(_cachedArpDictionary, StringComparer.OrdinalIgnoreCase);
@@ -79,12 +80,12 @@ public static class ArpResolver
     /// <summary>
     /// Attempts to look up a single IP address in the cached ARP table without cloning or allocating a new dictionary.
     /// </summary>
-    public static bool TryGetMacFromArpTable(string ip, out string mac)
+    public static bool TryGetMacFromArpTable(string ip, out string mac, GetIpNetTableDelegate? getIpNetTable = null)
     {
         mac = UnknownMac;
         if (string.IsNullOrEmpty(ip)) return false;
 
-        UpdateCacheIfNeeded();
+        UpdateCacheIfNeeded(getIpNetTable);
         lock (_arpTableLock)
         {
             if (_cachedArpDictionary.TryGetValue(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
@@ -96,11 +97,11 @@ public static class ArpResolver
         return false;
     }
 
-    private static void UpdateCacheIfNeeded()
+    private static void UpdateCacheIfNeeded(GetIpNetTableDelegate? getIpNetTable = null)
     {
         lock (_arpTableLock)
         {
-            if ((DateTime.UtcNow - _lastArpTableUpdate).TotalSeconds < 5)
+            if (getIpNetTable == null && (DateTime.UtcNow - _lastArpTableUpdate).TotalSeconds < 5)
             {
                 return;
             }
@@ -108,9 +109,9 @@ public static class ArpResolver
 
         List<(string Ip, string Mac)> results = new();
 
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || getIpNetTable != null)
         {
-            results = GetWindowsArpTable();
+            results = GetWindowsArpTable(getIpNetTable);
         }
         else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
@@ -297,11 +298,11 @@ public static class ArpResolver
 
     // ── Windows: Full ARP table via native Win32 P/Invoke with CLI fallback ──
 
-    private static List<(string Ip, string Mac)> GetWindowsArpTable()
+    internal static List<(string Ip, string Mac)> GetWindowsArpTable(GetIpNetTableDelegate? getIpNetTable = null)
     {
         try
         {
-            return GetWindowsArpTableNative();
+            return GetWindowsArpTableNative(getIpNetTable);
         }
         catch (Exception ex)
         {
@@ -310,18 +311,19 @@ public static class ArpResolver
         }
     }
 
-    private static List<(string Ip, string Mac)> GetWindowsArpTableNative()
+    internal static List<(string Ip, string Mac)> GetWindowsArpTableNative(GetIpNetTableDelegate? getIpNetTable = null)
     {
         var results = new List<(string, string)>();
         int bytesNeeded = 0;
-        int result = GetIpNetTable(IntPtr.Zero, ref bytesNeeded, false);
+        var tableFunc = getIpNetTable ?? GetIpNetTable;
+        int result = tableFunc(IntPtr.Zero, ref bytesNeeded, false);
         // 122 = ERROR_INSUFFICIENT_BUFFER
         if (result != 122 && result != 0) return results;
 
         IntPtr buffer = Marshal.AllocHGlobal(bytesNeeded);
         try
         {
-            result = GetIpNetTable(buffer, ref bytesNeeded, false);
+            result = tableFunc(buffer, ref bytesNeeded, false);
             if (result == 0)
             {
                 int numEntries = Marshal.ReadInt32(buffer);
