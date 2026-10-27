@@ -179,4 +179,56 @@ public class SystemLogsExportTests
             if (File.Exists(tempPath)) File.Delete(tempPath);
         }
     }
+
+    [Theory]
+    [InlineData("=1+1", "\"'=1+1\"")]
+    [InlineData("+calc", "\"'+calc\"")]
+    [InlineData("-5", "\"'-5\"")]
+    [InlineData("@SUM(A1:A10)", "\"'@SUM(A1:A10)\"")]
+    [InlineData("\tcmd", "\"'\tcmd\"")]
+    [InlineData("\rbreak", "\"'\rbreak\"")]
+    public void ExportLogsToCsv_NeutralizesFormulaInjectionPrefixes(string maliciousInput, string expectedEscaped)
+    {
+        var logs = new List<LogEntry>
+        {
+            new LogEntry
+            {
+                Timestamp = new DateTime(2025, 1, 15, 10, 0, 0),
+                Level = LogLevel.Warning,
+                Source = maliciousInput,
+                Message = maliciousInput,
+                DeviceMac = "00:11:22:33:44:55"
+            }
+        };
+
+        string csv = CsvExportService.ExportLogsToCsv(logs);
+
+        Assert.Contains(expectedEscaped, csv);
+    }
+
+    [Theory]
+    [InlineData("=1+1", "\"'=1+1\"")]
+    [InlineData("+calc", "\"'+calc\"")]
+    [InlineData("-5", "\"'-5\"")]
+    [InlineData("@SUM(A1:A10)", "\"'@SUM(A1:A10)\"")]
+    public void ExportNodesToCsv_NeutralizesFormulaInjectionPrefixes(string maliciousInput, string expectedEscaped)
+    {
+        var nodes = new List<NetworkNode>
+        {
+            new NetworkNode
+            {
+                IpAddress = "192.168.1.50",
+                MacAddress = "00:11:22:33:44:55",
+                Hostname = maliciousInput,
+                Vendor = maliciousInput,
+                DeviceType = "Server",
+                IsOnline = true,
+                PingLatencyMs = 1
+            }
+        };
+
+        string csv = CsvExportService.ExportNodesToCsv(nodes);
+
+        Assert.Contains(expectedEscaped, csv);
+    }
 }

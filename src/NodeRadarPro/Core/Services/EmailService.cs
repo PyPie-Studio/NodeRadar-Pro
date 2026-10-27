@@ -38,7 +38,12 @@ public static class EmailService
             var client = clientOverride ?? new SmtpClient();
             try
             {
-                await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, MailKit.Security.SecureSocketOptions.Auto);
+                var secureOptions = settings.SmtpPort == 465
+                    ? SecureSocketOptions.SslOnConnect
+                    : (settings.SmtpPort == 587
+                        ? SecureSocketOptions.StartTls
+                        : SecureSocketOptions.StartTlsWhenAvailable);
+                await client.ConnectAsync(settings.SmtpHost, settings.SmtpPort, secureOptions);
 
                 if (!string.IsNullOrEmpty(settings.SmtpUser))
                 {

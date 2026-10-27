@@ -29,8 +29,6 @@ public class DarkPurpleTheme
     private const string PageAlerts = "alerts";
     private const string PageLogs = "logs";
     private const string PageSupport = "support";
-
-    private const string LogSecurity = "Security";
     private const string LogInventory = "Inventory";
     private const string LogScanner = "Scanner";
 
@@ -281,7 +279,7 @@ public class DarkPurpleTheme
             Task.Run(() =>
             {
                 var settings = services.Db.LoadSettings();
-                VerifySystemIntegrity(settings, services.Db);
+                SecurityService.VerifySystemIntegrity(settings, services.Db, ThemeTokens.AppVersion);
                 ApplySettings(settings, services.Monitor, services.Scanner, services.Detector);
 
                 int online = services.ActiveNodesMap.Values.Count(n => n.IsOnline);
@@ -311,6 +309,7 @@ public class DarkPurpleTheme
             services.Cts.Cancel();
             services.Cts.Dispose();
             pages.Scanner.Cleanup();
+            try { services.Monitor.Dispose(); } catch { }
             try { services.Db.Log(LogLevel.Info, "System", "NodeRadar Pro shutting down"); } catch { }
         };
     }
@@ -618,47 +617,5 @@ public class DarkPurpleTheme
                 syncGlobalStats();
             });
         };
-    }
-
-    /// <summary>
-    /// Verifies the system integrity by checking the binary file hash against the last known good hash.
-    /// </summary>
-    private static void VerifySystemIntegrity(AppSettings settings, LocalDatabase db)
-    {
-        try
-        {
-            // We verify the core logic DLL/executable instead of the dynamic database
-            string mainFile = Environment.ProcessPath ?? System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "NodeRadarPro.dll");
-
-            if (!System.IO.File.Exists(mainFile))
-            {
-                return;
-            }
-
-            string? currentHash = SecurityService.ComputeFileHash(mainFile);
-            if (string.IsNullOrEmpty(currentHash))
-            {
-                return;
-            }
-
-            if (string.IsNullOrEmpty(settings.LastKnownGoodHash) || settings.LastKnownGoodHash == "INITIAL")
-            {
-                settings.LastKnownGoodHash = currentHash;
-                db.SaveSettings(settings);
-                db.Log(LogLevel.Info, LogSecurity, "System integrity signature locked.");
-            }
-            else if (!SecurityService.VerifyHash(settings.LastKnownGoodHash, currentHash))
-            {
-                db.Log(LogLevel.Warning, LogSecurity, "CORE INTEGRITY MISMATCH: Application binary may have been tampered with!");
-            }
-            else
-            {
-                db.Log(LogLevel.Info, LogSecurity, "System integrity verified (SHA256).");
-            }
-        }
-        catch (Exception ex)
-        {
-            db.Log(LogLevel.Warning, LogSecurity, $"Integrity check deferred: {ex.Message}");
-        }
     }
 }

@@ -180,6 +180,7 @@ public class DatabaseBackupServiceTests : IDisposable
     [Fact]
     public void RestoreDatabase_CorruptBackup_ReturnsFalseAndReopensDatabase()
     {
+        _db.InsertLog(new LogEntry { Message = "Pre-existing operational log", Level = LogLevel.Info });
         string corruptBackupPath = Path.Combine(_tempDir, "corrupt_backup.db");
         // Create a full page (8192 bytes) of invalid garbage bytes so LiteDB page header parsing fails
         byte[] garbage = new byte[16384];
@@ -190,14 +191,16 @@ public class DatabaseBackupServiceTests : IDisposable
 
         Assert.False(result);
 
-        // Database should have been re-opened, remaining operational
+        // Pre-validation caught corruption without touching active database file
         var logs = _db.GetLogs(levelFilter: LogLevel.Error);
-        Assert.Contains(logs, l => l.Message.Contains("Database restore failed: Database structure invalid/corrupted"));
+        Assert.Contains(logs, l => l.Message.Contains("Database restore pre-validation failed"));
 
-        // Confirm database connection is usable after reopening
+        // Confirm database connection is usable after pre-validation abort and original data preserved
         _db.InsertLog(new LogEntry { Message = "Log after failed restore", Level = LogLevel.Info });
         var currentLogs = _db.GetLogs();
+        Assert.Contains(currentLogs, l => l.Message == "Pre-existing operational log");
         Assert.Contains(currentLogs, l => l.Message == "Log after failed restore");
+        Assert.False(File.Exists(_dbPath + ".pre_restore"));
     }
 
     [Fact]
@@ -236,5 +239,15 @@ public class DatabaseBackupServiceTests : IDisposable
         string nonExistentDb = Path.Combine(_tempDir, "non_existent_corrupt.db");
         var exception = Record.Exception(() => DatabaseBackupService.RotateCorruptDatabase(nonExistentDb));
         Assert.Null(exception);
+    }
+
+    [Fact]
+    public void BackupDatabase_PathWithInvalidCharacters_ReturnsEmptyStringAndLogsError()
+    {
+        string invalidPath = "invalid\0path.db";
+        string result = _db.Backup.BackupDatabase(invalidPath);
+        Assert.Equal("", result);
+        var logs = _db.GetLogs(levelFilter: LogLevel.Error);
+        Assert.Contains(logs, l => l.Message.StartsWith("Backup failed:"));
     }
 }

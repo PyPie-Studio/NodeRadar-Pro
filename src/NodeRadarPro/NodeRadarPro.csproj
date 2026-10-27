@@ -45,7 +45,6 @@
     <PackageReference Include="MailKit" />
     <PackageReference Include="System.Management" />
     <PackageReference Include="System.Windows.Extensions" />
-    <PackageReference Include="Tmds.DBus.Protocol" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>

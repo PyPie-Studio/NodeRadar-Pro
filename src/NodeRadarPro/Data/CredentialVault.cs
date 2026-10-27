@@ -155,57 +155,43 @@ public static class CredentialVault
         {
             if (data.Length >= 45 && data[0] == 0x02)
             {
-                try
-                {
-                    byte[] salt = new byte[16];
-                    byte[] nonce = new byte[12];
-                    byte[] tag = new byte[16];
-                    byte[] cipherText = new byte[data.Length - 45];
+                byte[] salt = new byte[16];
+                byte[] nonce = new byte[12];
+                byte[] tag = new byte[16];
+                byte[] cipherText = new byte[data.Length - 45];
 
-                    Buffer.BlockCopy(data, 1, salt, 0, 16);
-                    Buffer.BlockCopy(data, 17, nonce, 0, 12);
-                    Buffer.BlockCopy(data, 29, tag, 0, 16);
-                    Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
+                Buffer.BlockCopy(data, 1, salt, 0, 16);
+                Buffer.BlockCopy(data, 17, nonce, 0, 12);
+                Buffer.BlockCopy(data, 29, tag, 0, 16);
+                Buffer.BlockCopy(data, 45, cipherText, 0, cipherText.Length);
 
-                    byte[] key = DeriveKeyPbkdf2(salt);
-                    byte[] plainBytes = new byte[cipherText.Length];
-                    using (var aesGcm = new AesGcm(key, 16))
-                    {
-                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
-                    }
-                    return plainBytes;
-                }
-                catch
+                byte[] key = DeriveKeyPbkdf2(salt);
+                byte[] plainBytes = new byte[cipherText.Length];
+                using (var aesGcm = new AesGcm(key, 16))
                 {
-                    return data;
+                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
                 }
+                return plainBytes;
             }
             if (data.Length >= 29 && data[0] == 0x01)
             {
-                try
-                {
-                    byte[] key = GetFallbackEncryptionKeyLegacy();
-                    byte[] nonce = new byte[12];
-                    byte[] tag = new byte[16];
-                    byte[] cipherText = new byte[data.Length - 29];
+                byte[] key = GetFallbackEncryptionKeyLegacy();
+                byte[] nonce = new byte[12];
+                byte[] tag = new byte[16];
+                byte[] cipherText = new byte[data.Length - 29];
 
-                    Buffer.BlockCopy(data, 1, nonce, 0, 12);
-                    Buffer.BlockCopy(data, 13, tag, 0, 16);
-                    Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
+                Buffer.BlockCopy(data, 1, nonce, 0, 12);
+                Buffer.BlockCopy(data, 13, tag, 0, 16);
+                Buffer.BlockCopy(data, 29, cipherText, 0, cipherText.Length);
 
-                    byte[] plainBytes = new byte[cipherText.Length];
-                    using (var aesGcm = new AesGcm(key, 16))
-                    {
-                        aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
-                    }
-                    return plainBytes;
-                }
-                catch
+                byte[] plainBytes = new byte[cipherText.Length];
+                using (var aesGcm = new AesGcm(key, 16))
                 {
-                    return data;
+                    aesGcm.Decrypt(nonce, cipherText, tag, plainBytes);
                 }
+                return plainBytes;
             }
-            return data;
+            throw new CryptographicException("Unrecognized protected data format or payload length.");
         }
     }
 

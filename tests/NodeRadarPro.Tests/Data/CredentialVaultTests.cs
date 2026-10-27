@@ -190,7 +190,7 @@ public class CredentialVaultTests : IDisposable
     }
 
     [Fact]
-    public void UnprotectData_WithCorruptedPayload_ReturnsDataWithoutThrowing()
+    public void UnprotectData_WithCorruptedPayload_ThrowsCryptographicException()
     {
         byte[] corruptPayload = new byte[50];
         corruptPayload[0] = 0x02; // Claims v2 format but has random garbage
@@ -199,8 +199,7 @@ public class CredentialVaultTests : IDisposable
             rng.GetBytes(corruptPayload.AsSpan(1));
         }
 
-        byte[] result = CredentialVault.UnprotectData(corruptPayload);
-        Assert.Equal(corruptPayload, result);
+        Assert.ThrowsAny<CryptographicException>(() => CredentialVault.UnprotectData(corruptPayload));
     }
 
     [Fact]

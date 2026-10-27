@@ -216,4 +216,33 @@ public class AppUtilsTests : IDisposable
         Assert.Null(exception);
         Assert.Equal(tempDir, launchedFolder);
     }
+
+    [Theory]
+    [InlineData("=1+1", "\"'=1+1\"")]
+    [InlineData("+cmd|'/c calc'!A0", "\"'+cmd|'/c calc'!A0\"")]
+    [InlineData("-5", "\"'-5\"")]
+    [InlineData("@SUM(A1:A10)", "\"'@SUM(A1:A10)\"")]
+    [InlineData("\tcmd", "\"'\tcmd\"")]
+    [InlineData("Simple Text", "\"Simple Text\"")]
+    [InlineData("Text with \"quotes\"", "\"Text with \"\"quotes\"\"\"")]
+    [InlineData(null, "\"\"")]
+    [InlineData("", "\"\"")]
+    public void EscapeCsvCell_SanitizesFormulasAndQuotes(string? input, string expected)
+    {
+        string actual = AppUtils.EscapeCsvCell(input);
+        Assert.Equal(expected, actual);
+    }
+
+    [Theory]
+    [InlineData("Safe Text", "Safe Text")]
+    [InlineData("Text | with | pipes", "Text \\| with \\| pipes")]
+    [InlineData("Text <script>alert(1)</script>", "Text &lt;script&gt;alert(1)&lt;/script&gt;")]
+    [InlineData("Line1\r\nLine2", "Line1 Line2")]
+    [InlineData(null, "—")]
+    [InlineData("", "—")]
+    public void SanitizeMarkdownCell_SanitizesPipesAndTags(string? input, string expected)
+    {
+        string actual = AppUtils.SanitizeMarkdownCell(input);
+        Assert.Equal(expected, actual);
+    }
 }

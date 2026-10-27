@@ -60,7 +60,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .Returns(Task.CompletedTask);
         mockClient.Setup(c => c.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, default))
                   .ThrowsAsync(new AuthenticationException("Invalid username or password"));
@@ -83,7 +83,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .Returns(Task.CompletedTask);
         mockClient.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null))
                   .ThrowsAsync(new SmtpCommandException(SmtpErrorCode.MessageNotAccepted, SmtpStatusCode.TransactionFailed, "Message refused"));
@@ -106,7 +106,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .ThrowsAsync(new SmtpProtocolException("Unexpected response from SMTP server"));
 
         await EmailService.SendAlertAsync(settings, "Test Subject", "Test Body", _db, mockClient.Object);
@@ -127,7 +127,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .ThrowsAsync(new IOException("Connection reset by peer"));
 
         await EmailService.SendAlertAsync(settings, "Test Subject", "Test Body", _db, mockClient.Object);
@@ -148,7 +148,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .ThrowsAsync(new InvalidOperationException("Unexpected error"));
 
         await EmailService.SendAlertAsync(settings, "Test Subject", "Test Body", _db, mockClient.Object);
@@ -171,7 +171,7 @@ public class EmailServiceTests : IDisposable
         };
 
         var mockClient = new Mock<ISmtpClient>();
-        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default))
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .Returns(Task.CompletedTask);
         mockClient.Setup(c => c.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, default))
                   .Returns(Task.CompletedTask);
@@ -185,7 +185,7 @@ public class EmailServiceTests : IDisposable
         var logs = _db.GetLogs();
         Assert.Empty(logs);
 
-        mockClient.Verify(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.Auto, default), Times.Once);
+        mockClient.Verify(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default), Times.Once);
         mockClient.Verify(c => c.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, default), Times.Once);
         mockClient.Verify(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null), Times.Once);
         mockClient.Verify(c => c.DisconnectAsync(true, default), Times.Once);
@@ -223,5 +223,29 @@ public class EmailServiceTests : IDisposable
 
         var logs = _db.GetLogs();
         Assert.Empty(logs);
+    }
+
+    [Fact]
+    public async Task SendAlertAsync_Port465_UsesSslOnConnect()
+    {
+        var settings = new AppSettings
+        {
+            EnableEmailAlerts = true,
+            SmtpHost = "smtp.example.com",
+            SmtpPort = 465,
+            SmtpEmail = "test@example.com"
+        };
+
+        var mockClient = new Mock<ISmtpClient>();
+        mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, 465, SecureSocketOptions.SslOnConnect, default))
+                  .Returns(Task.CompletedTask);
+        mockClient.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null))
+                  .ReturnsAsync("OK");
+        mockClient.Setup(c => c.DisconnectAsync(true, default))
+                  .Returns(Task.CompletedTask);
+
+        await EmailService.SendAlertAsync(settings, "Subject", "Body", _db, mockClient.Object);
+
+        mockClient.Verify(c => c.ConnectAsync(settings.SmtpHost, 465, SecureSocketOptions.SslOnConnect, default), Times.Once);
     }
 }

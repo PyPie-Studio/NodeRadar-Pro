@@ -182,6 +182,12 @@ public class PortScansPage : Border
         string ip = _targetIp.Text?.Trim() ?? "";
         if (string.IsNullOrEmpty(ip)) return;
 
+        if (!System.Net.IPAddress.TryParse(ip, out _))
+        {
+            _statusText.Text = "Invalid IP address format.";
+            return;
+        }
+
         IEnumerable<int> portsToScan;
         string rangeDesc;
         int totalPorts;
@@ -194,10 +200,14 @@ public class PortScansPage : Border
         }
         else
         {
-            if (!int.TryParse(_startPort.Text, out int sp) || !int.TryParse(_endPort.Text, out int ep)) return;
+            if (!int.TryParse(_startPort.Text, out int sp) || !int.TryParse(_endPort.Text, out int ep))
+            {
+                _statusText.Text = "Port numbers must be valid integers.";
+                return;
+            }
             if (sp < 1 || ep > 65535 || sp > ep)
             {
-                _statusText.Text = "Invalid port range (1-65535).";
+                _statusText.Text = "Invalid port range. Ports must be 1-65535 and Start <= End.";
                 return;
             }
             totalPorts = ep - sp + 1;
@@ -223,7 +233,7 @@ public class PortScansPage : Border
             var token = _cts.Token;
             var parallelOptions = new ParallelOptions
             {
-                MaxDegreeOfParallelism = 64,
+                MaxDegreeOfParallelism = 32,
                 CancellationToken = token
             };
 
@@ -272,6 +282,7 @@ public class PortScansPage : Border
             }
         }
         catch (OperationCanceledException) { _statusText.Text = "Scan cancelled."; }
+        catch (Exception ex) { _statusText.Text = $"Scan failed: {ex.Message}"; }
         finally
         {
             _isScanning = false;

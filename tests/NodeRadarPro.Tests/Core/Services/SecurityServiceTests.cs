@@ -205,4 +205,54 @@ public class SecurityServiceTests
             }
         }
     }
+
+    [Fact]
+    public void VerifySystemIntegrity_InitialRun_LocksSignatureWithVersion()
+    {
+        using var ms = new MemoryStream();
+        using var liteDb = new LiteDB.LiteDatabase(ms);
+        var db = new NodeRadarPro.Data.LocalDatabase(liteDb);
+        var settings = new AppSettings { LastKnownGoodHash = "INITIAL" };
+
+        SecurityService.VerifySystemIntegrity(settings, db, "2.2.0");
+
+        Assert.NotEmpty(settings.LastKnownGoodHash);
+        Assert.StartsWith("2.2.0:", settings.LastKnownGoodHash);
+        var logs = db.GetLogs();
+        Assert.Contains(logs, l => l.Message.Contains("System integrity signature locked for v2.2.0."));
+    }
+
+    [Fact]
+    public void VerifySystemIntegrity_MatchingSignature_LogsSuccess()
+    {
+        using var ms = new MemoryStream();
+        using var liteDb = new LiteDB.LiteDatabase(ms);
+        var db = new NodeRadarPro.Data.LocalDatabase(liteDb);
+        var settings = new AppSettings { LastKnownGoodHash = "INITIAL" };
+
+        SecurityService.VerifySystemIntegrity(settings, db, "2.2.0");
+
+        SecurityService.VerifySystemIntegrity(settings, db, "2.2.0");
+
+        var logs = db.GetLogs();
+        Assert.Contains(logs, l => l.Message.Contains("System integrity verified (SHA256)."));
+    }
+
+    [Fact]
+    public void VerifySystemIntegrity_VersionUpgrade_ReLocksSignatureWithoutWarning()
+    {
+        using var ms = new MemoryStream();
+        using var liteDb = new LiteDB.LiteDatabase(ms);
+        var db = new NodeRadarPro.Data.LocalDatabase(liteDb);
+        var settings = new AppSettings { LastKnownGoodHash = "INITIAL" };
+
+        SecurityService.VerifySystemIntegrity(settings, db, "2.1.0");
+
+        SecurityService.VerifySystemIntegrity(settings, db, "2.2.0");
+
+        Assert.StartsWith("2.2.0:", settings.LastKnownGoodHash);
+        var logs = db.GetLogs();
+        Assert.Contains(logs, l => l.Message.Contains("System integrity signature locked for v2.2.0."));
+        Assert.DoesNotContain(logs, l => l.Message.Contains("CORE INTEGRITY MISMATCH"));
+    }
 }

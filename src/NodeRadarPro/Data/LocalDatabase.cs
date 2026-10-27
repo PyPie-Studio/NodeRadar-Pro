@@ -79,7 +79,8 @@ public class LocalDatabase : IDisposable
 
         try
         {
-            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+            _db = new LiteDatabase(connectionString);
             InitializeSchema();
         }
         catch (LiteException)
@@ -87,7 +88,8 @@ public class LocalDatabase : IDisposable
             DatabaseBackupService.RotateCorruptDatabase(_dbPath);
             try
             {
-                _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+                _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }
             catch
@@ -102,7 +104,8 @@ public class LocalDatabase : IDisposable
             System.Threading.Thread.Sleep(500);
             try
             {
-                _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+                var connectionString = new ConnectionString { Filename = _dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
+                _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }
             catch
@@ -147,7 +150,7 @@ public class LocalDatabase : IDisposable
                 {
                     dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
                 }
-                var connectionString = $"Filename={dbPath};Password={_dbPassword};Connection=shared";
+                var connectionString = new ConnectionString { Filename = dbPath, Password = _dbPassword, Connection = ConnectionType.Shared };
                 _db = new LiteDatabase(connectionString);
                 InitializeSchema();
             }

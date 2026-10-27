@@ -52,6 +52,17 @@ public class IntrusionDetector
             foreach (var node in newNodes)
             {
                 if (token.IsCancellationRequested) break;
+
+                Database.InsertAlert(new AlertEvent
+                {
+                    Timestamp = DateTime.Now,
+                    AlertType = AlertType.NewDeviceDiscovered,
+                    MacAddress = node.MacAddress,
+                    DeviceName = node.DisplayName,
+                    IpAddress = node.IpAddress,
+                    Message = $"Unauthorized / new device discovered: {node.DisplayName} ({node.IpAddress} / {node.MacAddress})"
+                });
+
                 if (_onAlertOverride != null)
                 {
                     _onAlertOverride(node);

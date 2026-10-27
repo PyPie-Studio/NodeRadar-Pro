@@ -38,7 +38,7 @@ public class DatabaseBackupService
 
                 if (customPath != null)
                 {
-                    destPath = customPath;
+                    destPath = Path.GetFullPath(customPath);
                     backupDir = Path.GetDirectoryName(destPath) ?? "";
                 }
                 else
@@ -58,12 +58,7 @@ public class DatabaseBackupService
 
                 return destPath;
             }
-            catch (IOException ex)
-            {
-                _database.Log(LogLevel.Error, LogSource, $"Backup failed: {ex.Message}");
-                return "";
-            }
-            catch (UnauthorizedAccessException ex)
+            catch (Exception ex)
             {
                 _database.Log(LogLevel.Error, LogSource, $"Backup failed: {ex.Message}");
                 return "";
@@ -75,53 +70,117 @@ public class DatabaseBackupService
     {
         lock (_database.SyncRoot)
         {
+            string? stagedPath = null;
+            bool connectionDisposed = false;
+            string dbPath = _database.DbPath;
+            if (string.IsNullOrEmpty(dbPath))
+            {
+                dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+            }
+
             try
             {
                 if (!File.Exists(backupPath)) return false;
 
-                string dbPath = _database.DbPath;
-                if (string.IsNullOrEmpty(dbPath))
+                // 1. Pre-validate incoming backup without modifying live storage
+                var testConn = new ConnectionString { Filename = backupPath, Password = _database.DbPassword, Connection = ConnectionType.Direct };
+                using (var testDb = new LiteDatabase(testConn))
                 {
-                    dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "noderadar.db");
+                    _ = testDb.GetCollectionNames().ToList();
                 }
 
-                // Close current connection before overwriting file
+                // 2. Close active connection before staging and overwriting
                 _database.DisposeConnection();
+                connectionDisposed = true;
 
+                // 3. Stage current database for instant rollback
+                stagedPath = dbPath + ".pre_restore";
+                if (File.Exists(dbPath))
+                {
+                    File.Copy(dbPath, stagedPath, true);
+                }
+
+                // 4. Copy verified backup to active database path
                 File.Copy(backupPath, dbPath, true);
 
-                // Re-initialize connection
-                var connectionString = $"Filename={dbPath};Password={_database.DbPassword};Connection=shared";
-                var newDb = new LiteDatabase(connectionString);
-                _database.ReplaceConnection(newDb);
+                // 5. Re-initialize connection to restored database with isolated rollback guard
+                try
+                {
+                    var connectionString = new ConnectionString { Filename = dbPath, Password = _database.DbPassword, Connection = ConnectionType.Shared };
+                    var newDb = new LiteDatabase(connectionString);
+                    _database.ReplaceConnection(newDb);
+                }
+                catch (Exception initEx)
+                {
+                    RollbackAndReopen(stagedPath, dbPath, connectionDisposed);
+                    try { _database.Log(LogLevel.Error, LogSource, $"Database restore failed during initialization; rolled back: {initEx.Message}"); } catch { /* Ignore logging failure */ }
+                    return false;
+                }
+
+                // Restore committed: staging cleanup is best-effort and must not trigger rollback
+                stagedPath = null;
+                try
+                {
+                    string cleanupPath = dbPath + ".pre_restore";
+                    if (File.Exists(cleanupPath)) File.Delete(cleanupPath);
+                }
+                catch
+                {
+                    // Cleanup error must not invalidate a successful restore
+                }
 
                 _database.Log(LogLevel.Info, LogSource, $"Database restored from: {backupPath}");
                 return true;
             }
+            catch (LiteException ex)
+            {
+                RollbackAndReopen(stagedPath, dbPath, connectionDisposed);
+                try { _database.Log(LogLevel.Error, LogSource, $"Database restore pre-validation failed: Database structure invalid/corrupted. {ex.Message}"); } catch { /* Ignore logging failure */ }
+                return false;
+            }
             catch (IOException ex)
             {
-                _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: File in use or I/O error. {ex.Message}");
+                RollbackAndReopen(stagedPath, dbPath, connectionDisposed);
+                try { _database.Log(LogLevel.Error, LogSource, $"Database restore failed: File in use or I/O error. {ex.Message}"); } catch { /* Ignore logging failure */ }
                 return false;
             }
             catch (UnauthorizedAccessException ex)
             {
-                _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: Permission denied when accessing file. {ex.Message}");
-                return false;
-            }
-            catch (LiteException ex)
-            {
-                _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, LogSource, $"Database restore failed: Database structure invalid/corrupted. {ex.Message}");
+                RollbackAndReopen(stagedPath, dbPath, connectionDisposed);
+                try { _database.Log(LogLevel.Error, LogSource, $"Database restore failed: Permission denied when accessing file. {ex.Message}"); } catch { /* Ignore logging failure */ }
                 return false;
             }
             catch (Exception ex)
             {
-                _database.ReopenDatabase();
-                _database.Log(LogLevel.Error, LogSource, $"Restore failed: {ex.Message}");
+                RollbackAndReopen(stagedPath, dbPath, connectionDisposed);
+                try { _database.Log(LogLevel.Error, LogSource, $"Restore failed: {ex.Message}"); } catch { /* Ignore logging failure */ }
                 return false;
             }
+        }
+    }
+
+    private void RollbackAndReopen(string? stagedPath, string dbPath, bool connectionDisposed)
+    {
+        try
+        {
+            if (connectionDisposed && stagedPath != null && File.Exists(stagedPath))
+            {
+                try { File.Copy(stagedPath, dbPath, true); } catch { }
+                try { File.Delete(stagedPath); } catch { }
+            }
+            else if (stagedPath != null && File.Exists(stagedPath))
+            {
+                try { File.Delete(stagedPath); } catch { }
+            }
+
+            if (connectionDisposed)
+            {
+                _database.ReopenDatabase();
+            }
+        }
+        catch
+        {
+            // Best effort rollback
         }
     }
 

@@ -15,7 +15,7 @@ namespace NodeRadarPro.Core;
 /// using ARP + ICMP + TCP fallback, records uptime snapshots,
 /// calculates packet loss, and fires alert events.
 /// </summary>
-public class ConnectivityMonitor
+public class ConnectivityMonitor : IDisposable
 {
     private const string MonitorLogCategory = "Monitor";
 
@@ -29,6 +29,8 @@ public class ConnectivityMonitor
 
     // Concurrency limit for synchronous ARP calls to prevent ThreadPool exhaustion
     private static readonly SemaphoreSlim _arpSemaphore = new SemaphoreSlim(10);
+    private readonly SemaphoreSlim _probeSemaphore = new SemaphoreSlim(32, 32);
+    private bool _disposed;
 
     private static readonly TimeSpan AlertCooldown = TimeSpan.FromMinutes(5);
 
@@ -145,12 +147,11 @@ public class ConnectivityMonitor
         var arpTableDict = await Task.Run(() => _arpResolver.GetFullArpTableAsDictionary())
                            ?? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>();
 
-        using var throttle = new SemaphoreSlim(32);
         var tasks = devices.Select(async device =>
         {
             try
             {
-                await throttle.WaitAsync(token);
+                await _probeSemaphore.WaitAsync(token);
             }
             catch (OperationCanceledException)
             {
@@ -171,7 +172,7 @@ public class ConnectivityMonitor
             }
             finally
             {
-                throttle.Release();
+                _probeSemaphore.Release();
             }
         });
 
@@ -536,4 +537,13 @@ public class ConnectivityMonitor
         return false;
     }
 
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _disposed = true;
+            _probeSemaphore.Dispose();
+        }
+        GC.SuppressFinalize(this);
+    }
 }

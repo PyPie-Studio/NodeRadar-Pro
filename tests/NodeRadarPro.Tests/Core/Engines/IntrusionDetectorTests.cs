@@ -104,6 +104,12 @@ public class IntrusionDetectorTests : IDisposable
         Assert.Equal(2, allTracked.Count);
         Assert.Contains(allTracked, d => d.MacAddress == "00:11:22:33:44:01");
         Assert.Contains(allTracked, d => d.MacAddress == "00:11:22:33:44:02");
+
+        // Verify alert event persistence
+        var alerts = _db.GetAlerts();
+        Assert.Single(alerts);
+        Assert.Equal(AlertType.NewDeviceDiscovered, alerts[0].AlertType);
+        Assert.Equal("00:11:22:33:44:02", alerts[0].MacAddress);
     }
 
     [Fact]

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -31,17 +30,15 @@ public static class CsvExportService
                 _ => log.Level.ToString()
             };
 
-            sb.Append('"')
-              .Append(log.Timestamp.ToString("yyyy-MM-dd  hh:mm:ss tt"))
-              .Append("\",\"")
-              .Append(levelStr)
-              .Append("\",\"")
-              .Append(EscapeCsv(log.Source))
-              .Append("\",\"")
-              .Append(EscapeCsv(log.Message))
-              .Append("\",\"")
-              .Append(EscapeCsv(log.DeviceMac))
-              .AppendLine("\"");
+            sb.Append(AppUtils.EscapeCsvCell(log.Timestamp.ToString("yyyy-MM-dd  hh:mm:ss tt")))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(levelStr))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(log.Source))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(log.Message))
+              .Append(',')
+              .AppendLine(AppUtils.EscapeCsvCell(log.DeviceMac));
         }
 
         return sb.ToString();
@@ -63,35 +60,25 @@ public static class CsvExportService
             string ports = node.OpenPorts?.Count > 0 ? string.Join(";", node.OpenPorts) : "";
             string status = node.IsOnline ? "Online" : "Offline";
 
-            sb.Append('"')
-              .Append(EscapeCsv(node.IpAddress))
-              .Append("\",\"")
-              .Append(EscapeCsv(node.MacAddress))
-              .Append("\",\"")
-              .Append(EscapeCsv(node.Hostname))
-              .Append("\",\"")
-              .Append(EscapeCsv(node.Vendor))
-              .Append("\",\"")
-              .Append(EscapeCsv(node.DeviceType))
-              .Append("\",\"")
-              .Append(status)
-              .Append("\",\"")
-              .Append(node.PingLatencyMs)
-              .Append("\",\"")
-              .Append(EscapeCsv(ports))
-              .Append("\",\"")
-              .Append(EscapeCsv(node.OsGuess))
-              .AppendLine("\"");
+            sb.Append(AppUtils.EscapeCsvCell(node.IpAddress))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(node.MacAddress))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(node.Hostname))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(node.Vendor))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(node.DeviceType))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(status))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(node.PingLatencyMs.ToString()))
+              .Append(',')
+              .Append(AppUtils.EscapeCsvCell(ports))
+              .Append(',')
+              .AppendLine(AppUtils.EscapeCsvCell(node.OsGuess));
         }
 
         return sb.ToString();
-    }
-
-    private static string EscapeCsv(string? value)
-    {
-        if (string.IsNullOrEmpty(value)) return "";
-        if (value.Contains('"', StringComparison.Ordinal))
-            return value.Replace("\"", "\"\"", StringComparison.Ordinal);
-        return value;
     }
 }

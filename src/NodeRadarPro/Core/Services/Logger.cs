@@ -111,6 +111,7 @@ public static class Logger
             {
                 string archivePath = Path.Combine(LogDir, $"noderadar_{DateTime.Now:yyyyMMdd_HHmmss}.log");
                 File.Move(CurrentLogFile, archivePath);
+                CleanupOldLogs();
             }
         }
         catch { }

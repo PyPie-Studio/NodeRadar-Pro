@@ -43,6 +43,16 @@
 - **Subnet Prefix Validation and Keyboard Execution (`ScannerPage.cs`, `TraceroutePage.cs`)**: Added IPv4 subnet prefix validation ensuring start and end IPs share the same `/24` prefix with start host octet less than or equal to end host octet. Wired Enter key listeners on target inputs.
 - **Runtime Environment Accuracy (`SupportPage.cs`)**: Corrected runtime execution label from NativeAOT to CoreCLR JIT to reflect desktop runtime compilation.
 
+### Security Hardening and Persistence Resilience
+- **LiteDB Restore Pre-Validation and Instant Rollback (`DatabaseBackupService.cs`, `LocalDatabase.cs`)**: Validated backup database structure against a direct-mode temporary connection before touching active storage. Staged existing database files to `.pre_restore` with automatic rollback and reconnection recovery on I/O failures. Replaced interpolated connection strings with strongly typed `ConnectionString` configurations.
+- **Fail-Fast Credential Fallback Protection (`CredentialVault.cs`)**: Removed ciphertext fallback swallowing during AEAD decryption errors, throwing `CryptographicException` directly when authentication tags or payload formats are invalid.
+- **Strict Network Concurrency and Socket Ceilings (`ConnectivityMonitor.cs`, `SubnetScanner.cs`, `PortScansPage.cs`)**: Enforced reusable `SemaphoreSlim(32)` throttling across connectivity monitoring, subnet pre-sweep and post-sweep probe tasks and port scanning workflows. Bound port scan inputs to valid IPv4 addresses and numeric ranges (1–65535).
+- **Explicit TLS Selection (`EmailService.cs`)**: Mapped SMTP ports directly to explicit TLS options (`SslOnConnect` on port 465, `StartTls` on port 587, `StartTlsWhenAvailable` as fallback), avoiding silent plaintext negotiation.
+- **Input Sanitization and Injection Neutralization (`AppUtils.cs`, `CsvExportService.cs`, `SupportPage.cs`)**: Neutralized spreadsheet formula injection prefixes (`=`, `+`, `-`, `@`, `\t`, `\r`) in CSV exports and escaped pipe delimiters and HTML brackets in Markdown audit tables.
+- **System Integrity Hash Shielding (`SecurityService.cs`, `DarkPurpleTheme.cs`)**: Centralized startup assembly integrity hashing with application version namespaces, isolating integrity checks within `SecurityService`.
+- **Log Rotation Lifecycle Management (`Logger.cs`)**: Automated log cleanup checks on log file rotation, purging expired physical log files according to retention policies.
+- **Dead Dependency Purge (`NodeRadarPro.csproj`, `Directory.Packages.props`)**: Removed unused `Tmds.DBus.Protocol` package references.
+
 ## NodeRadar Pro v2.1.0 (2026-10-14)
 
 ### Core Engine and Network Performance

@@ -306,7 +306,8 @@ public class SubnetScanner
         try
         {
             var arpTable = _arpResolver.GetFullArpTable();
-            var preSweepTasks = new List<Task<NetworkNode>>();
+            var preSweepTasks = new List<Task<NetworkNode?>>();
+            using var preThrottle = new SemaphoreSlim(32);
             foreach (var (ip, mac) in arpTable)
             {
                 if (token.IsCancellationRequested) break;
@@ -318,16 +319,32 @@ public class SubnetScanner
                     {
                         preSweepTasks.Add(Task.Run(async () =>
                         {
-                            var node = BuildNode(ip, mac);
-                            using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                            resolveCts.CancelAfter(5000);
                             try
                             {
-                                await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                                await preThrottle.WaitAsync(token);
                             }
-                            catch (OperationCanceledException) { }
-                            catch { }
-                            return node;
+                            catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+                            {
+                                return null;
+                            }
+
+                            try
+                            {
+                                var node = BuildNode(ip, mac);
+                                using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                                resolveCts.CancelAfter(5000);
+                                try
+                                {
+                                    await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                                }
+                                catch (OperationCanceledException) { }
+                                catch { }
+                                return node;
+                            }
+                            finally
+                            {
+                                try { preThrottle.Release(); } catch (ObjectDisposedException) { }
+                            }
                         }, token));
                     }
                 }
@@ -400,7 +417,8 @@ public class SubnetScanner
             {
                 var arpTable = _arpResolver.GetFullArpTable();
                 var allSubnetsSet = new HashSet<string>(allSubnets, StringComparer.Ordinal);
-                var postSweepTasks = new List<Task<NetworkNode>>();
+                var postSweepTasks = new List<Task<NetworkNode?>>();
+                using var postThrottle = new SemaphoreSlim(32);
                 foreach (var (ip, mac) in arpTable)
                 {
                     if (token.IsCancellationRequested) break;
@@ -409,16 +427,32 @@ public class SubnetScanner
 
                     postSweepTasks.Add(Task.Run(async () =>
                     {
-                        var node = BuildNode(ip, mac);
-                        using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
-                        resolveCts.CancelAfter(5000);
                         try
                         {
-                            await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                            await postThrottle.WaitAsync(token);
                         }
-                        catch (OperationCanceledException) { }
-                        catch { }
-                        return node;
+                        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+                        {
+                            return null;
+                        }
+
+                        try
+                        {
+                            var node = BuildNode(ip, mac);
+                            using var resolveCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+                            resolveCts.CancelAfter(5000);
+                            try
+                            {
+                                await ResolveNodeMetadataAsync(node, resolveCts.Token).WaitAsync(resolveCts.Token);
+                            }
+                            catch (OperationCanceledException) { }
+                            catch { }
+                            return node;
+                        }
+                        finally
+                        {
+                            try { postThrottle.Release(); } catch (ObjectDisposedException) { }
+                        }
                     }, token));
                 }
 
@@ -575,9 +609,8 @@ public class SubnetScanner
             else
                 node.Hostname = UnknownDevice;
 
-            // Inline port scanning (if enabled)
-            // OS detection and FastScan mode implicitly require port scanning to function properly
-            bool shouldPortScan = EnableInlinePortScan || EnableOsDetection || FastScanMode;
+            // Inline port scanning (strictly respects user toggle)
+            bool shouldPortScan = EnableInlinePortScan;
             if (shouldPortScan && !token.IsCancellationRequested)
             {
                 try

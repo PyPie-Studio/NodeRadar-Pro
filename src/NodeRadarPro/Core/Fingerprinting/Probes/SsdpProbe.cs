@@ -29,7 +29,10 @@ public class SsdpProbe : IFingerprintProbe
     {
         PooledConnectionLifetime = TimeSpan.FromMinutes(15)
     })
-    { Timeout = TimeSpan.FromSeconds(2) };
+    {
+        Timeout = TimeSpan.FromSeconds(2),
+        MaxResponseContentBufferSize = 65536
+    };
 
     public static async Task StartSweepAsync(CancellationToken token)
     {

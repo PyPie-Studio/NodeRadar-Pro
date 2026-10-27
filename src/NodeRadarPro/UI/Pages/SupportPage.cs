@@ -581,7 +581,9 @@ public class SupportPage : Border
         foreach (var d in threatDevices)
         {
             string ports = (d.OpenPorts != null && d.OpenPorts.Count > 0) ? string.Join(", ", d.OpenPorts) : "None";
-            sb.AppendLine($"| {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | **{d.ThreatLevel}** | {ports} |");
+            string displayName = AppUtils.SanitizeMarkdownCell(d.DisplayName);
+            string sanitizedPorts = AppUtils.SanitizeMarkdownCell(ports);
+            sb.AppendLine($"| {d.IpAddress} | {d.MacAddress} | {displayName} | **{d.ThreatLevel}** | {sanitizedPorts} |");
         }
         sb.AppendLine();
     }
@@ -594,9 +596,12 @@ public class SupportPage : Border
         foreach (var d in devices)
         {
             string status = d.IsOnline ? "ONLINE" : "OFFLINE";
-            string model = !string.IsNullOrEmpty(d.ExactModel) ? d.ExactModel : (!string.IsNullOrEmpty(d.DeviceModel) ? d.DeviceModel : "—");
-            string os = !string.IsNullOrEmpty(d.OsGuess) ? d.OsGuess : "—";
-            sb.AppendLine($"| {status} | {d.IpAddress} | {d.MacAddress} | {d.DisplayName} | {model} | {os} |");
+            string rawModel = !string.IsNullOrEmpty(d.ExactModel) ? d.ExactModel : (!string.IsNullOrEmpty(d.DeviceModel) ? d.DeviceModel : "—");
+            string rawOs = !string.IsNullOrEmpty(d.OsGuess) ? d.OsGuess : "—";
+            string displayName = AppUtils.SanitizeMarkdownCell(d.DisplayName);
+            string model = AppUtils.SanitizeMarkdownCell(rawModel);
+            string os = AppUtils.SanitizeMarkdownCell(rawOs);
+            sb.AppendLine($"| {status} | {d.IpAddress} | {d.MacAddress} | {displayName} | {model} | {os} |");
         }
         sb.AppendLine();
     }
@@ -611,7 +616,9 @@ public class SupportPage : Border
         foreach (var a in alerts.Take(25))
         {
             string state = a.IsResolved ? "Resolved" : "**ACTIVE**";
-            sb.AppendLine($"| {a.Timestamp:yyyy-MM-dd hh:mm:ss tt} | {state} | {a.AlertType.GetDisplayName()} | {a.DeviceName} | {a.Message} |");
+            string deviceName = AppUtils.SanitizeMarkdownCell(a.DeviceName);
+            string message = AppUtils.SanitizeMarkdownCell(a.Message);
+            sb.AppendLine($"| {a.Timestamp:yyyy-MM-dd hh:mm:ss tt} | {state} | {a.AlertType.GetDisplayName()} | {deviceName} | {message} |");
         }
         sb.AppendLine();
     }

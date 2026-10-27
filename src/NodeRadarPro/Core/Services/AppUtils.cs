@@ -221,5 +221,26 @@ namespace NodeRadarPro.Core
                 Logger.Log(LogLevel.Error, LogSource, $"Failed to open folder {folderPath}: {ex.Message}");
             }
         }
+
+        public static string EscapeCsvCell(string? input)
+        {
+            if (string.IsNullOrEmpty(input)) return "\"\"";
+            string text = input.Replace("\"", "\"\"", StringComparison.Ordinal);
+            if (text.Length > 0 && (text[0] == '=' || text[0] == '+' || text[0] == '-' || text[0] == '@' || text[0] == '\t' || text[0] == '\r'))
+            {
+                text = "'" + text;
+            }
+            return "\"" + text + "\"";
+        }
+
+        public static string SanitizeMarkdownCell(string? input)
+        {
+            if (string.IsNullOrEmpty(input)) return "—";
+            return input.Replace("|", "\\|", StringComparison.Ordinal)
+                        .Replace("\r", "", StringComparison.Ordinal)
+                        .Replace("\n", " ", StringComparison.Ordinal)
+                        .Replace("<", "&lt;", StringComparison.Ordinal)
+                        .Replace(">", "&gt;", StringComparison.Ordinal);
+        }
     }
 }
