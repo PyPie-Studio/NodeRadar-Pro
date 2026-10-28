@@ -110,7 +110,7 @@ public class SystemLogsPage : Border
             Background = Brushes.Transparent,
             Foreground = ThemeTokens.Error,
             Padding = new Thickness(10, 4),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         clearBtn.Click += (s, e) => ClearAllFilters();
         ThemeTokens.SetToolTip(clearBtn, "Clear the search box and level filters to show all system telemetry.");
@@ -134,7 +134,7 @@ public class SystemLogsPage : Border
             Padding = new Thickness(6, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsVisible = false,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; };
         _searchBox.TextChanged += (s, e) =>
@@ -308,7 +308,7 @@ public class SystemLogsPage : Border
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         ThemeTokens.SetToolTip(delBtn, "Delete this log entry permanently.");
         bool isDelArmed = false;
@@ -415,7 +415,7 @@ public class SystemLogsPage : Border
     private Border MakeLevelChip(string text, LogLevel? level)
     {
         bool active = _levelFilter == level;
-        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
+        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = ThemeTokens.HandCursor, Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
         chip.PointerPressed += (s, e) => { _levelFilter = level; UpdateLevelChips(); RefreshLogs(); };
         return chip;
     }

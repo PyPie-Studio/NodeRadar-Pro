@@ -211,7 +211,7 @@ public class AlertsPage : Border
                 HorizontalContentAlignment = HorizontalAlignment.Center,
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(8, 0, 0, 0),
-                Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+                Cursor = ThemeTokens.HandCursor
             };
             ThemeTokens.SetToolTip(resolveBtn, "Mark this specific alert as resolved and clear it from the active list.");
             resolveBtn.Click += (s, e) => { _db.ResolveAlert(alert.Id); RefreshAlerts(); AlertsChanged?.Invoke(); };
@@ -236,7 +236,7 @@ public class AlertsPage : Border
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(6, 0, 0, 0),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         ThemeTokens.SetToolTip(deleteBtn, "Delete this alert permanently from the database.");
         bool isDelArmed = false;
@@ -350,7 +350,7 @@ public class AlertsPage : Border
 
     private Border MakeFilterChip(string text, string key, bool active)
     {
-        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand), Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
+        var chip = new Border { CornerRadius = new CornerRadius(14), Padding = new Thickness(14, 6), Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent, BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30, BorderThickness = new Thickness(1), Cursor = ThemeTokens.HandCursor, Child = new TextBlock { Text = text, FontSize = 14, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium } };
         chip.PointerPressed += (s, e) => { _filterMode = key; UpdateFilterChips(); RefreshAlerts(); };
         return chip;
     }

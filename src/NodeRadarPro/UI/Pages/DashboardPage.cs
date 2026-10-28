@@ -224,7 +224,7 @@ public class DashboardPage : Border
         Grid.SetColumn(dot, 0); Grid.SetColumn(name, 1); Grid.SetColumn(lat, 2);
         grid.Children.Add(dot); grid.Children.Add(name); grid.Children.Add(lat);
 
-        var row = new Border { Padding = new Thickness(8, 6), CornerRadius = new CornerRadius(6), Background = ThemeTokens.SurfaceContainerLowest, Child = grid, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+        var row = new Border { Padding = new Thickness(8, 6), CornerRadius = new CornerRadius(6), Background = ThemeTokens.SurfaceContainerLowest, Child = grid, Cursor = ThemeTokens.HandCursor };
         row.PointerPressed += (s, e) => DeviceSelected?.Invoke(node);
         return row;
     }

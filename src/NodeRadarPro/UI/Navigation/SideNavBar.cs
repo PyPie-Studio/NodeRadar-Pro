@@ -228,7 +228,7 @@ public class SideNavBar : Border
             CornerRadius = new CornerRadius(8),
             Padding = new Thickness(12, 10),
             Background = Brushes.Transparent,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Cursor = ThemeTokens.HandCursor,
             Child = content
         };
 

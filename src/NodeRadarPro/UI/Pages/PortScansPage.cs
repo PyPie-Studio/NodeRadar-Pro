@@ -54,7 +54,7 @@ public class PortScansPage : Border
             CornerRadius = new CornerRadius(8),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         _scanBtn.Click += OnStartScan;
         ThemeTokens.SetToolTip(_scanBtn, "Begin an exhaustive port enumeration on the target IP.");
@@ -313,7 +313,7 @@ public class PortScansPage : Border
             Background = Brushes.Transparent,
             BorderBrush = ThemeTokens.GhostBorder30,
             BorderThickness = new Thickness(1),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Cursor = ThemeTokens.HandCursor,
             Child = new TextBlock { Text = name, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
         chip.PointerPressed += (s, e) =>

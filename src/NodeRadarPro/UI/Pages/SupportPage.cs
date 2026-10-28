@@ -407,7 +407,7 @@ public class SupportPage : Border
             Padding = new Thickness(14, 10),
             BorderBrush = ThemeTokens.GhostBorder,
             BorderThickness = new Thickness(1),
-            Cursor = url != null ? new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) : null,
+            Cursor = url != null ? ThemeTokens.HandCursor : null,
             Child = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
