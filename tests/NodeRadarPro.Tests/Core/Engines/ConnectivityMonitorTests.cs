@@ -225,4 +225,65 @@ public class ConnectivityMonitorTests
 
         Assert.False(monitor.IsRunning);
     }
+
+    [Fact]
+    public void GetAllDevices_WhenNoDevicesTracked_ReturnsEmptyList()
+    {
+        var monitor = new ConnectivityMonitor();
+
+        var devices = monitor.GetAllDevices();
+
+        Assert.NotNull(devices);
+        Assert.Empty(devices);
+    }
+
+    [Fact]
+    public void GetAllDevices_WhenDevicesAdded_ReturnsAllTrackedDevices()
+    {
+        var monitor = new ConnectivityMonitor();
+        var dev1 = new NetworkNode { MacAddress = "11:22:33:44:55:66", DeviceName = "Dev1" };
+        var dev2 = new NetworkNode { MacAddress = "AA:BB:CC:DD:EE:FF", DeviceName = "Dev2" };
+
+        monitor.AddDevice(dev1);
+        monitor.AddDevice(dev2);
+
+        var devices = monitor.GetAllDevices();
+
+        Assert.Equal(2, devices.Count);
+        Assert.Contains(devices, d => d.MacAddress == "11:22:33:44:55:66");
+        Assert.Contains(devices, d => d.MacAddress == "AA:BB:CC:DD:EE:FF");
+    }
+
+    [Fact]
+    public void GetAllDevices_AfterDeviceRemoval_ReturnsRemainingDevices()
+    {
+        var monitor = new ConnectivityMonitor();
+        var dev1 = new NetworkNode { MacAddress = "11:22:33:44:55:66", DeviceName = "Dev1" };
+        var dev2 = new NetworkNode { MacAddress = "AA:BB:CC:DD:EE:FF", DeviceName = "Dev2" };
+
+        monitor.AddDevice(dev1);
+        monitor.AddDevice(dev2);
+        monitor.RemoveDevice("11:22:33:44:55:66");
+
+        var devices = monitor.GetAllDevices();
+
+        Assert.Single(devices);
+        Assert.Equal("AA:BB:CC:DD:EE:FF", devices[0].MacAddress);
+    }
+
+    [Fact]
+    public void GetAllDevices_ReturnsNewListInstance()
+    {
+        var monitor = new ConnectivityMonitor();
+        var dev1 = new NetworkNode { MacAddress = "11:22:33:44:55:66", DeviceName = "Dev1" };
+        monitor.AddDevice(dev1);
+
+        var list1 = monitor.GetAllDevices();
+        var list2 = monitor.GetAllDevices();
+
+        Assert.NotSame(list1, list2);
+
+        list1.Clear();
+        Assert.Single(monitor.GetAllDevices());
+    }
 }
