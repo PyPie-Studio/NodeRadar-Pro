@@ -25,6 +25,7 @@ public class IntrusionDetector
     }
 
     public int InitialDelaySeconds { get; set; } = 30;
+    public string? BaseIpOverride { get; set; }
 
     public void Configure(AppSettings settings)
     {
@@ -36,12 +37,16 @@ public class IntrusionDetector
         _scanner.EnableInlinePortScan = settings.EnableInlinePortScan;
     }
 
-    public async Task SweepOnceAsync(CancellationToken token = default)
+    public Task SweepOnceAsync(CancellationToken token = default) => SweepOnceAsync(null, token);
+
+    public async Task SweepOnceAsync(string? baseIp, CancellationToken token = default)
     {
         try
         {
-            string baseIp = SubnetScanner.GetLocalBaseIp();
-            var results = await _scanner.ScanSubnetAsync(baseIp, token);
+            string targetBaseIp = !string.IsNullOrEmpty(baseIp)
+                ? baseIp
+                : (!string.IsNullOrEmpty(BaseIpOverride) ? BaseIpOverride : SubnetScanner.GetLocalBaseIp());
+            var results = await _scanner.ScanSubnetAsync(targetBaseIp, token);
 
             var newNodes = Database.MergeWithHistoryBulk(results);
             foreach (var node in newNodes)

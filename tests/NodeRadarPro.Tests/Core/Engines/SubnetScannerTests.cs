@@ -151,4 +151,166 @@ public class SubnetScannerTests
         Assert.False(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), (HashSet<string>)null!));
         Assert.False(SubnetScanner.IsIpInAnySubnet("192.168.1.50".AsSpan(), (IEnumerable<string>)null!));
     }
+
+    [Fact]
+    public async Task ScanSubnetAsync_WithMockDependencies_ExecutesPreSweepAndDiscoversNodes()
+    {
+        // Arrange
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut, RoundtripTime = 0 });
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.100", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 8 });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ArpResolver.UnknownMac);
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.100", It.IsAny<string>()))
+            .Returns("00:11:22:33:44:AA");
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>
+            {
+                ("192.168.1.50", "00:11:22:33:44:50")
+            });
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            TimeoutMs = 1,
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false,
+            ScanAllSubnets = false
+        };
+
+        var progressUpdates = new List<double>();
+        scanner.ProgressUpdated += p => progressUpdates.Add(p);
+
+        var discoveredNodes = new List<NetworkNode>();
+        scanner.NodeDiscovered += n => discoveredNodes.Add(n);
+
+        // Act
+        var results = await scanner.ScanSubnetAsync("192.168.1", CancellationToken.None);
+
+        // Assert
+        Assert.NotEmpty(results);
+        Assert.Contains(results, n => n.IpAddress == "192.168.1.50" && n.MacAddress == "00:11:22:33:44:50");
+        Assert.Contains(results, n => n.IpAddress == "192.168.1.100" && n.MacAddress == "00:11:22:33:44:AA");
+        Assert.NotEmpty(progressUpdates);
+        Assert.Equal(100.0, progressUpdates[^1]);
+    }
+
+    [Fact]
+    public async Task ScanRangeAsync_SyntheticMacAssignment_WhenArpReturnsUnknown()
+    {
+        // Arrange
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.75", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 15 });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ArpResolver.UnknownMac);
+        string unknown = ArpResolver.UnknownMac;
+        mockArp.Setup(a => a.TryGetMacFromArpTable("192.168.1.75", out unknown))
+            .Returns(false);
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            TimeoutMs = 1,
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false,
+            ScanAllSubnets = false
+        };
+
+        // Act
+        var results = await scanner.ScanRangeAsync("192.168.1", 75, 75, CancellationToken.None);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("192.168.1.75", results[0].IpAddress);
+        Assert.Equal("L3-ROUTED-192.168.1.75", results[0].MacAddress);
+    }
+
+    [Fact]
+    public async Task ScanRangeAsync_StealthPortProbeFallback_DetectsNodeWhenPingTimesOut()
+    {
+        // Arrange
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.50", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut, RoundtripTime = 0 });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ArpResolver.UnknownMac);
+        mockArp.Setup(a => a.GetFullArpTable()).Returns(new List<(string, string)>());
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        // Mock TCP port 445 open, all other ports closed
+        mockTcp.Setup(t => t.ProbePortAsync("192.168.1.50", 445, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        mockTcp.Setup(t => t.ProbePortAsync("192.168.1.50", It.IsNotIn(445), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            TimeoutMs = 1,
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false,
+            ScanAllSubnets = false
+        };
+
+        // Act
+        var results = await scanner.ScanRangeAsync("192.168.1", 50, 50, CancellationToken.None);
+
+        // Assert
+        Assert.Single(results);
+        Assert.Equal("192.168.1.50", results[0].IpAddress);
+        Assert.True(results[0].IsOnline);
+    }
+
+    [Fact]
+    public async Task QuickProbeAsync_Cascade_TestsArpPingTcpPhases()
+    {
+        // Tier 1: ARP success returns immediately
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.1", It.IsAny<string>())).Returns("00:11:22:33:44:01");
+        var resultArp = await SubnetScanner.QuickProbeAsync("192.168.1.1", arpResolver: mockArp.Object);
+        Assert.True(resultArp.IsOnline);
+        Assert.Equal("00:11:22:33:44:01", resultArp.Mac);
+
+        // Tier 2: ARP fails but ICMP Ping succeeds
+        var mockArpFail = new Mock<IArpResolver>();
+        mockArpFail.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>())).Returns(ArpResolver.UnknownMac);
+        var mockPingSuccess = new Mock<IPingProvider>();
+        mockPingSuccess.Setup(p => p.SendPingAsync("192.168.1.2", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 12 });
+        var resultPing = await SubnetScanner.QuickProbeAsync("192.168.1.2", pingProvider: mockPingSuccess.Object, arpResolver: mockArpFail.Object);
+        Assert.True(resultPing.IsOnline);
+        Assert.Equal(12, resultPing.LatencyMs);
+
+        // Tier 3: ARP and Ping fail, but TCP port probe succeeds
+        var mockPingFail = new Mock<IPingProvider>();
+        mockPingFail.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut, RoundtripTime = 0 });
+        var mockTcpSuccess = new Mock<ITcpPortProber>();
+        mockTcpSuccess.Setup(t => t.ProbePortAsync("192.168.1.3", 80, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var resultTcp = await SubnetScanner.QuickProbeAsync("192.168.1.3", pingProvider: mockPingFail.Object, arpResolver: mockArpFail.Object, tcpPortProber: mockTcpSuccess.Object);
+        Assert.True(resultTcp.IsOnline);
+
+        // Tier 4: All probes fail -> host offline
+        var mockTcpFail = new Mock<ITcpPortProber>();
+        mockTcpFail.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        var resultOffline = await SubnetScanner.QuickProbeAsync("192.168.1.4", pingProvider: mockPingFail.Object, arpResolver: mockArpFail.Object, tcpPortProber: mockTcpFail.Object);
+        Assert.False(resultOffline.IsOnline);
+    }
 }

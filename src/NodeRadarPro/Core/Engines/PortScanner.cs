@@ -40,7 +40,7 @@ public static class PortScanner
     };
 
     /// <summary>Scans common ports and returns human-readable results.</summary>
-    public static async Task<List<string>> ScanCommonPortsAsync(string ipAddress, CancellationToken token = default)
+    public static async Task<List<string>> ScanCommonPortsAsync(string ipAddress, int timeoutMs = 500, CancellationToken token = default)
     {
         var openPorts = new ConcurrentBag<string>();
         using var semaphore = new SemaphoreSlim(64);
@@ -53,7 +53,7 @@ public static class PortScanner
             try
             {
                 if (token.IsCancellationRequested) return;
-                if (await IsPortOpenAsync(ipAddress, port, 500, token))
+                if (await IsPortOpenAsync(ipAddress, port, timeoutMs, token))
                     openPorts.Add($"{port} ({_commonPorts[port]})");
             }
             finally
@@ -84,7 +84,7 @@ public static class PortScanner
                 if (await IsPortOpenAsync(ipAddress, port, timeoutMs, token))
                 {
                     // Grab banner
-                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
+                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token, timeoutMs);
                     results.TryAdd(port, banner);
                 }
             }
@@ -114,7 +114,7 @@ public static class PortScanner
                 if (token.IsCancellationRequested) return;
                 if (await IsPortOpenAsync(ipAddress, port, timeoutMs, token))
                 {
-                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token);
+                    string banner = await BannerGrabProbe.GrabBannerAsync(ipAddress, port, token, timeoutMs);
                     results.TryAdd(port, banner);
                 }
             }

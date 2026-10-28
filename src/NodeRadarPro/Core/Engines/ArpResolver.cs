@@ -182,12 +182,12 @@ public static class ArpResolver
     /// <summary>
     /// Attempts to resolve the NetBIOS name of a device via UDP port 137 (Professional fallback).
     /// </summary>
-    public static string TryResolveNetBiosName(string ipAddress, int port = 137)
+    public static string TryResolveNetBiosName(string ipAddress, int port = 137, int timeoutMs = 1500)
     {
         try
         {
             using var udp = new UdpClient();
-            udp.Client.ReceiveTimeout = 1500;
+            udp.Client.ReceiveTimeout = timeoutMs;
             udp.Connect(ipAddress, port);
 
             // Standard NetBIOS Node Status Query packet
@@ -222,7 +222,7 @@ public static class ArpResolver
     /// Asynchronously attempts to resolve the NetBIOS name of a device via UDP port 137 (Professional fallback).
     /// Uses non-blocking UDP I/O to avoid holding thread pool threads.
     /// </summary>
-    public static async Task<string> TryResolveNetBiosNameAsync(string ipAddress, int port = 137, CancellationToken cancellationToken = default)
+    public static async Task<string> TryResolveNetBiosNameAsync(string ipAddress, int port = 137, int timeoutMs = 1500, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -244,7 +244,7 @@ public static class ArpResolver
             await udp.SendAsync(query, cancellationToken).ConfigureAwait(false);
 
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeoutCts.CancelAfter(1500);
+            timeoutCts.CancelAfter(timeoutMs);
 
             var result = await udp.ReceiveAsync(timeoutCts.Token).ConfigureAwait(false);
             byte[] response = result.Buffer;

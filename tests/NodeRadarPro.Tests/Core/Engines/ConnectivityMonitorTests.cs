@@ -1,6 +1,8 @@
-using NodeRadarPro.Data;
+using System.Net.NetworkInformation;
 using System.Reflection;
+using Moq;
 using NodeRadarPro.Core;
+using NodeRadarPro.Data;
 
 namespace NodeRadarPro.Tests;
 
@@ -142,13 +144,31 @@ public class ConnectivityMonitorTests
         Assert.Contains(all, d => d.MacAddress == "00:11:22:33:44:02");
     }
 
+    private static (Mock<IPingProvider> ping, Mock<IArpResolver> arp) CreateOfflineMocks()
+    {
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut, RoundtripTime = 0 });
+
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ArpResolver.UnknownMac);
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>());
+        mockArp.Setup(a => a.GetFullArpTableAsDictionary())
+            .Returns(new Dictionary<string, string>());
+
+        return (mockPing, mockArp);
+    }
+
     [Fact]
     public async Task CheckAllDevicesAsync_CollectsAndBulkInsertsAlerts()
     {
         using var ms = new MemoryStream();
         using var liteDb = new LiteDB.LiteDatabase(ms, new LiteDB.BsonMapper());
         using var tempDb = new LocalDatabase(liteDb);
-        var monitor = new ConnectivityMonitor(tempDb);
+        var (mockPing, mockArp) = CreateOfflineMocks();
+        var monitor = new ConnectivityMonitor(tempDb, mockPing.Object, mockArp.Object);
         var dev = new NetworkNode
         {
             MacAddress = "00:11:22:33:44:55",
@@ -157,7 +177,7 @@ public class ConnectivityMonitorTests
         };
         monitor.AddDevice(dev);
 
-        using var cts = new CancellationTokenSource(1000);
+        using var cts = new CancellationTokenSource(2000);
         var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         Assert.NotNull(methodInfo);
 
@@ -171,7 +191,8 @@ public class ConnectivityMonitorTests
     [Fact]
     public async Task CheckAllDevicesAsync_UnreachableHost_ExecutesGracefullyWithoutException()
     {
-        var monitor = new ConnectivityMonitor();
+        var (mockPing, mockArp) = CreateOfflineMocks();
+        var monitor = new ConnectivityMonitor(null, mockPing.Object, mockArp.Object);
         var dev = new NetworkNode
         {
             MacAddress = "00:11:22:33:44:99",
@@ -191,9 +212,35 @@ public class ConnectivityMonitorTests
     }
 
     [Fact]
+    public async Task CheckAllDevicesAsync_UnreachableHost_TransitionsToOffline()
+    {
+        var (mockPing, mockArp) = CreateOfflineMocks();
+        var monitor = new ConnectivityMonitor(null, mockPing.Object, mockArp.Object);
+        var dev = new NetworkNode
+        {
+            MacAddress = "00:11:22:33:44:77",
+            IpAddress = "192.0.2.77",
+            IsOnline = true,
+            FailedCheckCount = 2
+        };
+        monitor.AddDevice(dev);
+
+        var methodInfo = typeof(ConnectivityMonitor).GetMethod("CheckAllDevicesAsync", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Assert.NotNull(methodInfo);
+
+        var task = (Task)methodInfo.Invoke(monitor, new object[] { CancellationToken.None })!;
+        await task;
+
+        Assert.False(dev.IsOnline);
+        Assert.Equal(3, dev.FailedCheckCount);
+        Assert.Equal(-1, dev.PingLatencyMs);
+    }
+
+    [Fact]
     public async Task CheckAllDevicesAsync_CancelledToken_AbortsGracefullyWithoutException()
     {
-        var monitor = new ConnectivityMonitor();
+        var (mockPing, mockArp) = CreateOfflineMocks();
+        var monitor = new ConnectivityMonitor(null, mockPing.Object, mockArp.Object);
         var dev = new NetworkNode
         {
             MacAddress = "00:11:22:33:44:88",

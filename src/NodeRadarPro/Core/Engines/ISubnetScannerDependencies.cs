@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
+using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NodeRadarPro.Core
@@ -48,6 +50,16 @@ namespace NodeRadarPro.Core
             mac = "Unknown";
             return false;
         }
+        IReadOnlyDictionary<string, string> GetFullArpTableAsDictionary()
+        {
+            var list = GetFullArpTable();
+            var dict = new Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase);
+            foreach (var item in list)
+            {
+                dict[item.Ip] = item.Mac;
+            }
+            return dict;
+        }
     }
 
     public class DefaultArpResolver : IArpResolver
@@ -58,5 +70,28 @@ namespace NodeRadarPro.Core
         public Task<string> TryResolveNetBiosNameAsync(string ipAddress, System.Threading.CancellationToken cancellationToken = default)
             => ArpResolver.TryResolveNetBiosNameAsync(ipAddress, cancellationToken: cancellationToken);
         public bool TryGetMacFromArpTable(string ip, out string mac) => ArpResolver.TryGetMacFromArpTable(ip, out mac);
+        public IReadOnlyDictionary<string, string> GetFullArpTableAsDictionary() => ArpResolver.GetFullArpTableAsDictionary();
+    }
+
+    public interface ITcpPortProber
+    {
+        Task<bool> ProbePortAsync(string ip, int port, CancellationToken token);
+    }
+
+    public class DefaultTcpPortProber : ITcpPortProber
+    {
+        public async Task<bool> ProbePortAsync(string ip, int port, CancellationToken token)
+        {
+            try
+            {
+                using var tcp = new TcpClient();
+                await tcp.ConnectAsync(ip, port, token);
+                return tcp.Connected;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

@@ -14,7 +14,7 @@ public static class ScannerDiagnostics
     private const string SourceMacOuiLookup = "MAC OUI Lookup";
     private const string KeyVendor = "Vendor";
 
-    public static async Task<int> RunDiagnosticsAsync(Func<NetworkInterface[]>? getNetworkInterfaces = null)
+    public static async Task<int> RunDiagnosticsAsync(Func<NetworkInterface[]>? getNetworkInterfaces = null, SubnetScanner? scannerOverride = null)
     {
         Console.WriteLine("==================================================");
         Console.WriteLine("      NODERADAR PRO - SCANNER DIAGNOSTICS SUITE   ");
@@ -40,7 +40,7 @@ public static class ScannerDiagnostics
         allPassed &= await TestQuickProbeAsync();
 
         // Test 6: Scanner Deduplication & Execution (Sweep 3 IPs)
-        allPassed &= await TestScannerSweepAndDeduplicationAsync();
+        allPassed &= await TestScannerSweepAndDeduplicationAsync(scannerOverride);
 
         // Test 7: Asynchronous Discovery Engine Verification
         allPassed &= TestDiscoveryEngineComponents();
@@ -213,12 +213,12 @@ public static class ScannerDiagnostics
         }
     }
 
-    private static async Task<bool> TestScannerSweepAndDeduplicationAsync()
+    private static async Task<bool> TestScannerSweepAndDeduplicationAsync(SubnetScanner? customScanner = null)
     {
         Console.Write("Test 6: Scanner Deduplication and Events... ");
         try
         {
-            var scanner = new SubnetScanner { TimeoutMs = 500 };
+            var scanner = customScanner ?? new SubnetScanner { TimeoutMs = 500 };
 
             int discoveryEventCount = 0;
             var discoveredNodes = new List<NetworkNode>();

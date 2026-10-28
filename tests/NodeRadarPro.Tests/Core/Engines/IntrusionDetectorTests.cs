@@ -1,5 +1,7 @@
+using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using LiteDB;
+using Moq;
 using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 
@@ -45,26 +47,63 @@ public class IntrusionDetectorTests : IDisposable
     {
         // Arrange
         var alertedNodes = new List<NetworkNode>();
-        var fakeScanner = new SubnetScanner
-        {
-            TimeoutMs = 10,
-            EnableDnsResolve = false,
-            EnableOsDetection = false
-        };
+        var existing = new NetworkNode { MacAddress = "00:11:22:33:44:01", IpAddress = "192.168.1.1", DeviceName = "Known Device" };
 
-        var detector = new IntrusionDetector(fakeScanner, _db, node => alertedNodes.Add(node));
-
-        // Pre-insert a known node directly
-        var existing = new NetworkNode { MacAddress = "00:11:22:33:44:01", IpAddress = "192.168.1.1" };
+        // Pre-insert known node directly into database
         _db.MergeWithHistory(existing);
 
-        // Act - run single sweep with mock results simulation
-        var newDevice = new NetworkNode { MacAddress = "00:11:22:33:44:02", IpAddress = "192.168.1.2" };
-        var mergeResult = _db.MergeWithHistoryBulk(new List<NetworkNode> { existing, newDevice });
+        var mockPing = new Mock<IPingProvider>();
+        mockPing.Setup(p => p.SendPingAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.TimedOut, RoundtripTime = 0 });
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.1", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 5 });
+        mockPing.Setup(p => p.SendPingAsync("192.168.1.2", It.IsAny<int>()))
+            .ReturnsAsync(new PingReplyWrapper { Status = IPStatus.Success, RoundtripTime = 8 });
 
-        // Assert
-        Assert.Single(mergeResult);
-        Assert.Equal("00:11:22:33:44:02", mergeResult[0].MacAddress);
+        var mockArp = new Mock<IArpResolver>();
+        mockArp.Setup(a => a.ResolveMacAddress(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns(ArpResolver.UnknownMac);
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.1", It.IsAny<string>()))
+            .Returns("00:11:22:33:44:01");
+        mockArp.Setup(a => a.ResolveMacAddress("192.168.1.2", It.IsAny<string>()))
+            .Returns("00:11:22:33:44:02");
+        mockArp.Setup(a => a.GetFullArpTable())
+            .Returns(new List<(string Ip, string Mac)>
+            {
+                ("192.168.1.1", "00:11:22:33:44:01"),
+                ("192.168.1.2", "00:11:22:33:44:02")
+            });
+
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var realScanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
+        {
+            TimeoutMs = 1,
+            EnableDnsResolve = false,
+            EnableInlinePortScan = false,
+            EnableOsDetection = false,
+            ScanAllSubnets = false
+        };
+
+        var detector = new IntrusionDetector(realScanner, _db, node => alertedNodes.Add(node))
+        {
+            BaseIpOverride = "192.168.1"
+        };
+
+        // Act - execute actual detector sweep with real SubnetScanner
+        await detector.SweepOnceAsync();
+
+        // Assert - only the new device is alerted
+        Assert.Single(alertedNodes);
+        Assert.Equal("00:11:22:33:44:02", alertedNodes[0].MacAddress);
+
+        // Verify database persistence of both nodes
+        var allTracked = _db.GetAllDevices();
+        Assert.Equal(2, allTracked.Count);
+        Assert.Contains(allTracked, d => d.MacAddress == "00:11:22:33:44:01");
+        Assert.Contains(allTracked, d => d.MacAddress == "00:11:22:33:44:02");
     }
 
     [Fact]

@@ -75,13 +75,13 @@ public class BannerGrabProbe : IFingerprintProbe
         return result;
     }
 
-    public static async Task<string> GrabBannerAsync(string ip, int port, CancellationToken token)
+    public static async Task<string> GrabBannerAsync(string ip, int port, CancellationToken token, int timeoutMs = 1500)
     {
         try
         {
             using var tcp = new TcpClient();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
-            cts.CancelAfter(1500);
+            cts.CancelAfter(timeoutMs);
 
             try
             {
@@ -93,7 +93,7 @@ public class BannerGrabProbe : IFingerprintProbe
             }
 
             using var stream = tcp.GetStream();
-            stream.ReadTimeout = 1500;
+            stream.ReadTimeout = timeoutMs;
 
             bool isTls = port == 443 || port == 8443 || port == 3389 || port == 993 || port == 995 || port == 5061 || port == 5001 || port == 9443 || port == 10000;
             System.IO.Stream activeStream = stream;

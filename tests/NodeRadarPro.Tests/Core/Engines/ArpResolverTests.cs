@@ -44,17 +44,12 @@ public class ArpResolverTests
     {
         // Arrange
         string nonResponsiveIp = "192.0.2.1"; // TEST-NET-1 IP address
-        var stopwatch = Stopwatch.StartNew();
 
         // Act
-        string result = ArpResolver.TryResolveNetBiosName(nonResponsiveIp);
-        stopwatch.Stop();
+        string result = ArpResolver.TryResolveNetBiosName(nonResponsiveIp, timeoutMs: 25);
 
         // Assert
         Assert.Equal(string.Empty, result);
-        // Ensure it timed out approximately after 1500ms (1.5 seconds)
-        // Give some buffer for execution time
-        Assert.True(stopwatch.ElapsedMilliseconds >= 1000, "Expected a timeout to take at least 1000ms");
     }
 
     [Fact]
@@ -75,16 +70,12 @@ public class ArpResolverTests
     {
         // Arrange
         string nonResponsiveIp = "192.0.2.1"; // TEST-NET-1 IP address
-        var stopwatch = Stopwatch.StartNew();
 
         // Act
-        string result = await ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp);
-        stopwatch.Stop();
+        string result = await ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp, timeoutMs: 25);
 
         // Assert
         Assert.Equal(string.Empty, result);
-        // Ensure it timed out approximately after 1500ms (1.5 seconds)
-        Assert.True(stopwatch.ElapsedMilliseconds >= 1000, "Expected a timeout to take at least 1000ms");
     }
 
     [Fact]

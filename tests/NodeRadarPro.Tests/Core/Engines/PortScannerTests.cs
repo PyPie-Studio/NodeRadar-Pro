@@ -14,6 +14,20 @@ namespace NodeRadarPro.Tests
                 {
                     var listener = new TcpListener(IPAddress.Loopback, port);
                     listener.Start();
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            while (true)
+                            {
+                                using var client = await listener.AcceptTcpClientAsync();
+                                using var stream = client.GetStream();
+                                byte[] banner = "SSH-2.0-TestServer\r\n"u8.ToArray();
+                                await stream.WriteAsync(banner);
+                            }
+                        }
+                        catch { }
+                    });
                     return (listener, port);
                 }
                 catch
@@ -34,7 +48,7 @@ namespace NodeRadarPro.Tests
             try
             {
                 // Act
-                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: false, timeoutMs: 2000);
+                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: false, timeoutMs: 50);
 
                 // Assert
                 Assert.NotNull(result);
@@ -56,7 +70,7 @@ namespace NodeRadarPro.Tests
             try
             {
                 // Act
-                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 2000);
+                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 50);
 
                 // Assert
                 Assert.NotNull(result);
@@ -76,7 +90,7 @@ namespace NodeRadarPro.Tests
             cts.Cancel(); // Cancel immediately
 
             // Act
-            var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 2000, token: cts.Token);
+            var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 50, token: cts.Token);
 
             // Assert
             Assert.NotNull(result);
@@ -93,7 +107,7 @@ namespace NodeRadarPro.Tests
             try
             {
                 // Act
-                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 2000);
+                var result = await PortScanner.ScanPortsAsync("127.0.0.1", fastScan: true, timeoutMs: 50);
 
                 // Assert
                 Assert.NotNull(result);
@@ -127,11 +141,25 @@ namespace NodeRadarPro.Tests
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             int testPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    while (true)
+                    {
+                        using var client = await listener.AcceptTcpClientAsync();
+                        using var stream = client.GetStream();
+                        byte[] banner = "TEST-BANNER\r\n"u8.ToArray();
+                        await stream.WriteAsync(banner);
+                    }
+                }
+                catch { }
+            });
 
             try
             {
                 // Act
-                var result = await PortScanner.ScanRangeAsync("127.0.0.1", testPort, testPort, timeoutMs: 2000);
+                var result = await PortScanner.ScanRangeAsync("127.0.0.1", testPort, testPort, timeoutMs: 50);
 
                 // Assert
                 Assert.NotNull(result);
@@ -153,7 +181,7 @@ namespace NodeRadarPro.Tests
             try
             {
                 // Act
-                var result = await PortScanner.ScanCommonPortsAsync("127.0.0.1");
+                var result = await PortScanner.ScanCommonPortsAsync("127.0.0.1", timeoutMs: 50);
 
                 // Assert
                 Assert.NotNull(result);

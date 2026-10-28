@@ -50,9 +50,17 @@ public class ConnectivityMonitor
     public string PreferredInterfaceName { get; set; } = "";
     public bool IsRunning => _isRunningState == 1;
 
-    public ConnectivityMonitor(LocalDatabase? db = null)
+    private readonly IPingProvider _pingProvider;
+    private readonly IArpResolver _arpResolver;
+
+    public ConnectivityMonitor(
+        LocalDatabase? db = null,
+        IPingProvider? pingProvider = null,
+        IArpResolver? arpResolver = null)
     {
         _db = db;
+        _pingProvider = pingProvider ?? new DefaultPingProvider();
+        _arpResolver = arpResolver ?? new DefaultArpResolver();
     }
 
     public void SetDatabase(LocalDatabase db) => _db = db;
@@ -132,7 +140,8 @@ public class ConnectivityMonitor
         var uptimeSnapshots = new List<UptimeSnapshot>();
         var alertsToInsert = new ConcurrentBag<AlertEvent>();
 
-        var arpTableDict = await Task.Run(ArpResolver.GetFullArpTableAsDictionary);
+        var arpTableDict = await Task.Run(() => _arpResolver.GetFullArpTableAsDictionary())
+                           ?? (IReadOnlyDictionary<string, string>)new Dictionary<string, string>();
 
         var tasks = devices.Select(device =>
             CheckDeviceAsync(device, arpTableDict, uptimeSnapshots, alertsToInsert, token));
@@ -194,10 +203,10 @@ public class ConnectivityMonitor
 
     private async Task<bool> CheckArpStatusAsync(
         string ip,
-        IReadOnlyDictionary<string, string> arpTableDict,
+        IReadOnlyDictionary<string, string>? arpTableDict,
         CancellationToken token)
     {
-        if (arpTableDict.TryGetValue(ip, out var arpMac) && HasValidMac(arpMac))
+        if (arpTableDict != null && arpTableDict.TryGetValue(ip, out var arpMac) && HasValidMac(arpMac))
         {
             return true;
         }
@@ -205,14 +214,14 @@ public class ConnectivityMonitor
         return await ResolveArpWithThrottlingAsync(ip, token);
     }
 
-    private static async Task<bool> ResolveArpWithThrottlingAsync(string ip, CancellationToken token)
+    private async Task<bool> ResolveArpWithThrottlingAsync(string ip, CancellationToken token)
     {
         try
         {
             await _arpSemaphore.WaitAsync(token);
             try
             {
-                string mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip), token);
+                string mac = await Task.Run(() => _arpResolver.ResolveMacAddress(ip), token);
                 return mac != ArpResolver.UnknownMac;
             }
             finally
@@ -232,8 +241,7 @@ public class ConnectivityMonitor
         int pingTimeout = Math.Min(TimeoutMs, 2000);
         try
         {
-            using var pinger = new Ping();
-            var reply = await pinger.SendPingAsync(ip, pingTimeout);
+            var reply = await _pingProvider.SendPingAsync(ip, pingTimeout);
             if (reply.Status == IPStatus.Success)
             {
                 return (true, reply.RoundtripTime);

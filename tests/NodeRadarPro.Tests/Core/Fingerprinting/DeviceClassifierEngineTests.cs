@@ -160,4 +160,131 @@ public class DeviceClassifierEngineTests
     {
         Assert.False(DeviceClassifierEngine.IsValidModel(model));
     }
+
+    [Theory]
+    [InlineData("Galaxy-S23")]
+    [InlineData("Pixel-7-Pro")]
+    [InlineData("Redmi-Note-11")]
+    [InlineData("Poco-X5-Pro")]
+    [InlineData("OnePlus-11")]
+    [InlineData("Oppo-Find-X5")]
+    [InlineData("Vivo-X90")]
+    [InlineData("Realme-GT")]
+    [InlineData("Motorola-Edge")]
+    [InlineData("Nokia-G50")]
+    [InlineData("Huawei-P50")]
+    [InlineData("Honor-Magic-5")]
+    [InlineData("Xiaomi-13")]
+    [InlineData("Galaxy-Note-20")]
+    [InlineData("Galaxy-A54")]
+    public void Classify_MobilePhoneBrandHostnames_ClassifiedAsMobile(string mobileHostname)
+    {
+        var node = new NetworkNode { Hostname = mobileHostname };
+        var probes = new List<ProbeResult>
+        {
+            new ProbeResult
+            {
+                Source = "DHCP Fingerprint",
+                RawData = new Dictionary<string, string> { { "DhcpHostname", mobileHostname } }
+            }
+        };
+
+        var result = DeviceClassifierEngine.Classify(node, probes);
+
+        Assert.Equal(DeviceTypeCategory.Mobile, result.Type);
+        Assert.Equal("Mobile Phone", result.TypeString);
+        Assert.Equal("Linux/Android", result.Os);
+    }
+
+    [Theory]
+    [InlineData("Johns-iPhone", DeviceTypeCategory.Mobile, "Mobile Device")]
+    [InlineData("Sarahs-iPad", DeviceTypeCategory.Mobile, "Mobile Device")]
+    [InlineData("MacBook-Pro", DeviceTypeCategory.Desktop, "Apple Computer")]
+    [InlineData("iMac-Studio", DeviceTypeCategory.Desktop, "Apple Computer")]
+    public void Classify_AppleHostnames_ClassifiedCorrectly(string hostname, DeviceTypeCategory expectedCategory, string expectedTypeString)
+    {
+        var node = new NetworkNode { Hostname = hostname };
+        var probes = new List<ProbeResult>
+        {
+            new ProbeResult
+            {
+                Source = "DHCP Fingerprint",
+                RawData = new Dictionary<string, string> { { "DhcpHostname", hostname } }
+            }
+        };
+
+        var result = DeviceClassifierEngine.Classify(node, probes);
+
+        Assert.Equal(expectedCategory, result.Type);
+        Assert.Equal(expectedTypeString, result.TypeString);
+        Assert.Equal("macOS/iOS", result.Os);
+    }
+
+    [Theory]
+    [InlineData("DESKTOP-ABC12")]
+    [InlineData("LAPTOP-XYZ89")]
+    [InlineData("WINDOWS-DEV-PC")]
+    public void Classify_WindowsHostnames_ClassifiedAsWindows(string hostname)
+    {
+        var node = new NetworkNode { Hostname = hostname };
+        var probes = new List<ProbeResult>
+        {
+            new ProbeResult
+            {
+                Source = "DHCP Fingerprint",
+                RawData = new Dictionary<string, string> { { "DhcpHostname", hostname } }
+            }
+        };
+
+        var result = DeviceClassifierEngine.Classify(node, probes);
+
+        Assert.Equal(DeviceTypeCategory.Desktop, result.Type);
+        Assert.Equal("Windows PC", result.TypeString);
+        Assert.Equal("Windows", result.Os);
+    }
+
+    [Theory]
+    [InlineData("iOS 16.5", "macOS/iOS")]
+    [InlineData("Android 13 / Linux", "Linux/Android")]
+    [InlineData("Windows 11 / Server 2022", "Windows")]
+    [InlineData("Linux 5.15", "Linux/Android")]
+    [InlineData("Cisco VoIP Phone", "Infrastructure")]
+    public void Classify_DhcpOsSignatures_ClassifiedCorrectly(string dhcpOs, string expectedOs)
+    {
+        var node = new NetworkNode();
+        var probes = new List<ProbeResult>
+        {
+            new ProbeResult
+            {
+                Source = "DHCP Fingerprint",
+                RawData = new Dictionary<string, string> { { "DhcpOsFingerprint", dhcpOs } }
+            }
+        };
+
+        var result = DeviceClassifierEngine.Classify(node, probes);
+
+        Assert.Equal(expectedOs, result.Os);
+    }
+
+    [Theory]
+    [InlineData("MSFT 5.0", "Windows")]
+    [InlineData("android-dhcp-13", "Linux/Android")]
+    [InlineData("apple-ios", "macOS/iOS")]
+    [InlineData("dhcpc:darwin", "macOS/iOS")]
+    public void Classify_DhcpVendorClass_ClassifiedCorrectly(string vendorClass, string expectedOs)
+    {
+        var node = new NetworkNode();
+        var probes = new List<ProbeResult>
+        {
+            new ProbeResult
+            {
+                Source = "DHCP Fingerprint",
+                RawData = new Dictionary<string, string> { { "DhcpVendorClass", vendorClass } }
+            }
+        };
+
+        var result = DeviceClassifierEngine.Classify(node, probes);
+
+        Assert.Equal(expectedOs, result.Os);
+    }
 }

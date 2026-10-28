@@ -18,6 +18,8 @@ public class AppUtilsTests : IDisposable
 
     public void Dispose()
     {
+        AppUtils.UrlLauncherForTesting = null;
+        AppUtils.FolderLauncherForTesting = null;
         Logger.SetCustomLogDirectoryForTesting(null);
         try
         {
@@ -186,8 +188,11 @@ public class AppUtilsTests : IDisposable
     [Fact]
     public void OpenSafeUrl_ValidHttpUrl_DoesNotThrow()
     {
+        string? launchedUrl = null;
+        AppUtils.UrlLauncherForTesting = url => launchedUrl = url;
         var exception = Record.Exception(() => AppUtils.OpenSafeUrl("https://example.com"));
         Assert.Null(exception);
+        Assert.Equal("https://example.com/", launchedUrl);
     }
 
     [Theory]
@@ -205,7 +210,10 @@ public class AppUtilsTests : IDisposable
     public void OpenFolder_ValidExistingFolder_DoesNotThrow()
     {
         string tempDir = Path.GetTempPath();
+        string? launchedFolder = null;
+        AppUtils.FolderLauncherForTesting = folder => launchedFolder = folder;
         var exception = Record.Exception(() => AppUtils.OpenFolder(tempDir));
         Assert.Null(exception);
+        Assert.Equal(tempDir, launchedFolder);
     }
 }

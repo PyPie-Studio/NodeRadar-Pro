@@ -26,8 +26,15 @@ public class RouteHop
 /// </summary>
 public class TracerouteEngine
 {
+    private readonly Func<string, CancellationToken, Task<IPHostEntry>> _dnsResolver;
+
     public event Action<RouteHop>? HopDiscovered;
     public event Action<bool>? TracerouteCompleted;
+
+    public TracerouteEngine(Func<string, CancellationToken, Task<IPHostEntry>>? dnsResolver = null)
+    {
+        _dnsResolver = dnsResolver ?? ((host, token) => Dns.GetHostEntryAsync(host, token));
+    }
 
     public async Task RunTracerouteAsync(string destination, int maxHops = 30, int timeoutMs = 2000, Func<IPingClient>? pingClientFactory = null, CancellationToken token = default)
     {
@@ -36,7 +43,7 @@ public class TracerouteEngine
         {
             if (!IPAddress.TryParse(destination, out IPAddress? destAddr))
             {
-                var hostEntry = await Dns.GetHostEntryAsync(destination, token);
+                var hostEntry = await _dnsResolver(destination, token);
                 destAddr = hostEntry.AddressList.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
             }
 
@@ -90,7 +97,7 @@ public class TracerouteEngine
                     try
                     {
                         using var cts = new CancellationTokenSource(1000);
-                        var entry = await Dns.GetHostEntryAsync(hop.IpAddress, cts.Token);
+                        var entry = await _dnsResolver(hop.IpAddress, cts.Token);
                         if (entry.HostName != hop.IpAddress)
                             hop.Hostname = entry.HostName;
                         else

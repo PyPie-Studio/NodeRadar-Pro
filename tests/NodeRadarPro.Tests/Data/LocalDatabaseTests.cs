@@ -858,4 +858,147 @@ public class LocalDatabaseTests : IDisposable
         Assert.Equal("192.168.1.60", insertedInDb.IpAddress);
         Assert.Equal("brand-new-host", insertedInDb.Hostname);
     }
+
+    [Fact]
+    public void LoadSettings_LegacyPlainTextSmtpPassword_MigratesToEncrypted()
+    {
+        var rawCol = _liteDb.GetCollection("settings");
+        var rawDoc = new BsonDocument
+        {
+            ["_id"] = 1,
+            ["SmtpPassword"] = "legacyPlainTextPassword123!"
+        };
+        rawCol.Upsert(rawDoc);
+
+        var settings = _db.LoadSettings();
+
+        Assert.Equal("legacyPlainTextPassword123!", settings.SmtpPassword);
+
+        var updatedDoc = rawCol.FindById(1);
+        Assert.NotNull(updatedDoc);
+        Assert.False(updatedDoc.ContainsKey("SmtpPassword"));
+        Assert.True(updatedDoc.ContainsKey("SmtpPasswordEncrypted"));
+        Assert.NotEmpty(updatedDoc["SmtpPasswordEncrypted"].AsString);
+    }
+
+    [Fact]
+    public void DeleteDevices_MultipleMacAddresses_RemovesMatchingDevices()
+    {
+        var node1 = new NetworkNode { MacAddress = "11:22:33:44:55:01", IpAddress = "192.168.1.101" };
+        var node2 = new NetworkNode { MacAddress = "11:22:33:44:55:02", IpAddress = "192.168.1.102" };
+        var node3 = new NetworkNode { MacAddress = "11:22:33:44:55:03", IpAddress = "192.168.1.103" };
+
+        _db.MergeWithHistory(node1);
+        _db.MergeWithHistory(node2);
+        _db.MergeWithHistory(node3);
+
+        int deletedCount = _db.DeleteDevices(new[] { "11:22:33:44:55:01", "11:22:33:44:55:02" });
+        Assert.Equal(2, deletedCount);
+
+        var remaining = _db.GetAllDevices();
+        Assert.Single(remaining);
+        Assert.Equal("11:22:33:44:55:03", remaining[0].MacAddress);
+    }
+
+    [Fact]
+    public void GetRegisteredDeviceByIp_ReturnsOnlyRegisteredMatchingDevice()
+    {
+        var registeredNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:AA",
+            IpAddress = "192.168.1.50",
+            IsRegistered = true,
+            CustomName = "Server 1"
+        };
+        var unregisteredNode = new NetworkNode
+        {
+            MacAddress = "11:22:33:44:55:BB",
+            IpAddress = "192.168.1.51",
+            IsRegistered = false
+        };
+
+        _db.UpdateRegistration(registeredNode);
+        _db.MergeWithHistory(unregisteredNode);
+
+        var found = _db.GetRegisteredDeviceByIp("192.168.1.50");
+        Assert.NotNull(found);
+        Assert.Equal("11:22:33:44:55:AA", found.MacAddress);
+
+        var notFoundUnregistered = _db.GetRegisteredDeviceByIp("192.168.1.51");
+        Assert.Null(notFoundUnregistered);
+
+        var notFoundUnknown = _db.GetRegisteredDeviceByIp("192.168.1.99");
+        Assert.Null(notFoundUnknown);
+    }
+
+    [Fact]
+    public void Constructor_CorruptDatabaseFile_RotatesCorruptDatabaseAndRecovers()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "NodeRadar_CorruptDbTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+        string dbPath = Path.Combine(tempDir, "noderadar.db");
+
+        try
+        {
+            // Write 8192 random bytes (corrupt header page)
+            byte[] corruptPage = new byte[8192];
+            new Random(42).NextBytes(corruptPage);
+            File.WriteAllBytes(dbPath, corruptPage);
+
+            using (var db = new LocalDatabase(dbPath, "testPassword123!"))
+            {
+                // Should recover by rotating corrupt db and creating new one
+                var devices = db.GetAllDevices();
+                Assert.Empty(devices);
+            }
+
+            string[] rotated = Directory.GetFiles(tempDir, "noderadar.db.corrupt*");
+            Assert.Single(rotated);
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, true);
+            }
+            catch { /* Ignore cleanup */ }
+        }
+    }
+
+    [Fact]
+    public void Constructor_LockedDatabaseFile_FallsBackToInMemoryDatabase()
+    {
+        string tempDir = Path.Combine(Path.GetTempPath(), "NodeRadar_LockedDbTest_" + Guid.NewGuid());
+        Directory.CreateDirectory(tempDir);
+        string dbPath = Path.Combine(tempDir, "noderadar.db");
+
+        try
+        {
+            File.WriteAllText(dbPath, "initial content");
+
+            // Exclusively lock the file
+            using (var fileLock = new FileStream(dbPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+            {
+                using var db = new LocalDatabase(dbPath, "testPassword123!");
+
+                // Verifies that database constructor caught IOException, retried, and gracefully fell back to in-memory DB
+                var devices = db.GetAllDevices();
+                Assert.Empty(devices);
+
+                var (node, isNew) = db.MergeWithHistory(new NetworkNode { MacAddress = "AA:BB:CC:11:22:33", IpAddress = "10.0.0.99" });
+                Assert.True(isNew);
+                Assert.Single(db.GetAllDevices());
+            }
+        }
+        finally
+        {
+            try
+            {
+                if (Directory.Exists(tempDir))
+                    Directory.Delete(tempDir, true);
+            }
+            catch { /* Ignore cleanup */ }
+        }
+    }
 }

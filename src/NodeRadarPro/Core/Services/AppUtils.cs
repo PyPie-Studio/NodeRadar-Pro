@@ -21,6 +21,9 @@ namespace NodeRadarPro.Core
     {
         private const string LogSource = "AppUtils";
 
+        internal static Action<string>? UrlLauncherForTesting { get; set; }
+        internal static Action<string>? FolderLauncherForTesting { get; set; }
+
         public static string GetMacAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
         {
             try
@@ -128,6 +131,12 @@ namespace NodeRadarPro.Core
 
                 string safeUrl = uri.AbsoluteUri;
 
+                if (UrlLauncherForTesting != null)
+                {
+                    UrlLauncherForTesting(safeUrl);
+                    return;
+                }
+
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     var psi = new ProcessStartInfo
@@ -170,6 +179,12 @@ namespace NodeRadarPro.Core
 
             try
             {
+                if (FolderLauncherForTesting != null)
+                {
+                    FolderLauncherForTesting(folderPath);
+                    return;
+                }
+
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     var psi = new ProcessStartInfo

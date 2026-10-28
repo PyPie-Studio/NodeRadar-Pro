@@ -28,10 +28,20 @@ public class MockPingClient : IPingClient
 
 public class TracerouteEngineTests
 {
+    private static Task<IPHostEntry> MockDnsResolver(string host, CancellationToken ct)
+    {
+        var entry = new IPHostEntry
+        {
+            HostName = host == "8.8.8.8" ? "dns.google" : (host == "192.168.1.1" ? "gateway.local" : host),
+            AddressList = IPAddress.TryParse(host, out var parsed) ? new[] { parsed } : new[] { IPAddress.Loopback }
+        };
+        return Task.FromResult(entry);
+    }
+
     [Fact]
     public async Task RunTracerouteAsync_SuccessfulTrace_ReturnsHopsAndCompletes()
     {
-        var engine = new TracerouteEngine();
+        var engine = new TracerouteEngine(MockDnsResolver);
         var hops = new List<RouteHop>();
         bool? completed = null;
         engine.HopDiscovered += h => hops.Add(h);
@@ -67,8 +77,10 @@ public class TracerouteEngineTests
         Assert.True(completed);
         Assert.Equal(2, hops.Count);
         Assert.Equal("192.168.1.1", hops[0].IpAddress);
+        Assert.Equal("gateway.local", hops[0].Hostname);
         Assert.False(hops[0].IsDestination);
         Assert.Equal("8.8.8.8", hops[1].IpAddress);
+        Assert.Equal("dns.google", hops[1].Hostname);
         Assert.True(hops[1].IsDestination);
     }
 

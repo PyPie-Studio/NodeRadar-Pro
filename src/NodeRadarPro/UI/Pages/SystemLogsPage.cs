@@ -3,11 +3,11 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using NodeRadarPro.Core;
+using NodeRadarPro.Core.Services;
 using NodeRadarPro.Data;
 using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Avalonia.Threading;
 
 namespace NodeRadarPro.UI;
@@ -404,41 +404,9 @@ public class SystemLogsPage : Border
             var (path, csvContent) = await System.Threading.Tasks.Task.Run(() =>
             {
                 var logs = _db.GetLogs(2000);
-                var sb = new StringBuilder(logs.Count * 128 + 64);
-                sb.AppendLine("Timestamp,Level,Source,Message,Device");
-                foreach (var log in logs)
-                {
-                    string levelStr = log.Level switch
-                    {
-                        LogLevel.Info => "Info",
-                        LogLevel.Warning => "Warning",
-                        LogLevel.Error => "Error",
-                        _ => log.Level.ToString()
-                    };
-
-                    sb.Append('"')
-                      .Append(log.Timestamp.ToString("yyyy-MM-dd  hh:mm:ss tt"))
-                      .Append("\",\"")
-                      .Append(levelStr)
-                      .Append("\",\"")
-                      .Append(log.Source)
-                      .Append("\",\"");
-
-                    if (!string.IsNullOrEmpty(log.Message))
-                    {
-                        if (log.Message.Contains('"', StringComparison.Ordinal))
-                            sb.Append(log.Message.Replace("\"", "\"\"", StringComparison.Ordinal));
-                        else
-                            sb.Append(log.Message);
-                    }
-
-                    sb.Append("\",\"")
-                      .Append(log.DeviceMac)
-                      .AppendLine("\"");
-                }
-
+                string csv = CsvExportService.ExportLogsToCsv(logs);
                 string exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", $"logs_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-                return (exportPath, sb.ToString());
+                return (exportPath, csv);
             });
             await File.WriteAllTextAsync(path, csvContent);
             _db.Log(LogLevel.Info, "Export", $"Logs exported to {path}");

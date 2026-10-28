@@ -3,6 +3,7 @@ using NodeRadarPro.UI;
 
 namespace NodeRadarPro.Tests.UI;
 
+[Collection("LoggerStaticState")]
 public class SupportPageAuditReportTests
 {
     [Fact]
@@ -95,7 +96,17 @@ public class SupportPageAuditReportTests
         Assert.Equal(Uri.UriSchemeHttps, uri?.Scheme);
         Assert.Equal("pypiestudio.com", uri?.Host);
 
-        var exception = Record.Exception(() => AppUtils.OpenSafeUrl(SupportPage.WebsiteUrl));
-        Assert.Null(exception);
+        string? launchedUrl = null;
+        AppUtils.UrlLauncherForTesting = url => launchedUrl = url;
+        try
+        {
+            var exception = Record.Exception(() => AppUtils.OpenSafeUrl(SupportPage.WebsiteUrl));
+            Assert.Null(exception);
+            Assert.Equal("https://pypiestudio.com/", launchedUrl);
+        }
+        finally
+        {
+            AppUtils.UrlLauncherForTesting = null;
+        }
     }
 }

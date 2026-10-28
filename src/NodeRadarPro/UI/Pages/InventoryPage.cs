@@ -88,6 +88,18 @@ public class InventoryPage : Border
     public event Action<NetworkNode>? DeviceSelected;
     public event Action<string>? ViewLogsRequested;
 
+    internal TextBox SearchBox => _searchBox;
+    internal TextBlock DeviceCountText => _deviceCountText;
+    internal Button SelectModeButton => _selectModeBtn;
+    internal CheckBox SelectAllCheckBox => _selectAllCheckbox;
+    internal StackPanel DeviceListContainer => _deviceListContainer;
+    internal WrapPanel ChipPanel => _chipPanel;
+    internal void SetActiveFilter(string filter)
+    {
+        _activeFilter = filter;
+        RefreshDeviceList();
+    }
+
     public InventoryPage(LocalDatabase db, ConnectivityMonitor monitor, List<NetworkNode> activeNodes)
     {
         _db = db;
@@ -133,7 +145,7 @@ public class InventoryPage : Border
             Padding = new Thickness(6, 0),
             VerticalAlignment = VerticalAlignment.Center,
             IsVisible = false,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         clearSearchBtn.Click += (s, e) => { _searchBox.Text = ""; RefreshDeviceList(); };
         _searchBox.TextChanged += (s, e) =>
@@ -389,7 +401,7 @@ public class InventoryPage : Border
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         _portScanBtn.Click += OnPortScanClicked;
 
@@ -530,7 +542,7 @@ public class InventoryPage : Border
 
         var lastScanLabel = ThemeTokens.Label("LAST SCAN", 10);
         lastScanLabel.LetterSpacing = 1;
-        var viewLogsLink = new TextBlock { Text = "View Logs →", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, HorizontalAlignment = HorizontalAlignment.Right, Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand) };
+        var viewLogsLink = new TextBlock { Text = "View Logs →", FontSize = 12, Foreground = ThemeTokens.Tertiary, FontFamily = ThemeTokens.DefaultFont, HorizontalAlignment = HorizontalAlignment.Right, Cursor = ThemeTokens.HandCursor };
         viewLogsLink.PointerPressed += (s, e) => { if (_currentNode != null) ViewLogsRequested?.Invoke(_currentNode.MacAddress); };
 
         var lastScanRow = new Grid { Margin = new Thickness(0, 4, 0, 0) };
@@ -1133,7 +1145,7 @@ public class InventoryPage : Border
             BorderBrush = isSelected ? ThemeTokens.GhostBorder20 : Brushes.Transparent,
             BorderThickness = new Thickness(1),
             Child = cardGrid,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
 
         if (isSelected) card.BoxShadow = new BoxShadows(new BoxShadow { OffsetY = 4, Blur = 20, Color = Color.FromArgb(50, 0, 0, 0) });
@@ -1387,7 +1399,7 @@ public class InventoryPage : Border
             Background = active ? ThemeTokens.PrimaryContainer : Brushes.Transparent,
             BorderBrush = active ? Brushes.Transparent : ThemeTokens.GhostBorder30,
             BorderThickness = new Thickness(1),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Cursor = ThemeTokens.HandCursor,
             Child = new TextBlock { Text = text, FontSize = 12, Foreground = active ? ThemeTokens.OnPrimaryContainer : ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.Medium }
         };
         chip.PointerPressed += (s, e) => { _activeFilter = filterKey; RefreshDeviceList(); };

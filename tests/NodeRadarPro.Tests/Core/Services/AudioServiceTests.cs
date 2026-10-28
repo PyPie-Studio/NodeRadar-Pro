@@ -10,7 +10,7 @@ public class AudioServiceTests : IDisposable
     public AudioServiceTests()
     {
         AudioService.Enabled = true;
-        AudioService.SetSoundPlayerForTesting(null);
+        AudioService.SetSoundPlayerForTesting(_ => { });
         _testLogDir = Path.Combine(Path.GetTempPath(), "NodeRadarAudioTest_" + Guid.NewGuid());
         Directory.CreateDirectory(_testLogDir);
         Logger.SetCustomLogDirectoryForTesting(_testLogDir);
@@ -107,7 +107,8 @@ public class AudioServiceTests : IDisposable
     [Fact]
     public void PlayAlert_WhenEnabledWithDefaultPlayer_HandlesExceptionsGracefully()
     {
-        AudioService.SetSoundPlayerForTesting(null);
+        int callCount = 0;
+        AudioService.SetSoundPlayerForTesting(_ => callCount++);
         AudioService.Enabled = true;
 
         var ex1 = Record.Exception(() => AudioService.PlayAlert(true));
@@ -115,5 +116,6 @@ public class AudioServiceTests : IDisposable
 
         Assert.Null(ex1);
         Assert.Null(ex2);
+        Assert.Equal(2, callCount);
     }
 }

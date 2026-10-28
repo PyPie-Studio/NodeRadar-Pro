@@ -92,4 +92,68 @@ public class SsdpDiscoveryMethodTests
         string actualVendor = SsdpDiscoveryMethod.ParseVendorFromServerHeader(serverHeader);
         Assert.Equal(expectedVendor, actualVendor);
     }
+
+    [Fact]
+    public void ParseSsdpResponse_WithRealHuaweiPacket_ExtractsDeviceDetails()
+    {
+        string packet = "HTTP/1.1 200 OK\r\n" +
+                        "CACHE-CONTROL: max-age=1800\r\n" +
+                        "LOCATION: http://192.168.1.1:37215/desc.xml\r\n" +
+                        "SERVER: Linux/3.0 UPnP/1.0 Huawei-HG8120C/1.0\r\n" +
+                        "ST: urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n" +
+                        "USN: uuid:upnp-InternetGatewayDevice-1_0::urn:schemas-upnp-org:device:InternetGatewayDevice:1\r\n\r\n";
+
+        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(packet);
+        var device = SsdpDiscoveryMethod.ParseSsdpResponse("192.168.1.1", buffer);
+
+        Assert.NotNull(device);
+        Assert.Equal("192.168.1.1", device.IpAddress);
+        Assert.Equal("Huawei", device.Vendor);
+        Assert.Equal("Huawei HG8120C ONU", device.Hostname);
+        Assert.Equal("Router / Gateway", device.DeviceType);
+        Assert.Contains("http://192.168.1.1:37215/desc.xml", device.RawDetails);
+        Assert.Contains("urn:schemas-upnp-org:device:InternetGatewayDevice:1", device.RawDetails);
+        Assert.Contains("uuid:upnp-InternetGatewayDevice-1_0", device.RawDetails);
+    }
+
+    [Fact]
+    public void ParseSsdpResponse_WithTpLinkPacket_ExtractsDeviceDetails()
+    {
+        string packet = "HTTP/1.1 200 OK\r\n" +
+                        "LOCATION: http://192.168.0.1:1900/igd.xml\r\n" +
+                        "SERVER: TP-Link Router OS 1.0\r\n\r\n";
+
+        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(packet);
+        var device = SsdpDiscoveryMethod.ParseSsdpResponse("192.168.0.1", buffer);
+
+        Assert.NotNull(device);
+        Assert.Equal("TP-Link", device.Vendor);
+        Assert.Equal("TP-Link Router", device.Hostname);
+    }
+
+    [Fact]
+    public void ParseSsdpResponse_WithMikrotikPacket_ExtractsDeviceDetails()
+    {
+        string packet = "HTTP/1.1 200 OK\r\n" +
+                        "SERVER: MikroTik RouterOS 7.10\r\n\r\n";
+
+        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(packet);
+        var device = SsdpDiscoveryMethod.ParseSsdpResponse("10.0.0.1", buffer);
+
+        Assert.NotNull(device);
+        Assert.Equal("MikroTik", device.Vendor);
+        Assert.Equal("MikroTik Router", device.Hostname);
+    }
+
+    [Fact]
+    public void ParseSsdpResponse_WithoutServerOrLocation_ReturnsNull()
+    {
+        string packet = "HTTP/1.1 200 OK\r\n" +
+                        "CACHE-CONTROL: max-age=1800\r\n\r\n";
+
+        byte[] buffer = System.Text.Encoding.UTF8.GetBytes(packet);
+        var device = SsdpDiscoveryMethod.ParseSsdpResponse("192.168.1.5", buffer);
+
+        Assert.Null(device);
+    }
 }

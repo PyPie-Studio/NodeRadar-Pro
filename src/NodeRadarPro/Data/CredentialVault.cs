@@ -21,8 +21,15 @@ public static class CredentialVault
             try
             {
                 byte[] encrypted = File.ReadAllBytes(keyFile);
-                byte[] decrypted = UnprotectData(encrypted);
-                return Encoding.UTF8.GetString(decrypted);
+                if (encrypted.Length > 0)
+                {
+                    byte[] decrypted = UnprotectData(encrypted);
+                    string password = Encoding.UTF8.GetString(decrypted);
+                    if (!string.IsNullOrWhiteSpace(password) && !CryptographicOperations.FixedTimeEquals(encrypted, decrypted))
+                    {
+                        return password;
+                    }
+                }
             }
             catch
             {
@@ -105,32 +112,37 @@ public static class CredentialVault
         }
         catch (PlatformNotSupportedException)
         {
-            byte[] salt = new byte[16];
-            byte[] nonce = new byte[12];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(salt);
-                rng.GetBytes(nonce);
-            }
-
-            byte[] key = DeriveKeyPbkdf2(salt);
-            byte[] cipherText = new byte[userData.Length];
-            byte[] tag = new byte[16];
-
-            using (var aesGcm = new AesGcm(key, 16))
-            {
-                aesGcm.Encrypt(nonce, userData, cipherText, tag);
-            }
-
-            // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
-            byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
-            result[0] = 0x02;
-            Buffer.BlockCopy(salt, 0, result, 1, 16);
-            Buffer.BlockCopy(nonce, 0, result, 17, 12);
-            Buffer.BlockCopy(tag, 0, result, 29, 16);
-            Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
-            return result;
+            return ProtectDataFallback(userData);
         }
+    }
+
+    internal static byte[] ProtectDataFallback(byte[] userData)
+    {
+        byte[] salt = new byte[16];
+        byte[] nonce = new byte[12];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(salt);
+            rng.GetBytes(nonce);
+        }
+
+        byte[] key = DeriveKeyPbkdf2(salt);
+        byte[] cipherText = new byte[userData.Length];
+        byte[] tag = new byte[16];
+
+        using (var aesGcm = new AesGcm(key, 16))
+        {
+            aesGcm.Encrypt(nonce, userData, cipherText, tag);
+        }
+
+        // Version 0x02 format: [1 byte version (0x02)][16 bytes salt][12 bytes nonce][16 bytes tag][cipherText]
+        byte[] result = new byte[1 + 16 + 12 + 16 + cipherText.Length];
+        result[0] = 0x02;
+        Buffer.BlockCopy(salt, 0, result, 1, 16);
+        Buffer.BlockCopy(nonce, 0, result, 17, 12);
+        Buffer.BlockCopy(tag, 0, result, 29, 16);
+        Buffer.BlockCopy(cipherText, 0, result, 45, cipherText.Length);
+        return result;
     }
 
     internal static byte[] UnprotectData(byte[] data)

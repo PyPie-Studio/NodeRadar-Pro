@@ -102,19 +102,10 @@ public static class DeviceClassifierEngine
                 iosScore += 60;
             }
             // Android phone patterns
-            else if (dhcpHostLower.Contains("galaxy", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("pixel", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains("redmi", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("poco", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains(KeywordOnePlus, StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains(KeywordOppo, StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains(KeywordVivo, StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("realme", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains("motorola", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("moto", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains("nokia", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains(KeywordHuawei, StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains("honor", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains(KeywordXiaomi, StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains(KeywordSamsung, StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("sm-", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains("note", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("a5", StringComparison.OrdinalIgnoreCase) ||
-                     dhcpHostLower.Contains(KeywordAndroid, StringComparison.OrdinalIgnoreCase))
+            else if (IsMobileHostname(dhcpHostLower))
             {
-                linuxScore += 50;
-                iotScore += 30;
+                linuxScore += 60;
+                iotScore += 10;
             }
             // Windows patterns
             else if (dhcpHostLower.Contains("desktop-", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("laptop-", StringComparison.OrdinalIgnoreCase) ||
@@ -195,7 +186,7 @@ public static class DeviceClassifierEngine
         // 4. Hostname Keywords & NetBIOS Resolution
         if (hostname.Contains(KeywordIphone, StringComparison.OrdinalIgnoreCase) || hostname.Contains(KeywordIpad, StringComparison.OrdinalIgnoreCase) || hostname.Contains("apple-", StringComparison.OrdinalIgnoreCase)) iosScore += 50;
         if (hostname.Contains("windows", StringComparison.OrdinalIgnoreCase) || hostname.Contains("desktop-", StringComparison.OrdinalIgnoreCase) || hostname.Contains("laptop-", StringComparison.OrdinalIgnoreCase)) winScore += 30;
-        if (hostname.Contains(KeywordAndroid, StringComparison.OrdinalIgnoreCase) || hostname.Contains("galaxy", StringComparison.OrdinalIgnoreCase)) iotScore += 30;
+        if (IsMobileHostname(hostname)) linuxScore += 50;
 
         var nbnsProbe = probeResults.FirstOrDefault(pr => pr.Source == "NetBIOS (NBNS)");
         string nbnsHostname = nbnsProbe?.GetValue("NbnsHostname") ?? "";
@@ -329,16 +320,14 @@ public static class DeviceClassifierEngine
                 if (ContainsData("tv") || ContainsData("tizen") || ContainsData("webos")) { result.Type = DeviceTypeCategory.TV; result.TypeString = "Smart TV"; }
                 else if (ContainsData("speaker") || ContainsData("sonos")) { result.Type = DeviceTypeCategory.Speaker; result.TypeString = "Smart Speaker"; }
                 else if (ContainsData("camera") || ContainsData("hikvision") || ContainsData("dahua")) { result.Type = DeviceTypeCategory.Camera; result.TypeString = "IP Camera"; }
-                else if (ContainsData(KeywordAndroid) || (vendor.Contains(KeywordXiaomi, StringComparison.OrdinalIgnoreCase) && !ContainsData("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
+                else if (ContainsData(KeywordAndroid) || IsMobileHostname(dhcpHostLower) || IsMobileHostname(hostname) || (vendor.Contains(KeywordXiaomi, StringComparison.OrdinalIgnoreCase) && !ContainsData("light"))) { result.Type = DeviceTypeCategory.Mobile; result.TypeString = "Mobile Phone"; }
                 else if (ContainsData("playstation") || ContainsData("xbox") || ContainsData("nintendo")) { result.Type = DeviceTypeCategory.GameConsole; result.TypeString = "Game Console"; }
                 else { result.Type = DeviceTypeCategory.IoT; result.TypeString = "IoT Smart Device"; }
             }
             else if (winner.Key == "Linux/Android")
             {
                 if (combinedData.Contains(KeywordAndroid, StringComparison.OrdinalIgnoreCase) || IsMobileVendor(vendor) ||
-                    dhcpHostLower.Contains("galaxy", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("pixel", StringComparison.OrdinalIgnoreCase) ||
-                    dhcpHostLower.Contains("redmi", StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("poco", StringComparison.OrdinalIgnoreCase) ||
-                    dhcpHostLower.Contains(KeywordOnePlus, StringComparison.OrdinalIgnoreCase) || dhcpHostLower.Contains("sm-", StringComparison.OrdinalIgnoreCase) ||
+                    IsMobileHostname(dhcpHostLower) || IsMobileHostname(hostname) ||
                     dhcpOs.Contains(KeywordAndroid, StringComparison.OrdinalIgnoreCase))
                 {
                     result.Type = DeviceTypeCategory.Mobile;
@@ -360,6 +349,30 @@ public static class DeviceClassifierEngine
         result.IconSvgKey = DeviceIconMapper.GetIconKey(result.Type, vendor, hostname, ContainsData);
 
         return result;
+    }
+
+    private static bool IsMobileHostname(string host)
+    {
+        if (string.IsNullOrEmpty(host)) return false;
+        return host.Contains("galaxy", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("pixel", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("redmi", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("poco", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordOnePlus, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordOppo, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordVivo, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("realme", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("motorola", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("moto", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("nokia", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordHuawei, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("honor", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordXiaomi, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordSamsung, StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("sm-", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("note", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains("a5", StringComparison.OrdinalIgnoreCase) ||
+               host.Contains(KeywordAndroid, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsMobileVendor(string vendor)

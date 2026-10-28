@@ -105,7 +105,8 @@ public class BannerGrabProbeTests
         };
 
         // Port 80 on localhost exercises HttpClient with SocketsHttpHandler PooledConnectionLifetime
-        var result = await probe.ProbeAsync(node, CancellationToken.None);
+        using var cts = new CancellationTokenSource(50);
+        var result = await probe.ProbeAsync(node, cts.Token);
         Assert.NotNull(result);
         Assert.Equal("Banner Grabbing", result.Source);
     }

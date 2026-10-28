@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 using NodeRadarPro.Core;
 using NodeRadarPro.Core.Messaging;
+using NodeRadarPro.Core.Services;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Concurrent;
@@ -52,6 +53,15 @@ public class ScannerPage : Border
     public event Action? DataChanged;
     public event Action<NetworkNode>? DeviceSaved;
 
+    internal TextBox StartIpInput => _startIp;
+    internal TextBox EndIpInput => _endIp;
+    internal Button StartButton => _startBtn;
+    internal Button StopButton => _stopBtn;
+    internal TextBlock StatusText => _statusText;
+    internal CheckBox FastScanCheckBox => _fastScanCheck;
+    internal CheckBox OsDetectCheckBox => _osDetectCheck;
+    internal void TriggerStartScan() => OnStartScan(this, new Avalonia.Interactivity.RoutedEventArgs());
+
     public ScannerPage(LocalDatabase db, SubnetScanner scanner, ConcurrentDictionary<string, NetworkNode> activeNodes)
     {
         _db = db;
@@ -96,7 +106,7 @@ public class ScannerPage : Border
             CornerRadius = new CornerRadius(8),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         ThemeTokens.SetToolTip(_startBtn, "Initiate an active network scan on the specified IP range.");
         _startBtn.Click += OnStartScan;
@@ -121,7 +131,7 @@ public class ScannerPage : Border
             BorderThickness = new Thickness(1),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         ThemeTokens.SetToolTip(_stopBtn, "Gracefully abort the current network sweep.");
         _stopBtn.Click += OnStopScan;
@@ -402,7 +412,7 @@ public class ScannerPage : Border
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Padding = new Thickness(0),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand)
+            Cursor = ThemeTokens.HandCursor
         };
         exportBtn.Click += OnExportResults;
 
@@ -718,7 +728,7 @@ public class ScannerPage : Border
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Padding = new Thickness(0),
-            Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
+            Cursor = ThemeTokens.HandCursor,
             VerticalAlignment = VerticalAlignment.Center,
             Margin = new Thickness(16, 0)
         };
@@ -852,18 +862,11 @@ public class ScannerPage : Border
 
             await Task.Run(async () =>
             {
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess");
-                foreach (var node in _scanResults)
-                {
-                    string ports = node.OpenPorts?.Count > 0 ? string.Join(";", node.OpenPorts) : "";
-                    sb.AppendLine($"\"{node.IpAddress}\",\"{node.MacAddress}\",\"{node.Hostname}\",\"{node.Vendor}\",\"{node.DeviceType}\",\"{(node.IsOnline ? "Online" : "Offline")}\",\"{node.PingLatencyMs}\",\"{ports}\",\"{node.OsGuess}\"");
-                }
-
+                string csv = CsvExportService.ExportNodesToCsv(_scanResults);
                 string folder = System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro");
                 System.IO.Directory.CreateDirectory(folder);
                 path = System.IO.Path.Combine(folder, $"scan_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv");
-                await System.IO.File.WriteAllTextAsync(path, sb.ToString());
+                await System.IO.File.WriteAllTextAsync(path, csv);
             });
 
             _statusText.Text = $"Exported {count} devices to {path}";

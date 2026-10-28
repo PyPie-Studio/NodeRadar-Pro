@@ -1,124 +1,172 @@
-using System.Text;
-using LiteDB;
 using NodeRadarPro.Core;
-using NodeRadarPro.Data;
+using NodeRadarPro.Core.Services;
 
 namespace NodeRadarPro.Tests;
 
-public class SystemLogsExportTests : IDisposable
+public class SystemLogsExportTests
 {
-    private readonly MemoryStream _ms;
-    private readonly LiteDatabase _liteDb;
-    private readonly LocalDatabase _db;
-
-    public SystemLogsExportTests()
-    {
-        _ms = new MemoryStream();
-        _liteDb = new LiteDatabase(_ms, new BsonMapper());
-        _db = new LocalDatabase(_liteDb);
-    }
-
-    public void Dispose()
-    {
-        _liteDb.Dispose();
-        _ms.Dispose();
-        GC.SuppressFinalize(this);
-    }
-
-    public static string BuildCsvBaseline(List<LogEntry> logs)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("Timestamp,Level,Source,Message,Device");
-        foreach (var log in logs)
-            sb.AppendLine($"\"{log.Timestamp:yyyy-MM-dd  hh:mm:ss tt}\",\"{log.Level}\",\"{log.Source}\",\"{log.Message.Replace("\"", "\"\"")}\",\"{log.DeviceMac ?? ""}\"");
-        return sb.ToString();
-    }
-
-    public static string BuildCsvOptimized(List<LogEntry> logs)
-    {
-        var sb = new StringBuilder(logs.Count * 128 + 64);
-        sb.AppendLine("Timestamp,Level,Source,Message,Device");
-        foreach (var log in logs)
-        {
-            string levelStr = log.Level switch
-            {
-                LogLevel.Info => "Info",
-                LogLevel.Warning => "Warning",
-                LogLevel.Error => "Error",
-                _ => log.Level.ToString()
-            };
-
-            sb.Append('"')
-              .Append(log.Timestamp.ToString("yyyy-MM-dd  hh:mm:ss tt"))
-              .Append("\",\"")
-              .Append(levelStr)
-              .Append("\",\"")
-              .Append(log.Source)
-              .Append("\",\"");
-
-            if (!string.IsNullOrEmpty(log.Message))
-            {
-                if (log.Message.Contains('"'))
-                    sb.Append(log.Message.Replace("\"", "\"\"", StringComparison.Ordinal));
-                else
-                    sb.Append(log.Message);
-            }
-
-            sb.Append("\",\"")
-              .Append(log.DeviceMac)
-              .AppendLine("\"");
-        }
-        return sb.ToString();
-    }
-
     [Fact]
-    public void OptimizedCsv_MatchesBaselineOutput()
+    public void ExportLogsToCsv_ValidLogs_FormatsRfc4180With12HourAmPmTimestamps()
     {
         var logs = new List<LogEntry>
         {
-            new LogEntry { Timestamp = new DateTime(2025, 1, 15, 14, 30, 45), Level = LogLevel.Info, Source = "Scanner", Message = "Normal log message", DeviceMac = "00:11:22:33:44:55" },
-            new LogEntry { Timestamp = new DateTime(2025, 1, 15, 14, 31, 00), Level = LogLevel.Warning, Source = "Detector", Message = "Log with \"quotes\"", DeviceMac = null },
-            new LogEntry { Timestamp = new DateTime(2025, 1, 15, 14, 32, 10), Level = LogLevel.Error, Source = "Database", Message = "", DeviceMac = "AA:BB:CC:DD:EE:FF" }
+            new LogEntry
+            {
+                Timestamp = new DateTime(2025, 1, 15, 14, 30, 45),
+                Level = LogLevel.Info,
+                Source = "Scanner",
+                Message = "Standard message",
+                DeviceMac = "00:11:22:33:44:55"
+            },
+            new LogEntry
+            {
+                Timestamp = new DateTime(2025, 1, 15, 9, 15, 0),
+                Level = LogLevel.Warning,
+                Source = "Detector",
+                Message = "Warning alert",
+                DeviceMac = null
+            }
         };
 
-        string baseline = BuildCsvBaseline(logs);
-        string optimized = BuildCsvOptimized(logs);
+        string csv = CsvExportService.ExportLogsToCsv(logs);
 
-        Assert.Equal(baseline, optimized);
+        Assert.StartsWith("Timestamp,Level,Source,Message,Device", csv);
+        Assert.Contains("\"2025-01-15  02:30:45 PM\",\"Info\",\"Scanner\",\"Standard message\",\"00:11:22:33:44:55\"", csv);
+        Assert.Contains("\"2025-01-15  09:15:00 AM\",\"Warning\",\"Detector\",\"Warning alert\",\"\"", csv);
     }
 
     [Fact]
-    public void Benchmark_CsvExport_MeasuresPerformanceImprovement()
+    public void ExportLogsToCsv_EscapesQuotesAndHandlesSpecialChars()
     {
-        var logs = new List<LogEntry>(2000);
-        var baseTime = new DateTime(2025, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-        for (int i = 0; i < 2000; i++)
+        var logs = new List<LogEntry>
         {
-            logs.Add(new LogEntry
+            new LogEntry
             {
-                Timestamp = baseTime.AddSeconds(i),
-                Level = (LogLevel)(i % 3),
-                Source = i % 2 == 0 ? "SubnetScanner" : "IntrusionDetector",
-                Message = i % 5 == 0 ? $"Event #{i} with \"quoted details\"" : $"Standard status report #{i}",
-                DeviceMac = i % 3 == 0 ? "00:11:22:33:44:55" : null
-            });
-        }
+                Timestamp = new DateTime(2025, 5, 10, 16, 0, 0),
+                Level = LogLevel.Error,
+                Source = "Database",
+                Message = "Error with \"quotes\" and details",
+                DeviceMac = "AA:BB:CC:DD:EE:FF"
+            }
+        };
 
-        // Verify output equivalence
-        string sampleBaseline = BuildCsvBaseline(logs);
-        string sampleOptimized = BuildCsvOptimized(logs);
-        Assert.Equal(sampleBaseline, sampleOptimized);
+        string csv = CsvExportService.ExportLogsToCsv(logs);
+
+        Assert.Contains("\"Error with \"\"quotes\"\" and details\"", csv);
     }
 
     [Fact]
-    public async Task ExportLogs_AsynchronouslyWritesCsvContent()
+    public void ExportLogsToCsv_MultiLineMessageWithQuotes_PreservesRfc4180Formatting()
     {
-        _db.InsertLog(new LogEntry { Message = "Export Test Log \"With Quotes\"", Level = LogLevel.Info, Source = "Test", Timestamp = DateTime.UtcNow });
-        var logs = _db.GetLogs(2000);
+        var logs = new List<LogEntry>
+        {
+            new LogEntry
+            {
+                Timestamp = new DateTime(2025, 6, 1, 10, 30, 0),
+                Level = LogLevel.Error,
+                Source = "Engine",
+                Message = "First line of message.\r\nSecond line with \"nested quotes\".\r\nThird line.",
+                DeviceMac = "00:11:22:33:44:55"
+            }
+        };
 
-        string csvContent = BuildCsvOptimized(logs);
+        string csv = CsvExportService.ExportLogsToCsv(logs);
 
+        Assert.Contains("\"First line of message.\r\nSecond line with \"\"nested quotes\"\".\r\nThird line.\"", csv);
+    }
+
+    [Fact]
+    public void ExportLogsToCsv_NullOrEmptyCollection_ReturnsHeaderOnly()
+    {
+        string csvNull = CsvExportService.ExportLogsToCsv(null);
+        Assert.Equal("Timestamp,Level,Source,Message,Device\r\n", csvNull);
+
+        string csvEmpty = CsvExportService.ExportLogsToCsv(new List<LogEntry>());
+        Assert.Equal("Timestamp,Level,Source,Message,Device\r\n", csvEmpty);
+    }
+
+    [Fact]
+    public void ExportNodesToCsv_ValidNodes_FormatsCsvWithSemicolonDelimitedPorts()
+    {
+        var nodes = new List<NetworkNode>
+        {
+            new NetworkNode
+            {
+                IpAddress = "192.168.1.100",
+                MacAddress = "00:11:22:33:44:55",
+                Hostname = "Workstation",
+                Vendor = "Intel Corp",
+                DeviceType = "Desktop",
+                IsOnline = true,
+                PingLatencyMs = 4,
+                OpenPorts = new List<int> { 80, 443, 22 },
+                OsGuess = "Windows 11"
+            },
+            new NetworkNode
+            {
+                IpAddress = "192.168.1.200",
+                MacAddress = "AA:BB:CC:DD:EE:00",
+                Hostname = "Printer",
+                Vendor = "HP Inc.",
+                DeviceType = "Printer",
+                IsOnline = false,
+                PingLatencyMs = 0,
+                OpenPorts = new List<int>(),
+                OsGuess = ""
+            }
+        };
+
+        string csv = CsvExportService.ExportNodesToCsv(nodes);
+
+        Assert.StartsWith("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess", csv);
+        Assert.Contains("\"192.168.1.100\",\"00:11:22:33:44:55\",\"Workstation\",\"Intel Corp\",\"Desktop\",\"Online\",\"4\",\"80;443;22\",\"Windows 11\"", csv);
+        Assert.Contains("\"192.168.1.200\",\"AA:BB:CC:DD:EE:00\",\"Printer\",\"HP Inc.\",\"Printer\",\"Offline\",\"0\",\"\",\"\"", csv);
+    }
+
+    [Fact]
+    public void ExportNodesToCsv_EscapesQuotesInHostnamesAndVendors()
+    {
+        var nodes = new List<NetworkNode>
+        {
+            new NetworkNode
+            {
+                IpAddress = "10.0.0.1",
+                MacAddress = "11:22:33:44:55:66",
+                Hostname = "John's \"Fast\" PC",
+                Vendor = "Custom \"OEM\" Vendor",
+                DeviceType = "PC",
+                IsOnline = true,
+                PingLatencyMs = 2
+            }
+        };
+
+        string csv = CsvExportService.ExportNodesToCsv(nodes);
+
+        Assert.Contains("\"John's \"\"Fast\"\" PC\"", csv);
+        Assert.Contains("\"Custom \"\"OEM\"\" Vendor\"", csv);
+    }
+
+    [Fact]
+    public void ExportNodesToCsv_NullOrEmptyCollection_ReturnsHeaderOnly()
+    {
+        string csvNull = CsvExportService.ExportNodesToCsv(null);
+        Assert.Equal("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess\r\n", csvNull);
+
+        string csvEmpty = CsvExportService.ExportNodesToCsv(new List<NetworkNode>());
+        Assert.Equal("IP Address,MAC Address,Hostname,Vendor,Device Type,Status,Latency (ms),Open Ports,OS Guess\r\n", csvEmpty);
+    }
+
+    [Fact]
+    public async Task ExportLogs_AsynchronouslyWritesCsvContentToFile()
+    {
+        var logs = new List<LogEntry>
+        {
+            new LogEntry { Message = "Export Test Log \"With Quotes\"", Level = LogLevel.Info, Source = "Test", Timestamp = DateTime.UtcNow }
+        };
+
+        string csvContent = CsvExportService.ExportLogsToCsv(logs);
         string tempPath = Path.Combine(Path.GetTempPath(), $"logs_export_test_{Guid.NewGuid()}.csv");
+
         try
         {
             await File.WriteAllTextAsync(tempPath, csvContent);

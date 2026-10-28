@@ -133,10 +133,18 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
         return ("Unknown Vendor", "Router / ONU", DeviceTypeRouterGateway);
     }
 
-    private static NetworkDevice? TryParseSsdpResponse(string senderIp, string data, string protocolName)
+    internal static NetworkDevice? ParseSsdpResponse(string senderIp, ReadOnlySpan<byte> buffer, string protocolName = "UPnP / SSDP")
+    {
+        string data = Encoding.UTF8.GetString(buffer);
+        return TryParseSsdpResponse(senderIp, data, protocolName);
+    }
+
+    internal static NetworkDevice? TryParseSsdpResponse(string senderIp, string data, string protocolName = "UPnP / SSDP")
     {
         string server = string.Empty;
         string location = string.Empty;
+        string st = string.Empty;
+        string usn = string.Empty;
 
         var lines = data.Split(new[] { "\r\n", "\n" }, StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
@@ -149,6 +157,14 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
             {
                 location = line.Substring(9).Trim();
             }
+            else if (line.StartsWith("ST:", StringComparison.OrdinalIgnoreCase))
+            {
+                st = line.Substring(3).Trim();
+            }
+            else if (line.StartsWith("USN:", StringComparison.OrdinalIgnoreCase))
+            {
+                usn = line.Substring(4).Trim();
+            }
         }
 
         if (string.IsNullOrEmpty(server) && string.IsNullOrEmpty(location))
@@ -158,6 +174,10 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
 
         var (vendor, hostname, deviceType) = IdentifyDevice(server, location);
 
+        var details = $"Server: {server} | Location: {location}";
+        if (!string.IsNullOrEmpty(st)) details += $" | ST: {st}";
+        if (!string.IsNullOrEmpty(usn)) details += $" | USN: {usn}";
+
         return new NetworkDevice
         {
             IpAddress = senderIp,
@@ -166,7 +186,7 @@ public class SsdpDiscoveryMethod : IDiscoveryMethod
             DeviceType = deviceType,
             SourceProtocol = protocolName,
             IsOnline = true,
-            RawDetails = $"Server: {server} | Location: {location}"
+            RawDetails = details
         };
     }
 

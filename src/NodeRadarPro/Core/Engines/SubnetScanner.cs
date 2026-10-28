@@ -30,16 +30,22 @@ public class SubnetScanner
     public bool EnableInlinePortScan { get; set; } = false;
     public bool FastScanMode { get; set; } = false;
     public bool EnableOsDetection { get; set; } = true;
+    public bool ScanAllSubnets { get; set; } = true;
     public string PreferredInterfaceName { get; set; } = ""; // S3: Interface preference
     private string _localBindingIp = "";
 
     private readonly IPingProvider _pingProvider;
     private readonly IArpResolver _arpResolver;
+    private readonly ITcpPortProber _tcpPortProber;
 
-    public SubnetScanner(IPingProvider? pingProvider = null, IArpResolver? arpResolver = null)
+    public SubnetScanner(
+        IPingProvider? pingProvider = null,
+        IArpResolver? arpResolver = null,
+        ITcpPortProber? tcpPortProber = null)
     {
         _pingProvider = pingProvider ?? new DefaultPingProvider();
         _arpResolver = arpResolver ?? new DefaultArpResolver();
+        _tcpPortProber = tcpPortProber ?? new DefaultTcpPortProber();
     }
 
     private void ResolveBindingIp()
@@ -219,9 +225,8 @@ public class SubnetScanner
                 string ip = $"{baseIp}.{i}";
                 var node = await ProbeAndResolveAsync(ip, token, registeredDevicesCache);
 
-                if (node != null && !token.IsCancellationRequested)
+                if (node != null && !token.IsCancellationRequested && discoveredMacs.TryAdd(node.MacAddress, true))
                 {
-                    discoveredMacs.TryAdd(node.MacAddress, true);
                     activeNodes.Add(node);
                     NodeDiscovered?.Invoke(node);
                 }
@@ -340,7 +345,7 @@ public class SubnetScanner
         }
         catch { }
 
-        var allSubnets = GetAllLocalBaseIps();
+        var allSubnets = ScanAllSubnets ? GetAllLocalBaseIps() : new List<string> { baseIp };
         if (!allSubnets.Contains(baseIp))
             allSubnets.Insert(0, baseIp);
 
@@ -362,9 +367,8 @@ public class SubnetScanner
                     string ip = $"{subnet}.{i}";
                     var node = await ProbeAndResolveAsync(ip, token, registeredDevicesCache);
 
-                    if (node != null && !token.IsCancellationRequested)
+                    if (node != null && !token.IsCancellationRequested && discoveredMacs.TryAdd(node.MacAddress, true))
                     {
-                        discoveredMacs.TryAdd(node.MacAddress, true);
                         activeNodes.Add(node);
                         NodeDiscovered?.Invoke(node);
                     }
@@ -460,17 +464,18 @@ public class SubnetScanner
         try
         {
             mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
+            if (string.IsNullOrEmpty(mac)) mac = UnknownMac;
 
             // Fallback: If direct SendARP failed, check the full system ARP table
             if (mac == UnknownMac)
             {
-                if (_arpResolver.TryGetMacFromArpTable(ip, out var foundMac))
+                if (_arpResolver.TryGetMacFromArpTable(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
                 {
                     mac = foundMac;
                 }
             }
 
-            if (mac != UnknownMac) isReachable = true;
+            if (!string.IsNullOrEmpty(mac) && mac != UnknownMac) isReachable = true;
         }
         catch { }
 
@@ -486,9 +491,7 @@ public class SubnetScanner
             {
                 try
                 {
-                    using var tcp = new TcpClient();
-                    await tcp.ConnectAsync(ip, port, stealthCts.Token);
-                    if (tcp.Connected)
+                    if (await _tcpPortProber.ProbePortAsync(ip, port, stealthCts.Token))
                     {
                         stealthCts.Cancel();
                         return true;
@@ -505,9 +508,10 @@ public class SubnetScanner
                 if (mac == UnknownMac)
                 {
                     mac = _arpResolver.ResolveMacAddress(ip, _localBindingIp);
-                    if (mac == UnknownMac)
+                    if (string.IsNullOrEmpty(mac)) mac = UnknownMac;
+                    if (mac == UnknownMac && _arpResolver.TryGetMacFromArpTable(ip, out var foundMac) && !string.IsNullOrEmpty(foundMac))
                     {
-                        if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
+                        mac = foundMac;
                     }
                 }
             }
@@ -603,31 +607,41 @@ public class SubnetScanner
         catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Metadata resolution failed for {node.IpAddress}: {ex.Message}"); }
 
         // 2. Deep Fingerprinting Engine
-        try
+        if (EnableOsDetection && !token.IsCancellationRequested)
         {
-            var fingerprint = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, token);
-            node.Vendor = fingerprint.Vendor;
-            node.DeviceType = fingerprint.TypeString;
-            node.OsGuess = fingerprint.Os;
-            node.IconPath = fingerprint.IconSvgKey;
-
-            if (!string.IsNullOrEmpty(fingerprint.Model))
+            try
             {
-                node.ExactModel = fingerprint.Model;
-            }
+                var fingerprint = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, token);
+                node.Vendor = fingerprint.Vendor;
+                node.DeviceType = fingerprint.TypeString;
+                node.OsGuess = fingerprint.Os;
+                node.IconPath = fingerprint.IconSvgKey;
 
-            // If we found port banners, append them
-            if (node.PortBanners != null)
-            {
-                foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
+                if (!string.IsNullOrEmpty(fingerprint.Model))
                 {
-                    if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
-                    else if (!node.ExactModel.Contains(banner, StringComparison.OrdinalIgnoreCase)) node.ExactModel += $" | {banner}";
+                    node.ExactModel = fingerprint.Model;
+                }
+
+                // If we found port banners, append them
+                if (node.PortBanners != null)
+                {
+                    foreach (var banner in node.PortBanners.Values.Where(b => !string.IsNullOrEmpty(b)))
+                    {
+                        if (string.IsNullOrEmpty(node.ExactModel)) node.ExactModel = banner;
+                        else if (!node.ExactModel.Contains(banner, StringComparison.OrdinalIgnoreCase)) node.ExactModel += $" | {banner}";
+                    }
                 }
             }
+            catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting timed out for {node.IpAddress}"); }
+            catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting failed for {node.IpAddress}: {ex.Message}"); }
         }
-        catch (OperationCanceledException) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting timed out for {node.IpAddress}"); }
-        catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Deep fingerprinting failed for {node.IpAddress}: {ex.Message}"); }
+        else if (!token.IsCancellationRequested)
+        {
+            node.Vendor = NodeRadarPro.Data.VendorLookup.GetVendor(node.MacAddress);
+            node.DeviceType = "Unknown";
+            node.OsGuess = "";
+            node.IconPath = "default_device";
+        }
 
         // 3. Vulnerability Scoring
         VulnerabilityEngine.UpdateThreatLevel(node);
@@ -648,20 +662,28 @@ public class SubnetScanner
         PingLatencyMs = -1
     };
 
-    public static async Task<(bool IsOnline, string Mac, long LatencyMs)> QuickProbeAsync(string ip)
+    public static async Task<(bool IsOnline, string Mac, long LatencyMs)> QuickProbeAsync(
+        string ip,
+        IPingProvider? pingProvider = null,
+        IArpResolver? arpResolver = null,
+        ITcpPortProber? tcpPortProber = null)
     {
+        arpResolver ??= new DefaultArpResolver();
+        pingProvider ??= new DefaultPingProvider();
+        tcpPortProber ??= new DefaultTcpPortProber();
+
         string mac = UnknownMac;
         long latency = -1;
         bool isOnline = false;
 
         try
         {
-            mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip, ""));
+            mac = await Task.Run(() => arpResolver.ResolveMacAddress(ip, ""));
 
             // Fallback: Check full ARP table
             if (mac == UnknownMac)
             {
-                if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
+                if (arpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
             }
 
             if (mac != UnknownMac) isOnline = true;
@@ -670,18 +692,17 @@ public class SubnetScanner
 
         try
         {
-            using var pinger = new Ping();
-            var reply = await pinger.SendPingAsync(ip, 2000);
+            var reply = await pingProvider.SendPingAsync(ip, 2000);
             if (reply.Status == IPStatus.Success)
             {
                 isOnline = true;
                 latency = reply.RoundtripTime;
                 if (mac == UnknownMac)
                 {
-                    mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
+                    mac = await Task.Run(() => arpResolver.ResolveMacAddress(ip));
                     if (mac == UnknownMac)
                     {
-                        if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
+                        if (arpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
                     }
                 }
             }
@@ -695,30 +716,22 @@ public class SubnetScanner
             {
                 try
                 {
-                    using var tcp = new TcpClient();
                     using var cts = new CancellationTokenSource(400);
-                    var connectTask = tcp.ConnectAsync(ip, port, cts.Token);
-                    try
+                    if (await tcpPortProber.ProbePortAsync(ip, port, cts.Token))
                     {
-                        await connectTask;
-                        if (tcp.Connected)
+                        isOnline = true;
+                        if (mac == UnknownMac)
                         {
-                            isOnline = true;
+                            mac = await Task.Run(() => arpResolver.ResolveMacAddress(ip));
                             if (mac == UnknownMac)
                             {
-                                mac = await Task.Run(() => ArpResolver.ResolveMacAddress(ip));
-                                if (mac == UnknownMac)
-                                {
-                                    if (ArpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
-                                }
+                                if (arpResolver.TryGetMacFromArpTable(ip, out var foundMac)) mac = foundMac;
                             }
-                            break;
                         }
+                        break;
                     }
-                    catch (OperationCanceledException) { }
-                    catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Port scan connection failed for {ip}:{port}: {ex.Message}"); }
                 }
-                catch (Exception ex) { Logger.Log(LogLevel.Warning, LogSource, $"Port scan setup failed for {ip}:{port}: {ex.Message}"); }
+                catch { }
             }
         }
 

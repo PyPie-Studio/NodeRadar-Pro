@@ -53,19 +53,18 @@ public class LocalDatabase : IDisposable
     {
         _backupService = new DatabaseBackupService(this);
 
+        string myFolder;
         if (customDbPath != null)
         {
             _dbPath = customDbPath;
-            string dir = Path.GetDirectoryName(_dbPath) ?? Environment.CurrentDirectory;
-            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
-            _dbPassword = customPassword ?? CredentialVault.GetOrGenerateDbPassword(dir);
-            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
-            InitializeSchema();
+            myFolder = Path.GetDirectoryName(_dbPath) ?? Environment.CurrentDirectory;
+            if (!string.IsNullOrEmpty(myFolder) && !Directory.Exists(myFolder)) Directory.CreateDirectory(myFolder);
+            _dbPassword = customPassword ?? CredentialVault.GetOrGenerateDbPassword(myFolder);
         }
         else
         {
             string myDocuments = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            string myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
+            myFolder = Path.Combine(myDocuments, "PyPie Studio", "NodeRadar Pro");
             Directory.CreateDirectory(myFolder);
             _dbPath = Path.Combine(myFolder, "noderadar.db");
 
@@ -76,41 +75,45 @@ public class LocalDatabase : IDisposable
             {
                 CredentialVault.SaveDbPassword(myFolder, _dbPassword);
             }
+        }
 
+        try
+        {
+            _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+            InitializeSchema();
+        }
+        catch (LiteException)
+        {
+            DatabaseBackupService.RotateCorruptDatabase(_dbPath);
             try
             {
                 _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
-            }
-            catch (LiteException)
-            {
-                DatabaseBackupService.RotateCorruptDatabase(_dbPath);
-                try
-                {
-                    _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
-                }
-                catch
-                {
-                    _db = new LiteDatabase(new MemoryStream());
-                }
-            }
-            catch (IOException)
-            {
-                // Transient file lock (antivirus, backup process) — retry once after backoff
-                System.Threading.Thread.Sleep(500);
-                try
-                {
-                    _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
-                }
-                catch
-                {
-                    _db = new LiteDatabase(new MemoryStream());
-                }
+                InitializeSchema();
             }
             catch
             {
                 _db = new LiteDatabase(new MemoryStream());
+                InitializeSchema();
             }
-
+        }
+        catch (IOException)
+        {
+            // Transient file lock (antivirus, backup process) — retry once after backoff
+            System.Threading.Thread.Sleep(500);
+            try
+            {
+                _db = new LiteDatabase($"Filename={_dbPath};Password={_dbPassword};Connection=shared;");
+                InitializeSchema();
+            }
+            catch
+            {
+                _db = new LiteDatabase(new MemoryStream());
+                InitializeSchema();
+            }
+        }
+        catch
+        {
+            _db = new LiteDatabase(new MemoryStream());
             InitializeSchema();
         }
     }
@@ -218,7 +221,9 @@ public class LocalDatabase : IDisposable
         lock (SyncRoot)
         {
             var collection = _db.GetCollection<NetworkNode>(DevicesCollection);
-            var validNodes = scannedNodes.Where(n => n != null && n.MacAddress != "Unknown").ToList();
+            var validNodes = scannedNodes.Where(n => n != null && !string.IsNullOrEmpty(n.MacAddress) && n.MacAddress != "Unknown")
+                                         .DistinctBy(n => n.MacAddress)
+                                         .ToList();
             if (validNodes.Count == 0) return new List<NetworkNode>();
 
             var macs = validNodes.Select(n => n.MacAddress).Distinct().ToList();

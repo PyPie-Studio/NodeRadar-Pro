@@ -202,4 +202,45 @@ public class CredentialVaultTests : IDisposable
         byte[] result = CredentialVault.UnprotectData(corruptPayload);
         Assert.Equal(corruptPayload, result);
     }
+
+    [Fact]
+    public void ProtectDataFallback_RoundTrips_Correctly()
+    {
+        byte[] input = Encoding.UTF8.GetBytes("TestPayloadCrossPlatformFallback123");
+        byte[] fallbackEncrypted = CredentialVault.ProtectDataFallback(input);
+
+        Assert.NotNull(fallbackEncrypted);
+        Assert.True(fallbackEncrypted.Length >= 45);
+        Assert.Equal(0x02, fallbackEncrypted[0]);
+
+        byte[] decrypted = CredentialVault.UnprotectData(fallbackEncrypted);
+        Assert.Equal(input, decrypted);
+    }
+
+    [Fact]
+    public void GetOrGenerateDbPassword_WhenKeyFileCannotBeDecrypted_GeneratesNewKeyAndRotatesDb()
+    {
+        string keyFile = Path.Combine(_tempFolder, "db_key.bin");
+        string dbPath = Path.Combine(_tempFolder, "noderadar.db");
+
+        // Write corrupt key file and dummy database
+        byte[] corruptKey = new byte[30];
+        using (var rng = RandomNumberGenerator.Create())
+        {
+            rng.GetBytes(corruptKey);
+        }
+        File.WriteAllBytes(keyFile, corruptKey);
+        File.WriteAllText(dbPath, "dummy db content");
+
+        string newPassword = CredentialVault.GetOrGenerateDbPassword(_tempFolder);
+
+        Assert.NotEmpty(newPassword);
+        // db_key.bin should have been overwritten with a valid encrypted key
+        byte[] newKeyBytes = File.ReadAllBytes(keyFile);
+        Assert.NotEqual(corruptKey, newKeyBytes);
+
+        // noderadar.db should have been rotated
+        string[] rotatedFiles = Directory.GetFiles(_tempFolder, "noderadar.db.corrupt*");
+        Assert.Single(rotatedFiles);
+    }
 }
