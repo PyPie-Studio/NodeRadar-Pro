@@ -1,4 +1,4 @@
-﻿# NodeRadar Pro Changelog
+# NodeRadar Pro Changelog
  
 ## NodeRadar Pro v2.2.0 (2026-10-25)
 
@@ -53,6 +53,7 @@
 - **Win32 IP Helper Table Query Seam (`ArpResolver.cs`, `ArpResolverTests.cs`)**: Added `GetIpNetTableDelegate` delegate seam defaulting to native Win32 `GetIpNetTable` P/Invoke. Enabled simulated full-table ARP queries without host OS networking dependencies, asserting loopback, multicast, broadcast filtering and cache bypass behaviors across 5 dedicated unit tests.
 - **UDP Multicast Socket Seam for mDNS and SSDP (`IMulticastSocket.cs`, `DefaultMulticastSocket.cs`, `MdnsDiscoveryMethod.cs`, `SsdpDiscoveryMethod.cs`, `MdnsProbe.cs`, `SsdpProbe.cs`)**: Extracted `IMulticastSocket` interface and implemented `DefaultMulticastSocket` wrapper around `UdpClient`. Parameterized factory delegates across discovery engines and fingerprinting probes, enabling deterministic datagram testing of broadcast listeners without binding physical host sockets.
 - **Avalonia Headless Coverage for Secondary UI Views (`SettingsPage.cs`, `AlertsPage.cs`, `DashboardPage.cs`, `SettingsPageHeadlessTests.cs`, `AlertsPageHeadlessTests.cs`, `DashboardPageHeadlessTests.cs`)**: Extended headless component test coverage across Settings, Alerts and Dashboard views. Added database-backed initial state refresh calls in `SettingsPage` and `AlertsPage` constructors, switched prune completion handling to non-blocking UI thread callbacks, and verified filter toggles, export interactions, threshold controls and stats synchronization.
+- **Open PR Triage and Database / Engine Unit Test Expansion (`LocalDatabaseTests.cs`, `ConnectivityMonitorTests.cs`, `TracerouteEngineTests.cs`)**: Triaged open PR backlog, closing 4 defective PRs (#101, #99, #98, #95) per failure pattern rules. Rebased and squash-merged PR #96, #97, and #100, integrating 9 net new unit tests covering `LocalDatabase.MergeWithHistoryBulk` (empty, invalid MAC, update, and mixed batches), `ConnectivityMonitor.GetAllDevices` (tracking, removal, and defensive copying immutability), and `TracerouteEngine.ProbeHopAsync` (exception resilience without unmocked DNS socket operations), raising test suite coverage to 698 tests.
 
 ### User Interface and Frontend Hardening
 - **Destructive Action Safety Latches (`SettingsPage.cs`, `SystemLogsPage.cs`, `AlertsPage.cs`)**: Added 2-step confirmation latches with field-tracked automatic timers on destructive operations including factory resets, backup restorations, log purging and alert clearing. Replaced text unicode glyphs with vector icons and direct text states.
