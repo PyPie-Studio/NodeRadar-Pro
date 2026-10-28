@@ -127,4 +127,20 @@ public class TracerouteEngineTests
         // Should not have discovered any hops since it was cancelled before loop execution
         Assert.Empty(hops);
     }
+
+    [Fact]
+    public async Task RunTracerouteAsync_ProbeHopException_SetsHopStatusFalse()
+    {
+        var engine = new TracerouteEngine();
+        var hops = new List<RouteHop>();
+        bool? completed = null;
+        engine.HopDiscovered += h => hops.Add(h);
+        engine.TracerouteCompleted += c => completed = c;
+
+        await engine.RunTracerouteAsync("127.0.0.1", maxHops: 1, timeoutMs: 2000, pingClientFactory: () => throw new PingException("Simulated ping failure"), token: default);
+
+        Assert.True(completed);
+        Assert.Single(hops);
+        Assert.False(hops[0].Status);
+    }
 }
