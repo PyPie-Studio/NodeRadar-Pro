@@ -1288,4 +1288,69 @@ public class LocalDatabaseTests : IDisposable
         Assert.Equal(0, total);
         Assert.Equal(0, unresolved);
     }
+
+    [Fact]
+    public void DownsampleSnapshots_WithMixedOnlineAndNegativeLatency_ComputesCorrectAverages()
+    {
+        string mac = "12:34:56:78:9A:BC";
+        var now = DateTime.UtcNow;
+        var snapshots = new List<UptimeSnapshot>
+        {
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-2).AddMinutes(1), IsOnline = false, LatencyMs = -1 },
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-2).AddMinutes(2), IsOnline = false, LatencyMs = -1 },
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-2).AddMinutes(3), IsOnline = true, LatencyMs = 15 },
+
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-1).AddMinutes(1), IsOnline = true, LatencyMs = 10 },
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-1).AddMinutes(2), IsOnline = true, LatencyMs = 20 },
+            new UptimeSnapshot { MacAddress = mac, Timestamp = now.AddHours(-1).AddMinutes(3), IsOnline = false, LatencyMs = -1 }
+        };
+
+        _db.InsertUptimeSnapshots(snapshots);
+
+        var downsampled = _db.GetUptimeHistory(mac, hours: 3, maxPoints: 2);
+
+        Assert.Equal(2, downsampled.Count);
+        Assert.False(downsampled[0].IsOnline);
+        Assert.Equal(15, downsampled[0].LatencyMs);
+
+        Assert.True(downsampled[1].IsOnline);
+        Assert.Equal(15, downsampled[1].LatencyMs);
+    }
+
+    [Fact]
+    public void MergeExistingNode_WithDefaultAndInheritedAttributes_MergesCorrectly()
+    {
+        var initialNode = new NetworkNode
+        {
+            MacAddress = "FE:ED:FA:CE:00:01",
+            IpAddress = "192.168.1.150",
+            DeviceName = "Office Printer",
+            DeviceModel = "LaserJet Pro",
+            ExactModel = "M404dn",
+            Vendor = "Hewlett-Packard",
+            IconPath = "custom_printer_icon",
+            DeviceType = "Printer",
+            OsGuess = "Embedded Linux"
+        };
+        _db.MergeWithHistory(initialNode);
+
+        var scannedNode = new NetworkNode
+        {
+            MacAddress = "FE:ED:FA:CE:00:01",
+            IpAddress = "192.168.1.150",
+            IconPath = "default_device",
+            Vendor = "Unknown Vendor"
+        };
+
+        var (mergedNode, isNew) = _db.MergeWithHistory(scannedNode);
+
+        Assert.False(isNew);
+        Assert.Equal("Office Printer", mergedNode.DeviceName);
+        Assert.Equal("LaserJet Pro", mergedNode.DeviceModel);
+        Assert.Equal("M404dn", mergedNode.ExactModel);
+        Assert.Equal("Hewlett-Packard", mergedNode.Vendor);
+        Assert.Equal("custom_printer_icon", mergedNode.IconPath);
+        Assert.Equal("Printer", mergedNode.DeviceType);
+        Assert.Equal("Embedded Linux", mergedNode.OsGuess);
+    }
 }

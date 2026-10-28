@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using LiteDB;
@@ -269,6 +270,18 @@ public class LocalDatabase : IDisposable
 
     private static NetworkNode MergeExistingNode(NetworkNode scannedNode, NetworkNode existing, DateTime now)
     {
+        CopyUserMetadata(scannedNode, existing, now);
+        InheritDeviceAttributes(scannedNode, existing);
+        MergeOpenPorts(scannedNode, existing);
+        MergePortBanners(scannedNode, existing);
+        UpdateExistingNodeState(existing, scannedNode, now);
+        SyncThreatAssessment(scannedNode, existing);
+
+        return existing;
+    }
+
+    private static void CopyUserMetadata(NetworkNode scannedNode, NetworkNode existing, DateTime now)
+    {
         scannedNode.Id = existing.Id;
         scannedNode.LastSeen = now;
         scannedNode.IsOnline = true;
@@ -276,6 +289,14 @@ public class LocalDatabase : IDisposable
         scannedNode.CustomName = existing.CustomName;
         scannedNode.Notes = existing.Notes;
         scannedNode.Location = existing.Location;
+        scannedNode.IsRegistered = existing.IsRegistered;
+        scannedNode.FirstSeen = existing.FirstSeen;
+        scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
+        scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
+    }
+
+    private static void InheritDeviceAttributes(NetworkNode scannedNode, NetworkNode existing)
+    {
         if (!string.IsNullOrEmpty(existing.DeviceName)) scannedNode.DeviceName = existing.DeviceName;
         if (!string.IsNullOrEmpty(existing.DeviceModel)) scannedNode.DeviceModel = existing.DeviceModel;
 
@@ -284,15 +305,18 @@ public class LocalDatabase : IDisposable
 
         if (string.IsNullOrEmpty(scannedNode.DeviceType) && !string.IsNullOrEmpty(existing.DeviceType))
             scannedNode.DeviceType = existing.DeviceType;
-        scannedNode.IsRegistered = existing.IsRegistered;
-        scannedNode.FirstSeen = existing.FirstSeen;
-        scannedNode.AlertOnConnectionLost = existing.AlertOnConnectionLost;
-        scannedNode.AlertOnHighLatency = existing.AlertOnHighLatency;
+
         if (string.IsNullOrEmpty(scannedNode.ExactModel)) scannedNode.ExactModel = existing.ExactModel;
 
         if (string.IsNullOrEmpty(scannedNode.Vendor) || scannedNode.Vendor == "Unknown Vendor")
             scannedNode.Vendor = existing.Vendor;
 
+        if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
+            scannedNode.OsGuess = existing.OsGuess;
+    }
+
+    private static void MergeOpenPorts(NetworkNode scannedNode, NetworkNode existing)
+    {
         if (existing.OpenPorts?.Count > 0 && scannedNode.OpenPorts?.Count > 0)
         {
             var mergedPorts = existing.OpenPorts.Union(scannedNode.OpenPorts).Distinct().OrderBy(p => p).ToList();
@@ -307,17 +331,16 @@ public class LocalDatabase : IDisposable
         {
             existing.OpenPorts = scannedNode.OpenPorts;
         }
+    }
 
-        MergePortBanners(scannedNode, existing);
-
-        if (!string.IsNullOrEmpty(existing.OsGuess) && string.IsNullOrEmpty(scannedNode.OsGuess))
-            scannedNode.OsGuess = existing.OsGuess;
-
+    private static void UpdateExistingNodeState(NetworkNode existing, NetworkNode scannedNode, DateTime now)
+    {
         existing.IpAddress = scannedNode.IpAddress;
         existing.IsOnline = true;
         existing.PingLatencyMs = scannedNode.PingLatencyMs;
         existing.LastSeen = now;
         existing.Hostname = scannedNode.Hostname;
+
         if (!string.IsNullOrEmpty(scannedNode.Vendor) && scannedNode.Vendor != "Unknown Vendor")
             existing.Vendor = scannedNode.Vendor;
 
@@ -327,31 +350,31 @@ public class LocalDatabase : IDisposable
         if (!string.IsNullOrEmpty(scannedNode.OsGuess))
             existing.OsGuess = scannedNode.OsGuess;
 
+        if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
+        if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
+        if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
+    }
+
+    private static void SyncThreatAssessment(NetworkNode scannedNode, NetworkNode existing)
+    {
         if (existing.OpenPorts?.Count > 0)
         {
             VulnerabilityEngine.UpdateThreatLevel(existing);
             scannedNode.ThreatLevel = existing.ThreatLevel;
             scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
+            return;
+        }
+
+        if (scannedNode.ThreatLevel != ThreatLevel.Safe || scannedNode.VulnerabilityScore > 0)
+        {
+            existing.ThreatLevel = scannedNode.ThreatLevel;
+            existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
         }
         else
         {
-            if (scannedNode.ThreatLevel != ThreatLevel.Safe || scannedNode.VulnerabilityScore > 0)
-            {
-                existing.ThreatLevel = scannedNode.ThreatLevel;
-                existing.VulnerabilityScore = scannedNode.VulnerabilityScore;
-            }
-            else
-            {
-                scannedNode.ThreatLevel = existing.ThreatLevel;
-                scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
-            }
+            scannedNode.ThreatLevel = existing.ThreatLevel;
+            scannedNode.VulnerabilityScore = existing.VulnerabilityScore;
         }
-
-        if (!string.IsNullOrEmpty(scannedNode.ExactModel)) existing.ExactModel = scannedNode.ExactModel;
-        if (!string.IsNullOrEmpty(scannedNode.DeviceType)) existing.DeviceType = scannedNode.DeviceType;
-        if (!string.IsNullOrEmpty(scannedNode.IconPath) && scannedNode.IconPath != "default_device") existing.IconPath = scannedNode.IconPath;
-
-        return existing;
     }
 
     private static void MergePortBanners(NetworkNode scannedNode, NetworkNode existing)
@@ -715,60 +738,122 @@ public class LocalDatabase : IDisposable
         if (rawSnapshots.Count <= maxPoints || maxPoints <= 0)
             return rawSnapshots;
 
+        (cutoff, now) = AlignTimeKinds(cutoff, now, rawSnapshots[0].Timestamp.Kind);
+
         double totalSeconds = (now - cutoff).TotalSeconds;
-        if (totalSeconds <= 0) return rawSnapshots;
+        if (totalSeconds <= 0)
+            return rawSnapshots;
 
         double intervalSeconds = totalSeconds / maxPoints;
         var downsampled = new List<UptimeSnapshot>(maxPoints);
 
         int rawIndex = 0;
-        int rawCount = rawSnapshots.Count;
 
         for (int i = 0; i < maxPoints; i++)
         {
             var bucketStart = cutoff.AddSeconds(i * intervalSeconds);
-            var bucketEnd = (i == maxPoints - 1) ? DateTime.MaxValue : cutoff.AddSeconds((i + 1) * intervalSeconds);
+            var bucketEnd = GetBucketEnd(cutoff, intervalSeconds, i, maxPoints);
+            var context = new BucketContext(bucketStart, bucketEnd, intervalSeconds, macAddress);
 
-            long latencySum = 0;
-            int latencyCount = 0;
-            int onlineCount = 0;
-            int totalInBucket = 0;
-
-            while (rawIndex < rawCount && rawSnapshots[rawIndex].Timestamp < bucketEnd)
+            if (TryCreateBucketSnapshot(rawSnapshots, ref rawIndex, in context, out var snapshot))
             {
-                var s = rawSnapshots[rawIndex];
-                if (s.Timestamp >= bucketStart)
-                {
-                    totalInBucket++;
-                    if (s.IsOnline)
-                    {
-                        onlineCount++;
-                        if (s.LatencyMs >= 0)
-                        {
-                            latencySum += s.LatencyMs;
-                            latencyCount++;
-                        }
-                    }
-                }
-                rawIndex++;
-            }
-
-            if (totalInBucket > 0)
-            {
-                bool isOnline = onlineCount * 2 >= totalInBucket;
-                long avgLatency = latencyCount > 0 ? (long)Math.Round((double)latencySum / latencyCount) : (isOnline ? 0 : -1);
-
-                downsampled.Add(new UptimeSnapshot
-                {
-                    MacAddress = macAddress,
-                    IsOnline = isOnline,
-                    LatencyMs = avgLatency,
-                    Timestamp = bucketStart.AddSeconds(intervalSeconds / 2)
-                });
+                downsampled.Add(snapshot);
             }
         }
 
         return downsampled;
+    }
+
+    private static (DateTime cutoff, DateTime now) AlignTimeKinds(DateTime cutoff, DateTime now, DateTimeKind targetKind)
+    {
+        if (targetKind == DateTimeKind.Local)
+            return (cutoff.ToLocalTime(), now.ToLocalTime());
+
+        if (targetKind == DateTimeKind.Utc)
+            return (cutoff.ToUniversalTime(), now.ToUniversalTime());
+
+        return (cutoff, now);
+    }
+
+    private static DateTime GetBucketEnd(DateTime cutoff, double intervalSeconds, int index, int maxPoints)
+    {
+        return index == maxPoints - 1
+            ? DateTime.MaxValue
+            : cutoff.AddSeconds((index + 1) * intervalSeconds);
+    }
+
+    private static bool TryCreateBucketSnapshot(
+        List<UptimeSnapshot> rawSnapshots,
+        ref int rawIndex,
+        in BucketContext context,
+        [NotNullWhen(true)] out UptimeSnapshot? snapshot)
+    {
+        var accumulator = new BucketAccumulator();
+
+        while (rawIndex < rawSnapshots.Count && rawSnapshots[rawIndex].Timestamp < context.End)
+        {
+            accumulator.Accumulate(rawSnapshots[rawIndex], context.Start);
+            rawIndex++;
+        }
+
+        if (accumulator.TotalCount == 0)
+        {
+            snapshot = null;
+            return false;
+        }
+
+        bool isOnline = accumulator.OnlineCount * 2 >= accumulator.TotalCount;
+        long avgLatency = accumulator.ComputeAverageLatency();
+
+        snapshot = new UptimeSnapshot
+        {
+            MacAddress = context.MacAddress,
+            IsOnline = isOnline,
+            LatencyMs = avgLatency,
+            Timestamp = context.Start.AddSeconds(context.IntervalSeconds / 2)
+        };
+        return true;
+    }
+
+    private readonly struct BucketContext(DateTime start, DateTime end, double intervalSeconds, string macAddress)
+    {
+        public DateTime Start { get; } = start;
+        public DateTime End { get; } = end;
+        public double IntervalSeconds { get; } = intervalSeconds;
+        public string MacAddress { get; } = macAddress;
+    }
+
+    private struct BucketAccumulator
+    {
+        public int TotalCount;
+        public int OnlineCount;
+        public int LatencyCount;
+        public long LatencySum;
+
+        public void Accumulate(UptimeSnapshot item, DateTime bucketStart)
+        {
+            if (item.Timestamp < bucketStart)
+                return;
+
+            TotalCount++;
+            if (!item.IsOnline)
+                return;
+
+            OnlineCount++;
+            if (item.LatencyMs >= 0)
+            {
+                LatencySum += item.LatencyMs;
+                LatencyCount++;
+            }
+        }
+
+        public readonly long ComputeAverageLatency()
+        {
+            if (LatencyCount > 0)
+                return (long)Math.Round((double)LatencySum / LatencyCount);
+
+            return (OnlineCount * 2 >= TotalCount) ? 0 : -1;
+        }
     }
 
     // ══════════════════════════════════
