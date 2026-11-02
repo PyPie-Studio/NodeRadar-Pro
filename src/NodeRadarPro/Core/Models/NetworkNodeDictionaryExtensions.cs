@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 public static class NetworkNodeDictionaryExtensions
 {

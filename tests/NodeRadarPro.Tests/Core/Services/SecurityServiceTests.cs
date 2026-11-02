@@ -1,8 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Services;
 
 public class SecurityServiceTests
 {

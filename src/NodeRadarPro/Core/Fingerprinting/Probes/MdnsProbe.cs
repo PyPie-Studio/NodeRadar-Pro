@@ -49,12 +49,12 @@ public class MdnsProbe : IFingerprintProbe
 
     private static ReadOnlySpan<byte> LocalSuffix => [0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00];
 
-    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Discovery.IMulticastSocket>? socketFactory = null)
+    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Networking.Sockets.IMulticastSocket>? socketFactory = null)
     {
         _cache.Clear();
         try
         {
-            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Discovery.DefaultMulticastSocket(0, IPAddress.Parse("224.0.0.251"));
+            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Networking.Sockets.DefaultMulticastSocket(0, IPAddress.Parse("224.0.0.251"));
             var target = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
 
             await SendInitialQueriesAsync(udp, target);
@@ -69,7 +69,7 @@ public class MdnsProbe : IFingerprintProbe
         catch { }
     }
 
-    private static async Task SendInitialQueriesAsync(NodeRadarPro.Core.Discovery.IMulticastSocket udp, IPEndPoint target)
+    private static async Task SendInitialQueriesAsync(NodeRadarPro.Core.Networking.Sockets.IMulticastSocket udp, IPEndPoint target)
     {
         for (int i = 0; i < DefaultQueryServices.Length; i++)
         {

@@ -1,8 +1,7 @@
 using System.Net.NetworkInformation;
 using Moq;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Engines;
 
 [Collection("ProbeSweepStaticState")]
 public class SubnetScannerTests

@@ -1,129 +1,127 @@
 using Avalonia.Controls.Notifications;
-using NodeRadarPro.Core;
 using Moq;
 
-namespace NodeRadarPro.Tests
+namespace NodeRadarPro.Tests.Core.Services;
+
+[Collection("LoggerStaticState")]
+public class IntrusionAlerterTests
 {
-    [Collection("LoggerStaticState")]
-    public class IntrusionAlerterTests
+    [Fact]
+    public void AlertDeviceOffline_WhenDisabled_DoesNotThrow()
     {
-        [Fact]
-        public void AlertDeviceOffline_WhenDisabled_DoesNotThrow()
+        var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
+        IntrusionAlerter.Enabled = false;
+
+        var exception = Record.Exception(() => IntrusionAlerter.AlertDeviceOffline(node));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void AlertDeviceOffline_WhenEnabled_NoNotificationManager_DoesNotThrow()
+    {
+        var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
+        IntrusionAlerter.Enabled = true;
+        IntrusionAlerter.SetNotificationManagerForTesting(null);
+
+        var exception = Record.Exception(() => IntrusionAlerter.AlertDeviceOffline(node));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void AlertDeviceOffline_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+    {
+        // Arrange
+        var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
+        IntrusionAlerter.Enabled = true;
+
+        var mockNotificationManager = new Mock<INotificationManager>();
+        IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
+
+        var originalAudioEnabled = AudioService.Enabled;
+        AudioService.Enabled = false; // Disable audio to prevent exceptions during test
+
+        try
         {
-            var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
-            IntrusionAlerter.Enabled = false;
+            // Act
+            IntrusionAlerter.AlertDeviceOffline(node);
 
-            var exception = Record.Exception(() => IntrusionAlerter.AlertDeviceOffline(node));
-
-            Assert.Null(exception);
+            // Assert
+            mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
+                n.Title == "Device Disconnected" &&
+                n.Type == NotificationType.Error)),
+                Times.Once);
         }
-
-        [Fact]
-        public void AlertDeviceOffline_WhenEnabled_NoNotificationManager_DoesNotThrow()
+        finally
         {
-            var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
-            IntrusionAlerter.Enabled = true;
+            // Cleanup
             IntrusionAlerter.SetNotificationManagerForTesting(null);
-
-            var exception = Record.Exception(() => IntrusionAlerter.AlertDeviceOffline(node));
-
-            Assert.Null(exception);
+            AudioService.Enabled = originalAudioEnabled;
         }
+    }
 
-        [Fact]
-        public void AlertDeviceOffline_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+    [Fact]
+    public void AlertDeviceReconnected_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+    {
+        // Arrange
+        var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
+        IntrusionAlerter.Enabled = true;
+
+        var mockNotificationManager = new Mock<INotificationManager>();
+        IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
+
+        var originalAudioEnabled = AudioService.Enabled;
+        AudioService.Enabled = false; // Disable audio to prevent exceptions during test
+
+        try
         {
-            // Arrange
-            var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
-            IntrusionAlerter.Enabled = true;
+            // Act
+            IntrusionAlerter.AlertDeviceReconnected(node);
 
-            var mockNotificationManager = new Mock<INotificationManager>();
-            IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
-
-            var originalAudioEnabled = AudioService.Enabled;
-            AudioService.Enabled = false; // Disable audio to prevent exceptions during test
-
-            try
-            {
-                // Act
-                IntrusionAlerter.AlertDeviceOffline(node);
-
-                // Assert
-                mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "Device Disconnected" &&
-                    n.Type == NotificationType.Error)),
-                    Times.Once);
-            }
-            finally
-            {
-                // Cleanup
-                IntrusionAlerter.SetNotificationManagerForTesting(null);
-                AudioService.Enabled = originalAudioEnabled;
-            }
+            // Assert
+            mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
+                n.Title == "Device Reconnected" &&
+                n.Type == NotificationType.Success)),
+                Times.Once);
         }
-
-        [Fact]
-        public void AlertDeviceReconnected_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+        finally
         {
-            // Arrange
-            var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
-            IntrusionAlerter.Enabled = true;
-
-            var mockNotificationManager = new Mock<INotificationManager>();
-            IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
-
-            var originalAudioEnabled = AudioService.Enabled;
-            AudioService.Enabled = false; // Disable audio to prevent exceptions during test
-
-            try
-            {
-                // Act
-                IntrusionAlerter.AlertDeviceReconnected(node);
-
-                // Assert
-                mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "Device Reconnected" &&
-                    n.Type == NotificationType.Success)),
-                    Times.Once);
-            }
-            finally
-            {
-                // Cleanup
-                IntrusionAlerter.SetNotificationManagerForTesting(null);
-                AudioService.Enabled = originalAudioEnabled;
-            }
+            // Cleanup
+            IntrusionAlerter.SetNotificationManagerForTesting(null);
+            AudioService.Enabled = originalAudioEnabled;
         }
+    }
 
-        [Fact]
-        public void AlertNewDevice_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+    [Fact]
+    public void AlertNewDevice_WhenEnabledAndNotificationManagerExists_ShowsNotification()
+    {
+        // Arrange
+        var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
+        IntrusionAlerter.Enabled = true;
+
+        var mockNotificationManager = new Mock<INotificationManager>();
+        IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
+
+        var originalAudioEnabled = AudioService.Enabled;
+        AudioService.Enabled = false; // Disable audio to prevent exceptions during test
+
+        try
         {
-            // Arrange
-            var node = new NetworkNode { CustomName = "Test Node", IpAddress = "192.168.1.100", MacAddress = "00:11:22:33:44:55" };
-            IntrusionAlerter.Enabled = true;
+            // Act
+            IntrusionAlerter.AlertNewDevice(node);
 
-            var mockNotificationManager = new Mock<INotificationManager>();
-            IntrusionAlerter.SetNotificationManagerForTesting(mockNotificationManager.Object);
-
-            var originalAudioEnabled = AudioService.Enabled;
-            AudioService.Enabled = false; // Disable audio to prevent exceptions during test
-
-            try
-            {
-                // Act
-                IntrusionAlerter.AlertNewDevice(node);
-
-                // Assert
-                mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
-                    n.Title == "New Device Discovered" &&
-                    n.Type == NotificationType.Information)),
-                    Times.Once);
-            }
-            finally
-            {
-                // Cleanup
-                IntrusionAlerter.SetNotificationManagerForTesting(null);
-                AudioService.Enabled = originalAudioEnabled;
-            }
+            // Assert
+            mockNotificationManager.Verify(m => m.Show(It.Is<INotification>(n =>
+                n.Title == "New Device Discovered" &&
+                n.Type == NotificationType.Information)),
+                Times.Once);
+        }
+        finally
+        {
+            // Cleanup
+            IntrusionAlerter.SetNotificationManagerForTesting(null);
+            AudioService.Enabled = originalAudioEnabled;
         }
     }
 }

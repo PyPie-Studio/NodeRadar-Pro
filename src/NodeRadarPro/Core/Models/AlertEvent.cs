@@ -1,7 +1,7 @@
 using LiteDB;
 using System;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 /// <summary>
 /// Represents a triggered alert event persisted in the database.

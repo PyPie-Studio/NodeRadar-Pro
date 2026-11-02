@@ -8,7 +8,7 @@ using MailKit.Security;
 using System.Net.Sockets;
 using System.IO;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 /// <summary>
 /// Static service for sending email alerts via SMTP using MailKit.

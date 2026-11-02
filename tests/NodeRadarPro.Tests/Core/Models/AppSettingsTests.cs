@@ -1,7 +1,6 @@
 using System.Text.Json;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Models;
 
 public class AppSettingsTests
 {

@@ -1,6 +1,3 @@
-using NodeRadarPro.Core;
-using NodeRadarPro.UI;
-
 namespace NodeRadarPro.Tests.UI.Pages;
 
 [Collection("AvaloniaUIStaticState")]

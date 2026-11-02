@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
 using Avalonia.Threading;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 /// <summary>
 /// Cross-platform desktop notifications for intrusion alerts and connectivity changes.

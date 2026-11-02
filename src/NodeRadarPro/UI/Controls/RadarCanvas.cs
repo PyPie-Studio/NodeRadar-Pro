@@ -5,9 +5,8 @@ using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Controls;
 
 /// <summary>
 /// Custom radar canvas with Kinetic Observatory color scheme.

@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Result of a single hop in a traceroute.

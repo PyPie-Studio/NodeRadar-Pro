@@ -1,6 +1,6 @@
 using LiteDB;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 /// <summary>
 /// Persisted application settings stored in LiteDB.

@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
   <RunConfiguration>
     <!-- 5-minute timeout for entire test session to guard against hung network sockets -->
     <TestSessionTimeout>300000</TestSessionTimeout>
+    <ResultsDirectory>./artifacts/test-results</ResultsDirectory>
   </RunConfiguration>
   <DataCollectionRunSettings>
     <DataCollectors>

@@ -1,7 +1,7 @@
 using LiteDB;
 using System;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 /// <summary>
 /// System log entry for the event log viewer.

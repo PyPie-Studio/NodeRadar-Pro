@@ -4,7 +4,6 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NodeRadarPro.Core;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -12,7 +11,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Dedicated Port Scanner page with custom port ranges, scan profiles, and results.
@@ -366,4 +365,14 @@ public class PortScansPage : Border
         grid.Children.Add(portTb); grid.Children.Add(svcTb); grid.Children.Add(protoTb); grid.Children.Add(stateBadge);
         return new Border { Background = alt ? ThemeTokens.SurfaceContainerLowest : Brushes.Transparent, Padding = new Thickness(0, 14), Child = grid };
     }
+
+    internal TextBox TargetIpInput => _targetIp;
+    internal TextBox StartPortInput => _startPort;
+    internal TextBox EndPortInput => _endPort;
+    internal Button ScanButton => _scanBtn;
+    internal Button StopButton => _stopBtn;
+    internal TextBlock StatusText => _statusText;
+    internal TextBlock ProgressPct => _progressPct;
+    internal TextBlock OpenCountText => _openCount;
+    internal StackPanel ResultsBody => _resultsBody;
 }

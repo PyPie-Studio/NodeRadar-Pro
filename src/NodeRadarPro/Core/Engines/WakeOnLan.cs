@@ -8,7 +8,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Implements the Magic Packet protocol for remotely waking up devices.

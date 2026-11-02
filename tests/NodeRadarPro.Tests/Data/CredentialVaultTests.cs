@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Data;
 
 public class CredentialVaultTests : IDisposable
 {

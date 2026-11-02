@@ -4,7 +4,6 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
-using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
@@ -14,7 +13,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Support & About page: company branding, version info, app updates, FAQ, and social links.

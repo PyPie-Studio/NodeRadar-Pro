@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     Downloads the official IEEE / Wireshark MAC manufacturer registry and updates the VendorLookup database.
@@ -36,7 +36,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$vendorLookupFile = Join-Path $root "src\NodeRadarPro\Data\VendorLookup.cs"
+$vendorLookupFile = Join-Path $root "src\NodeRadarPro\Data\Generated\VendorLookup.cs"
 $jsonExportFile = Join-Path $root $JsonPath
 
 Write-Host "== NodeRadar Pro IEEE MAC OUI Auto-Updater ==" -ForegroundColor Cyan

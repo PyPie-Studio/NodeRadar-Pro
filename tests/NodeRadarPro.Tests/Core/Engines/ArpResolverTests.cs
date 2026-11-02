@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Engines;
 
 public class ArpResolverTests
 {

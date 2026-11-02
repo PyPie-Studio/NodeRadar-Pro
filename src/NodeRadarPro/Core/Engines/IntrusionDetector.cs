@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Background service that periodically sweeps the network to detect new devices.

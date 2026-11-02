@@ -4,9 +4,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NodeRadarPro.Core;
 using NodeRadarPro.Core.Messaging;
-using NodeRadarPro.Core.Services;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Concurrent;
@@ -15,7 +13,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Network Scanner page — matches Network_Scanner_Form screenshot exactly.

@@ -3,12 +3,11 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using NodeRadarPro.Core;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Hop-by-hop path visualization page.
@@ -220,4 +219,11 @@ public class TraceroutePage : Border
 
         return row;
     }
+
+    internal TextBox DestinationInput => _destInput;
+    internal Button StartButton => _startBtn;
+    internal Button StopButton => _stopBtn;
+    internal StackPanel HopsContainer => _hopsContainer;
+    internal TextBlock StatusText => _statusText;
+    internal ProgressBar ProgressBar => _progressBar;
 }

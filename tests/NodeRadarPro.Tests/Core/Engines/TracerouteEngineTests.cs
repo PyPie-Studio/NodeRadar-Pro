@@ -1,8 +1,7 @@
 using System.Net;
 using System.Net.NetworkInformation;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Engines;
 
 public class MockPingReply : IPingReply
 {

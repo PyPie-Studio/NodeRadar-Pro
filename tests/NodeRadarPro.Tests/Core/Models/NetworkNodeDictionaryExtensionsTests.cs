@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Models;
 
 public class NetworkNodeDictionaryExtensionsTests
 {

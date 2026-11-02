@@ -2,9 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Styling;
-using NodeRadarPro.UI;
 using NodeRadarPro.Data;
-using NodeRadarPro.Core;
 
 namespace NodeRadarPro
 {
@@ -22,8 +20,8 @@ namespace NodeRadarPro
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 // Inject our PyPie Studio Dark Theme instead of the XAML MainWindow
-                desktop.MainWindow = DarkPurpleTheme.BuildMainWindow();
-                DarkPurpleTheme.OnStartup(desktop.MainWindow);
+                desktop.MainWindow = MainWindowShell.BuildMainWindow();
+                MainWindowShell.OnStartup(desktop.MainWindow);
             }
 
             try

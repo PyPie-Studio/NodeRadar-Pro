@@ -4,6 +4,7 @@
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PlatformTarget>x64</PlatformTarget>
     <Title>NodeRadar Pro</Title>
@@ -50,5 +51,16 @@
     <PackageReference Update="Roslynator.Analyzers">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="NodeRadarPro.Core.Engines" />
+    <Using Include="NodeRadarPro.Core.Engines.Abstractions" />
+    <Using Include="NodeRadarPro.Core.Models" />
+    <Using Include="NodeRadarPro.Core.Services" />
+    <Using Include="NodeRadarPro.UI.Pages" />
+    <Using Include="NodeRadarPro.UI.Controls" />
+    <Using Include="NodeRadarPro.UI.Navigation" />
+    <Using Include="NodeRadarPro.UI.Theme" />
+    <Using Include="NodeRadarPro.UI.Shell" />
   </ItemGroup>
 </Project>

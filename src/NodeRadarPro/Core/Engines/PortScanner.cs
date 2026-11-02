@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Fast async port scanner with common port list, top-100 fast scan, and OS fingerprinting.

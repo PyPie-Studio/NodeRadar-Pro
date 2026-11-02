@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 /// <summary>
 /// Provides security-related utility functions, such as hashing and constant-time verification.

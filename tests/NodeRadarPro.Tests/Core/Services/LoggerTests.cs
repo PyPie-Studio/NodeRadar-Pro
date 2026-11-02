@@ -1,6 +1,4 @@
-using NodeRadarPro.Core;
-
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Services;
 
 [Collection("LoggerStaticState")]
 public class LoggerTests : IDisposable
@@ -79,19 +77,7 @@ public class LoggerTests : IDisposable
         FileStream? fileLock = null;
         try
         {
-            if (File.Exists(_testLogFilePath))
-            {
-                try { File.Delete(_testLogFilePath); } catch { }
-            }
-
-            if (!Directory.Exists(_testLogFilePath) && !File.Exists(_testLogFilePath))
-            {
-                Directory.CreateDirectory(_testLogFilePath);
-            }
-            else if (File.Exists(_testLogFilePath))
-            {
-                fileLock = new FileStream(_testLogFilePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            }
+            fileLock = new FileStream(_testLogFilePath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
 
             string source = "UnitTestFailure";
             string message = "Test write failure message " + Guid.NewGuid().ToString();

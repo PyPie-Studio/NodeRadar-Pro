@@ -1,6 +1,4 @@
-using NodeRadarPro.Core;
-
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Services;
 
 [Collection("LoggerStaticState")]
 public class AudioServiceTests : IDisposable

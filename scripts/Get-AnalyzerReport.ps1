@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     Generates a structured report for specific Roslyn analyzer diagnostic IDs across NodeRadar Pro.
@@ -8,7 +8,7 @@
     Array of Roslyn diagnostic IDs to inspect (default: S3776, S107, S1541, CA1506).
 
 .PARAMETER OutputPath
-    File path where the diagnostic report will be saved (default: docs/analyzer-report.txt).
+    File path where the diagnostic report will be saved (default: artifacts/reports/analyzer-report.txt).
 
 .EXAMPLE
     pwsh -File scripts/Get-AnalyzerReport.ps1
@@ -16,7 +16,7 @@
 [CmdletBinding()]
 param(
     [string[]]$Diagnostics = @("S3776", "S107", "S1541", "CA1506"),
-    [string]$OutputPath = "docs/analyzer-report.txt"
+    [string]$OutputPath = "artifacts/reports/analyzer-report.txt"
 )
 
 $ErrorActionPreference = "Stop"

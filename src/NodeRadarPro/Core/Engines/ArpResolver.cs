@@ -8,24 +8,24 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Handles cross-platform MAC address resolution (ARP).
 /// Supports Windows natively and Linux by reading /proc/net/arp.
 /// Also provides full ARP table reading to discover WiFi/non-ping devices.
 /// </summary>
-public static class ArpResolver
+public static partial class ArpResolver
 {
     public const string UnknownMac = "Unknown";
     public delegate int SendArpDelegate(int destIp, int srcIp, byte[] pMacAddr, ref uint phyAddrLen);
     public delegate int GetIpNetTableDelegate(IntPtr pIpNetTable, ref int pdwSize, bool bOrder);
-    // Native Windows API for ARP resolution
-    [DllImport("iphlpapi.dll", ExactSpelling = true)]
-    private static extern int SendARP(int DestIP, int SrcIP, byte[] pMacAddr, ref uint PhyAddrLen);
+    // Native Windows API for ARP resolution (Source-Generated P/Invoke)
+    [LibraryImport("iphlpapi.dll", EntryPoint = "SendARP")]
+    private static partial int SendARP(int DestIP, int SrcIP, [Out] byte[] pMacAddr, ref uint PhyAddrLen);
 
-    [DllImport("iphlpapi.dll", SetLastError = true)]
-    private static extern int GetIpNetTable(IntPtr pIpNetTable, ref int pdwSize, bool bOrder);
+    [LibraryImport("iphlpapi.dll", EntryPoint = "GetIpNetTable", SetLastError = true)]
+    private static partial int GetIpNetTable(IntPtr pIpNetTable, ref int pdwSize, [MarshalAs(UnmanagedType.Bool)] bool bOrder);
 
     /// <summary>
     /// Attempts to resolve the MAC address for a given IP address.

@@ -8,7 +8,7 @@ using System.Collections.Generic;
 
 using Avalonia.Platform;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Navigation;
 
 /// <summary>
 /// Persistent left sidebar navigation — 256px wide.
@@ -47,7 +47,7 @@ public class SideNavBar : Border
         }
         catch (Exception ex)
         {
-            NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Warning, "UI", $"Failed to load navbar logo: {ex.Message}");
+            Logger.Log(LogLevel.Warning, "UI", $"Failed to load navbar logo: {ex.Message}");
         }
         RenderOptions.SetBitmapInterpolationMode(logoImage, BitmapInterpolationMode.HighQuality);
 
@@ -263,4 +263,8 @@ public class SideNavBar : Border
         _navItems[name] = border;
         return border;
     }
+
+    internal string ActivePage => _activePage;
+    internal IReadOnlyDictionary<string, Border> NavItems => _navItems;
+    internal void TriggerItemClick(string name) { SetActive(name); PageChanged?.Invoke(name); }
 }

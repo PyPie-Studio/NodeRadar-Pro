@@ -3,10 +3,9 @@ using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
 using Moq;
-using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Services;
 
 public class EmailServiceTests : IDisposable
 {

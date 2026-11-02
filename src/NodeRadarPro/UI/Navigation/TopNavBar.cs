@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Navigation;
 
 /// <summary>
 /// Fixed 56px top navigation bar with branding, network health status, and action icons.
@@ -137,5 +137,6 @@ public class TopNavBar : Border
         _latencyText.Text = avgLatency >= 0 ? $"Latency: {avgLatency}ms" : "Latency: —";
     }
 
-
+    internal TextBlock HealthText => _healthText;
+    internal TextBlock LatencyText => _latencyText;
 }

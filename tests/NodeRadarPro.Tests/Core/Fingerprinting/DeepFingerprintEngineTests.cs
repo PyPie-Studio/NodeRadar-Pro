@@ -1,9 +1,8 @@
 using Moq;
-using NodeRadarPro.Core;
 using NodeRadarPro.Core.Fingerprinting;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 
-namespace NodeRadarPro.Tests.Fingerprinting;
+namespace NodeRadarPro.Tests.Core.Fingerprinting;
 
 [Collection("ProbeSweepStaticState")]
 public class DeepFingerprintEngineTests

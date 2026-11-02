@@ -20,7 +20,7 @@ namespace NodeRadarPro
         {
             if (args.Contains("--test") || args.Contains("-t"))
             {
-                int exitCode = NodeRadarPro.Core.ScannerDiagnostics.RunDiagnosticsAsync().GetAwaiter().GetResult();
+                int exitCode = ScannerDiagnostics.RunDiagnosticsAsync().GetAwaiter().GetResult();
                 Environment.Exit(exitCode);
             }
 
@@ -40,7 +40,7 @@ namespace NodeRadarPro
             AppDomain.CurrentDomain.UnhandledException += (s, e) =>
             {
                 var ex = e.ExceptionObject as Exception;
-                NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "CRASH", $"Unhandled Exception: {ex}");
+                Logger.Log(LogLevel.Error, "CRASH", $"Unhandled Exception: {ex}");
 
                 string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");
                 Directory.CreateDirectory(logDir);
@@ -50,7 +50,7 @@ namespace NodeRadarPro
 
             TaskScheduler.UnobservedTaskException += (s, e) =>
             {
-                NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "TaskError", $"Unobserved Task Exception: {e.Exception}");
+                Logger.Log(LogLevel.Error, "TaskError", $"Unobserved Task Exception: {e.Exception}");
 
                 string logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "logs");
                 Directory.CreateDirectory(logDir);
@@ -74,7 +74,7 @@ namespace NodeRadarPro
                 }
                 catch (Exception writeEx)
                 {
-                    NodeRadarPro.Core.Logger.Log(NodeRadarPro.Core.LogLevel.Error, "CRASH", $"Failed to write crash log: {writeEx.Message}");
+                    Logger.Log(LogLevel.Error, "CRASH", $"Failed to write crash log: {writeEx.Message}");
                 }
                 throw;
             }

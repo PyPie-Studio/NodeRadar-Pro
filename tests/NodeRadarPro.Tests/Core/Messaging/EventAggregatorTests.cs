@@ -1,6 +1,6 @@
 using NodeRadarPro.Core.Messaging;
 
-namespace NodeRadarPro.Tests.Messaging;
+namespace NodeRadarPro.Tests.Core.Messaging;
 
 public class EventAggregatorTests
 {

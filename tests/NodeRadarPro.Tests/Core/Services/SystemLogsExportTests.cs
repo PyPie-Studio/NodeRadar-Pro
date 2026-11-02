@@ -1,7 +1,4 @@
-using NodeRadarPro.Core;
-using NodeRadarPro.Core.Services;
-
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Services;
 
 public class SystemLogsExportTests
 {

@@ -1,5 +1,3 @@
-using NodeRadarPro.Core;
-
 namespace NodeRadarPro.Tests.Core.Models;
 
 public class AlertTypeExtensionsTests

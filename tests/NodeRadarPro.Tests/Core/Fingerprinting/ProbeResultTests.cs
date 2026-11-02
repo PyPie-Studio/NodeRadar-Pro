@@ -1,6 +1,6 @@
 using NodeRadarPro.Core.Fingerprinting;
 
-namespace NodeRadarPro.Tests.Fingerprinting;
+namespace NodeRadarPro.Tests.Core.Fingerprinting;
 
 public class ProbeResultTests
 {

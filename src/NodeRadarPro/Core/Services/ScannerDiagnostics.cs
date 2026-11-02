@@ -4,10 +4,11 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
+using NodeRadarPro.Data;
 using NodeRadarPro.Core.Fingerprinting;
-using NodeRadarPro.Core.Discovery;
+using NodeRadarPro.Core.Fingerprinting.Probes;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 public static class ScannerDiagnostics
 {
@@ -273,54 +274,54 @@ public static class ScannerDiagnostics
 
     private static bool TestDiscoveryEngineComponents()
     {
-        Console.Write("Test 7: Asynchronous Discovery Engine Verification... ");
+        Console.Write("Test 7: Deep Fingerprinting & Heuristics Verification... ");
         try
         {
-            // 1. Verify ARP OUI Lookup & LAA/Privacy MAC Recognition
-            string appleVendor = ArpDiscoveryMethod.GetMacVendor("00:1C:B3:AA:BB:CC");
+            // 1. Verify IEEE OUI Lookup & LAA/Privacy MAC Recognition
+            string appleVendor = VendorLookup.GetVendor("00:1C:B3:AA:BB:CC");
             if (appleVendor != "Apple")
             {
                 Console.WriteLine($"FAIL: Apple OUI lookup returned {appleVendor}");
                 return false;
             }
 
-            string huaweiVendor = ArpDiscoveryMethod.GetMacVendor("20:0B:C7:11:22:33");
+            string huaweiVendor = VendorLookup.GetVendor("20:0B:C7:11:22:33");
             if (huaweiVendor != "Huawei")
             {
                 Console.WriteLine($"FAIL: Huawei OUI lookup returned {huaweiVendor}");
                 return false;
             }
 
-            string privacyMacVendor = ArpDiscoveryMethod.GetMacVendor("02:11:22:33:44:55");
-            if (privacyMacVendor != "Privacy MAC")
+            string privacyVendor = VendorLookup.GetVendor("02:11:22:33:44:55");
+            if (!privacyVendor.Contains("Randomized", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine($"FAIL: Privacy MAC OUI lookup returned {privacyMacVendor}");
+                Console.WriteLine($"FAIL: Privacy MAC recognition returned {privacyVendor}");
                 return false;
             }
 
-            // 2. Verify mDNS Hostname Parser Heuristic
+            // 2. Verify mDNS Instance Name Parser Heuristic
             var mockMdnsBytes = new byte[] {
                 0x00, 0x00, 0x00, 0x00,
                 0x07, 0x6d, 0x79, 0x70, 0x68, 0x6f, 0x6e, 0x65, // "myphone" (length 7)
                 0x05, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x00 // ".local" (length 5)
             };
 
-            string parsedHost = MdnsDiscoveryMethod.ParseMdnsHostname(mockMdnsBytes);
-            if (parsedHost != "myphone.local")
+            string parsedHost = MdnsProbe.ExtractMdnsInstanceName(mockMdnsBytes);
+            if (parsedHost != "myphone")
             {
                 Console.WriteLine($"FAIL: mDNS parser failed to extract hostname. Got: '{parsedHost}'");
                 return false;
             }
 
-            // 3. Verify DiscoveryEngine aggregation and merge properties
-            var engine = new DiscoveryEngine();
+            // 3. Verify DeepFingerprintEngine instantiation
+            var engine = new DeepFingerprintEngine();
             if (engine == null)
             {
-                Console.WriteLine("FAIL: DiscoveryEngine could not be instantiated.");
+                Console.WriteLine("FAIL: DeepFingerprintEngine could not be instantiated.");
                 return false;
             }
 
-            Console.WriteLine("PASS (OUI dictionaries, LAA detection, mDNS packet parser, and Engine initialized successfully)");
+            Console.WriteLine("PASS (IEEE OUI database, LAA detection, mDNS packet parser, and DeepFingerprintEngine initialized successfully)");
             return true;
         }
         catch (Exception ex)

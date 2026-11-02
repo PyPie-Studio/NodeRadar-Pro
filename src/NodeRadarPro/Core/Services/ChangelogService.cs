@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 /// <summary>
 /// Represents a structured release version entry parsed from CHANGELOG.md.

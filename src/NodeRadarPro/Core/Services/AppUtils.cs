@@ -6,241 +6,240 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Runtime.InteropServices;
 
-namespace NodeRadarPro.Core
+namespace NodeRadarPro.Core.Services;
+
+public class NetworkInterfaceInfo
 {
-    public class NetworkInterfaceInfo
+    public string Name { get; set; } = string.Empty;
+    public OperationalStatus OperationalStatus { get; set; } = OperationalStatus.Unknown;
+    public NetworkInterfaceType NetworkInterfaceType { get; set; } = NetworkInterfaceType.Unknown;
+    public byte[] PhysicalAddressBytes { get; set; } = Array.Empty<byte>();
+    public List<IPAddress> UnicastAddresses { get; set; } = new();
+}
+
+public static class AppUtils
+{
+    private const string LogSource = "AppUtils";
+
+    internal static Action<string>? UrlLauncherForTesting { get; set; }
+    internal static Action<string>? FolderLauncherForTesting { get; set; }
+
+    public static string GetMacAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
     {
-        public string Name { get; set; } = string.Empty;
-        public OperationalStatus OperationalStatus { get; set; } = OperationalStatus.Unknown;
-        public NetworkInterfaceType NetworkInterfaceType { get; set; } = NetworkInterfaceType.Unknown;
-        public byte[] PhysicalAddressBytes { get; set; } = Array.Empty<byte>();
-        public List<IPAddress> UnicastAddresses { get; set; } = new();
+        try
+        {
+            var interfaces = getInterfaces != null ? getInterfaces() : GetSystemNetworkInterfaces();
+            foreach (var ni in interfaces)
+            {
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+
+                var bytes = ni.PhysicalAddressBytes;
+                if (bytes != null && bytes.Length > 0 && bytes.Any(b => b != 0))
+                {
+                    return string.Join(":", bytes.Select(b => b.ToString("X2")));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve MAC address: {ex.Message}");
+        }
+
+        return "Unknown";
     }
 
-    public static class AppUtils
+    public static string GetLocalIpAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
     {
-        private const string LogSource = "AppUtils";
-
-        internal static Action<string>? UrlLauncherForTesting { get; set; }
-        internal static Action<string>? FolderLauncherForTesting { get; set; }
-
-        public static string GetMacAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
+        try
         {
-            try
+            var interfaces = getInterfaces != null ? getInterfaces() : GetSystemNetworkInterfaces();
+            foreach (var ni in interfaces)
             {
-                var interfaces = getInterfaces != null ? getInterfaces() : GetSystemNetworkInterfaces();
-                foreach (var ni in interfaces)
-                {
-                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
 
-                    var bytes = ni.PhysicalAddressBytes;
-                    if (bytes != null && bytes.Length > 0 && bytes.Any(b => b != 0))
-                    {
-                        return string.Join(":", bytes.Select(b => b.ToString("X2")));
-                    }
+                var ip = ni.UnicastAddresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
+                if (ip != null)
+                {
+                    return ip.ToString();
                 }
             }
-            catch (Exception ex)
-            {
-                Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve MAC address: {ex.Message}");
-            }
-
-            return "Unknown";
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve local IP address: {ex.Message}");
         }
 
-        public static string GetLocalIpAddress(Func<IEnumerable<NetworkInterfaceInfo>>? getInterfaces = null)
+        return "127.0.0.1";
+    }
+
+    private static List<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
+    {
+        var list = new List<NetworkInterfaceInfo>();
+        try
         {
-            try
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
             {
-                var interfaces = getInterfaces != null ? getInterfaces() : GetSystemNetworkInterfaces();
-                foreach (var ni in interfaces)
+                var unicast = new List<IPAddress>();
+                try
                 {
-                    if (ni.OperationalStatus != OperationalStatus.Up) continue;
-                    if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
-
-                    var ip = ni.UnicastAddresses.FirstOrDefault(a => a.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork);
-                    if (ip != null)
+                    var ipProps = ni.GetIPProperties();
+                    if (ipProps?.UnicastAddresses != null)
                     {
-                        return ip.ToString();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log(LogLevel.Error, LogSource, $"Failed to retrieve local IP address: {ex.Message}");
-            }
-
-            return "127.0.0.1";
-        }
-
-        private static List<NetworkInterfaceInfo> GetSystemNetworkInterfaces()
-        {
-            var list = new List<NetworkInterfaceInfo>();
-            try
-            {
-                foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    var unicast = new List<IPAddress>();
-                    try
-                    {
-                        var ipProps = ni.GetIPProperties();
-                        if (ipProps?.UnicastAddresses != null)
+                        foreach (var u in ipProps.UnicastAddresses)
                         {
-                            foreach (var u in ipProps.UnicastAddresses)
-                            {
-                                if (u?.Address != null) unicast.Add(u.Address);
-                            }
+                            if (u?.Address != null) unicast.Add(u.Address);
                         }
                     }
-                    catch { }
-
-                    byte[] macBytes = Array.Empty<byte>();
-                    try
-                    {
-                        macBytes = ni.GetPhysicalAddress()?.GetAddressBytes() ?? Array.Empty<byte>();
-                    }
-                    catch { }
-
-                    list.Add(new NetworkInterfaceInfo
-                    {
-                        Name = ni.Name,
-                        OperationalStatus = ni.OperationalStatus,
-                        NetworkInterfaceType = ni.NetworkInterfaceType,
-                        PhysicalAddressBytes = macBytes,
-                        UnicastAddresses = unicast
-                    });
                 }
+                catch { }
+
+                byte[] macBytes = Array.Empty<byte>();
+                try
+                {
+                    macBytes = ni.GetPhysicalAddress()?.GetAddressBytes() ?? Array.Empty<byte>();
+                }
+                catch { }
+
+                list.Add(new NetworkInterfaceInfo
+                {
+                    Name = ni.Name,
+                    OperationalStatus = ni.OperationalStatus,
+                    NetworkInterfaceType = ni.NetworkInterfaceType,
+                    PhysicalAddressBytes = macBytes,
+                    UnicastAddresses = unicast
+                });
             }
-            catch { }
-
-            return list;
         }
+        catch { }
 
-        public static void OpenSafeUrl(string url)
+        return list;
+    }
+
+    public static void OpenSafeUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        try
         {
-            if (string.IsNullOrWhiteSpace(url)) return;
-
-            try
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
             {
-                if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ||
-                    (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
-                {
-                    return;
-                }
-
-                string safeUrl = uri.AbsoluteUri;
-
-                if (UrlLauncherForTesting != null)
-                {
-                    UrlLauncherForTesting(safeUrl);
-                    return;
-                }
-
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = safeUrl,
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "xdg-open",
-                        UseShellExecute = false
-                    };
-                    psi.ArgumentList.Add(safeUrl);
-                    Process.Start(psi);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "open",
-                        UseShellExecute = false
-                    };
-                    psi.ArgumentList.Add(safeUrl);
-                    Process.Start(psi);
-                }
+                return;
             }
-            catch (Exception ex)
+
+            string safeUrl = uri.AbsoluteUri;
+
+            if (UrlLauncherForTesting != null)
             {
-                Logger.Log(LogLevel.Error, LogSource, $"Failed to open safe URL {url}: {ex.Message}");
+                UrlLauncherForTesting(safeUrl);
+                return;
+            }
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = safeUrl,
+                    UseShellExecute = true
+                };
+                Process.Start(psi);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    UseShellExecute = false
+                };
+                psi.ArgumentList.Add(safeUrl);
+                Process.Start(psi);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "open",
+                    UseShellExecute = false
+                };
+                psi.ArgumentList.Add(safeUrl);
+                Process.Start(psi);
             }
         }
-
-        public static void OpenFolder(string folderPath)
+        catch (Exception ex)
         {
-            if (string.IsNullOrWhiteSpace(folderPath) || !System.IO.Directory.Exists(folderPath)) return;
-
-            try
-            {
-                if (FolderLauncherForTesting != null)
-                {
-                    FolderLauncherForTesting(folderPath);
-                    return;
-                }
-
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "explorer.exe",
-                        UseShellExecute = false
-                    };
-                    psi.ArgumentList.Add(folderPath);
-                    Process.Start(psi);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "xdg-open",
-                        UseShellExecute = false
-                    };
-                    psi.ArgumentList.Add(folderPath);
-                    Process.Start(psi);
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                {
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "open",
-                        UseShellExecute = false
-                    };
-                    psi.ArgumentList.Add(folderPath);
-                    Process.Start(psi);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Log(LogLevel.Error, LogSource, $"Failed to open folder {folderPath}: {ex.Message}");
-            }
+            Logger.Log(LogLevel.Error, LogSource, $"Failed to open safe URL {url}: {ex.Message}");
         }
+    }
 
-        public static string EscapeCsvCell(string? input)
+    public static void OpenFolder(string folderPath)
+    {
+        if (string.IsNullOrWhiteSpace(folderPath) || !System.IO.Directory.Exists(folderPath)) return;
+
+        try
         {
-            if (string.IsNullOrEmpty(input)) return "\"\"";
-            string text = input.Replace("\"", "\"\"", StringComparison.Ordinal);
-            if (text.Length > 0 && (text[0] == '=' || text[0] == '+' || text[0] == '-' || text[0] == '@' || text[0] == '\t' || text[0] == '\r'))
+            if (FolderLauncherForTesting != null)
             {
-                text = "'" + text;
+                FolderLauncherForTesting(folderPath);
+                return;
             }
-            return "\"" + text + "\"";
-        }
 
-        public static string SanitizeMarkdownCell(string? input)
-        {
-            if (string.IsNullOrEmpty(input)) return "—";
-            return input.Replace("|", "\\|", StringComparison.Ordinal)
-                        .Replace("\r", "", StringComparison.Ordinal)
-                        .Replace("\n", " ", StringComparison.Ordinal)
-                        .Replace("<", "&lt;", StringComparison.Ordinal)
-                        .Replace(">", "&gt;", StringComparison.Ordinal);
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "explorer.exe",
+                    UseShellExecute = false
+                };
+                psi.ArgumentList.Add(folderPath);
+                Process.Start(psi);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "xdg-open",
+                    UseShellExecute = false
+                };
+                psi.ArgumentList.Add(folderPath);
+                Process.Start(psi);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "open",
+                    UseShellExecute = false
+                };
+                psi.ArgumentList.Add(folderPath);
+                Process.Start(psi);
+            }
         }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Error, LogSource, $"Failed to open folder {folderPath}: {ex.Message}");
+        }
+    }
+
+    public static string EscapeCsvCell(string? input)
+    {
+        if (string.IsNullOrEmpty(input)) return "\"\"";
+        string text = input.Replace("\"", "\"\"", StringComparison.Ordinal);
+        if (text.Length > 0 && (text[0] == '=' || text[0] == '+' || text[0] == '-' || text[0] == '@' || text[0] == '\t' || text[0] == '\r'))
+        {
+            text = "'" + text;
+        }
+        return "\"" + text + "\"";
+    }
+
+    public static string SanitizeMarkdownCell(string? input)
+    {
+        if (string.IsNullOrEmpty(input)) return "—";
+        return input.Replace("|", "\\|", StringComparison.Ordinal)
+                    .Replace("\r", "", StringComparison.Ordinal)
+                    .Replace("\n", " ", StringComparison.Ordinal)
+                    .Replace("<", "&lt;", StringComparison.Ordinal)
+                    .Replace(">", "&gt;", StringComparison.Ordinal);
     }
 }

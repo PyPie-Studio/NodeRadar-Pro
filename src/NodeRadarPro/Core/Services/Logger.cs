@@ -6,7 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Services;
 
 /// <summary>
 /// Professional rolling file logger for technical diagnostics.

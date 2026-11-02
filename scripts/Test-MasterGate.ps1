@@ -1,4 +1,4 @@
-#requires -Version 5.1
+﻿#requires -Version 5.1
 <#
 .SYNOPSIS
     Local master-branch quality gate for NodeRadar Pro agents and developers.
@@ -80,7 +80,7 @@ $coverageDir = if ($TestResultsDirectory) {
         Join-Path $root $TestResultsDirectory
     }
 } else {
-    Join-Path $root "TestResults"
+    Join-Path $root "artifacts\test-results"
 }
 
 if ($WithTests) {

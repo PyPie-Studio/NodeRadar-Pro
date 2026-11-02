@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Controls;
 
 /// <summary>
 /// Custom uptime bar chart that renders colored bars from UptimeSnapshot data.

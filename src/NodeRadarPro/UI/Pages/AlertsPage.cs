@@ -2,13 +2,12 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 using System;
 using System.Collections.Generic;
 using Avalonia.Threading;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Alert management dashboard: active/resolved alerts, counts, resolve actions.
@@ -132,7 +131,7 @@ public class AlertsPage : Border
         int totalCount = _db.GetTotalAlertCount();
         int resolvedCount = Math.Max(0, totalCount - activeCount);
 
-        List<NodeRadarPro.Core.AlertEvent> filtered;
+        List<AlertEvent> filtered;
         if (_filterMode == "resolved")
         {
             filtered = _db.GetAlerts(isResolved: true, limit: 500);

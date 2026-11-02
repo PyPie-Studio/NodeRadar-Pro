@@ -1,7 +1,7 @@
 using LiteDB;
 using System;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 /// <summary>
 /// Periodic status snapshot for uptime history charts.

@@ -1,63 +1,62 @@
 using System;
 using System.Media;
 
-namespace NodeRadarPro.Core
+namespace NodeRadarPro.Core.Services;
+
+public static class AudioService
 {
-    public static class AudioService
+    private static Action<bool>? _customPlayerForTesting;
+
+    public static bool Enabled { get; set; } = true;
+
+    internal static void SetSoundPlayerForTesting(Action<bool>? player)
     {
-        private static Action<bool>? _customPlayerForTesting;
+        _customPlayerForTesting = player;
+    }
 
-        public static bool Enabled { get; set; } = true;
-
-        internal static void SetSoundPlayerForTesting(Action<bool>? player)
+    public static void PlayAlert(bool critical)
+    {
+        if (!Enabled)
         {
-            _customPlayerForTesting = player;
+            return;
         }
 
-        public static void PlayAlert(bool critical)
+        try
         {
-            if (!Enabled)
+            if (_customPlayerForTesting != null)
             {
+                _customPlayerForTesting(critical);
                 return;
             }
 
-            try
+            _ = System.Threading.Tasks.Task.Run(() =>
             {
-                if (_customPlayerForTesting != null)
+                try
                 {
-                    _customPlayerForTesting(critical);
-                    return;
+                    if (critical)
+                    {
+                        SystemSounds.Hand.Play();
+                    }
+                    else
+                    {
+                        SystemSounds.Asterisk.Play();
+                    }
                 }
-
-                _ = System.Threading.Tasks.Task.Run(() =>
+                catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
                 {
-                    try
-                    {
-                        if (critical)
-                        {
-                            SystemSounds.Hand.Play();
-                        }
-                        else
-                        {
-                            SystemSounds.Asterisk.Play();
-                        }
-                    }
-                    catch (Exception ex) when (ex is InvalidOperationException or PlatformNotSupportedException)
-                    {
-                        Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
-                    }
-                });
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Prevent crashes if audio is unavailable
-                Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
-            }
-            catch (PlatformNotSupportedException ex)
-            {
-                // Prevent crashes if audio is unavailable
-                Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
-            }
+                    Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
+                }
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Prevent crashes if audio is unavailable
+            Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
+        }
+        catch (PlatformNotSupportedException ex)
+        {
+            // Prevent crashes if audio is unavailable
+            Logger.Log(LogLevel.Error, "AudioService", $"Failed to play sound alert. {ex.Message}");
         }
     }
 }

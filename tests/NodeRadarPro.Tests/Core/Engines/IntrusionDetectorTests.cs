@@ -2,10 +2,9 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using LiteDB;
 using Moq;
-using NodeRadarPro.Core;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Engines;
 
 public class IntrusionDetectorTests : IDisposable
 {

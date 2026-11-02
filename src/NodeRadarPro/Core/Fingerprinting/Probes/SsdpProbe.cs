@@ -34,13 +34,13 @@ public class SsdpProbe : IFingerprintProbe
         MaxResponseContentBufferSize = 65536
     };
 
-    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Discovery.IMulticastSocket>? socketFactory = null)
+    public static async Task StartSweepAsync(CancellationToken token, Func<NodeRadarPro.Core.Networking.Sockets.IMulticastSocket>? socketFactory = null)
     {
         _cache.Clear();
         _fetchedUrls.Clear();
         try
         {
-            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Discovery.DefaultMulticastSocket(0);
+            using var udp = socketFactory != null ? socketFactory() : new NodeRadarPro.Core.Networking.Sockets.DefaultMulticastSocket(0);
 
             string mSearch = "M-SEARCH * HTTP/1.1\r\n" +
                              "HOST: 239.255.255.250:1900\r\n" +

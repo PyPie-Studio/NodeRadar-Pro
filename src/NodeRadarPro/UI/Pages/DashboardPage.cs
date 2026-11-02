@@ -3,13 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
-using NodeRadarPro.Core;
 using NodeRadarPro.Core.Messaging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// Modern adaptive Bento Grid Dashboard with health gauges and glassmorphism.

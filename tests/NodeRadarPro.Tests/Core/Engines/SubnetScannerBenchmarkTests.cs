@@ -1,8 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Core.Engines;
 
 public class SubnetScannerBenchmarkTests
 {

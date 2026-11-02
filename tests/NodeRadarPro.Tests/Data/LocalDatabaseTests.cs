@@ -1,9 +1,8 @@
 using System.Reflection;
 using LiteDB;
 using NodeRadarPro.Data;
-using NodeRadarPro.Core;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Data;
 
 public class LocalDatabaseTests : IDisposable
 {

@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Models;
 
 /// <summary>
 /// Represents a discovered node/device on the network.

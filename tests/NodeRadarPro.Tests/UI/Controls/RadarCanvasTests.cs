@@ -1,12 +1,8 @@
 using Avalonia;
 using Avalonia.Media;
 using Moq;
-using NodeRadarPro.Core;
-using NodeRadarPro.UI;
 
-using NodeRadarPro.Tests.UI;
-
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.UI.Controls;
 
 [Collection("AvaloniaUIStaticState")]
 public class RadarCanvasTests

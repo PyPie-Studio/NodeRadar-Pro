@@ -1,6 +1,6 @@
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Tests;
+namespace NodeRadarPro.Tests.Data;
 
 public class VendorLookupTests
 {

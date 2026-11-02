@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Data;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Background service that periodically checks all tracked devices

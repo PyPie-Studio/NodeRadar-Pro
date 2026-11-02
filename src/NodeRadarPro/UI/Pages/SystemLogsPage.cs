@@ -2,15 +2,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-using NodeRadarPro.Core;
-using NodeRadarPro.Core.Services;
 using NodeRadarPro.Data;
 using System;
 using System.IO;
 using System.Linq;
 using Avalonia.Threading;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Pages;
 
 /// <summary>
 /// System Logs page: event log viewer with level filter, search, export, and auto-scroll.
@@ -449,4 +447,15 @@ public class SystemLogsPage : Border
             Logger.Log(LogLevel.Error, "Export", $"Failed to export logs: {ex.Message}");
         }
     }
+
+    internal TextBox SearchBox => _searchBox;
+    internal TextBlock EntryCountText => _entryCount;
+    internal TextBlock InfoStatValue => _infoStatValue;
+    internal TextBlock WarnStatValue => _warnStatValue;
+    internal TextBlock ErrorStatValue => _errorStatValue;
+    internal StackPanel LogBody => _logBody;
+    internal Button ExportButton => _exportBtn;
+    internal Button PurgeOldButton => _purgeOldBtn;
+    internal Button ClearLogsButton => _clearLogsBtn;
+    internal void TriggerRefreshLogs() => RefreshLogs();
 }

@@ -6,7 +6,7 @@ using Avalonia.Media;
 using System.Threading.Tasks;
 using Avalonia.Input.Platform;
 
-namespace NodeRadarPro.UI;
+namespace NodeRadarPro.UI.Theme;
 
 /// <summary>
 /// Centralized design tokens for the "Kinetic Observatory" theme.

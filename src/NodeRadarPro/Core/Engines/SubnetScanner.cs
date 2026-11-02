@@ -9,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NodeRadarPro.Core.Fingerprinting;
 
-namespace NodeRadarPro.Core;
+namespace NodeRadarPro.Core.Engines;
 
 /// <summary>
 /// Core network scanning engine using ARP-first discovery.
