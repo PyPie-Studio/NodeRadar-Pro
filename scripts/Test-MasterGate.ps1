@@ -117,7 +117,7 @@ if ($WithTests) {
             if (Test-Path $resolvedResultsDir) {
                 Get-ChildItem -Path $resolvedResultsDir -Filter "*.cobertura.xml" -Recurse -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
             }
-            $testArgs += @('--collect:"XPlat Code Coverage"')
+            $testArgs += @('--collect', 'XPlat Code Coverage')
         }
         if ($resolvedResultsDir) {
             $testArgs += @("--results-directory", $resolvedResultsDir)

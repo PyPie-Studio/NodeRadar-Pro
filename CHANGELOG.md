@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.2.0] - 2026-10-25
+## [2.2.0] - 2026-11-03
 
 ### Added
 - **Keep a Changelog 1.1.0 Standardization (`CHANGELOG.md`, `ChangelogService.cs`, `SupportPage.cs`, `ChangelogServiceTests.cs`)**: Retrospectively reformatted all historical releases into strict Keep a Changelog 1.1.0 specification with `## [X.Y.Z] - YYYY-MM-DD` headers, standard category sections, diff comparison links, category-aware parsing in `ChangelogService`, and colored category badge pills on the desktop Support page.
