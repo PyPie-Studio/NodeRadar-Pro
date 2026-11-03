@@ -18,8 +18,6 @@ public class AppSettingsTests
         Assert.NotNull(deserializedSettings);
         Assert.Equal(originalSettings.Id, deserializedSettings.Id);
         Assert.Equal(originalSettings.MonitorIntervalSeconds, deserializedSettings.MonitorIntervalSeconds);
-        Assert.Equal(originalSettings.EnableOfflineFadeOut, deserializedSettings.EnableOfflineFadeOut);
-        Assert.Equal(originalSettings.FadeOutSeconds, deserializedSettings.FadeOutSeconds);
         Assert.Equal(originalSettings.SweepFrequencySeconds, deserializedSettings.SweepFrequencySeconds);
         Assert.Equal(originalSettings.ResponseTimeoutMs, deserializedSettings.ResponseTimeoutMs);
         Assert.Equal(originalSettings.EnableSynScan, deserializedSettings.EnableSynScan);
@@ -28,7 +26,6 @@ public class AppSettingsTests
         Assert.Equal(originalSettings.EnableOsDetection, deserializedSettings.EnableOsDetection);
         Assert.Equal(originalSettings.EnableInlinePortScan, deserializedSettings.EnableInlinePortScan);
         Assert.Equal(originalSettings.SelectedInterfaceName, deserializedSettings.SelectedInterfaceName);
-        Assert.Equal(originalSettings.EnablePromiscuous, deserializedSettings.EnablePromiscuous);
         Assert.Equal(originalSettings.LatencyThresholdMs, deserializedSettings.LatencyThresholdMs);
         Assert.Equal(originalSettings.PacketLossThresholdPct, deserializedSettings.PacketLossThresholdPct);
         Assert.Equal(originalSettings.EnableToastAlerts, deserializedSettings.EnableToastAlerts);
@@ -52,8 +49,6 @@ public class AppSettingsTests
         {
             Id = 42,
             MonitorIntervalSeconds = 120,
-            EnableOfflineFadeOut = true,
-            FadeOutSeconds = 600,
             SweepFrequencySeconds = 15,
             ResponseTimeoutMs = 3000,
             EnableSynScan = true,
@@ -62,7 +57,6 @@ public class AppSettingsTests
             EnableOsDetection = false,
             EnableInlinePortScan = true,
             SelectedInterfaceName = "eth1",
-            EnablePromiscuous = true,
             LatencyThresholdMs = 500,
             PacketLossThresholdPct = 10.5,
             EnableToastAlerts = false,
@@ -86,8 +80,6 @@ public class AppSettingsTests
         Assert.NotNull(deserializedSettings);
         Assert.Equal(originalSettings.Id, deserializedSettings.Id);
         Assert.Equal(originalSettings.MonitorIntervalSeconds, deserializedSettings.MonitorIntervalSeconds);
-        Assert.Equal(originalSettings.EnableOfflineFadeOut, deserializedSettings.EnableOfflineFadeOut);
-        Assert.Equal(originalSettings.FadeOutSeconds, deserializedSettings.FadeOutSeconds);
         Assert.Equal(originalSettings.SweepFrequencySeconds, deserializedSettings.SweepFrequencySeconds);
         Assert.Equal(originalSettings.ResponseTimeoutMs, deserializedSettings.ResponseTimeoutMs);
         Assert.Equal(originalSettings.EnableSynScan, deserializedSettings.EnableSynScan);
@@ -96,7 +88,6 @@ public class AppSettingsTests
         Assert.Equal(originalSettings.EnableOsDetection, deserializedSettings.EnableOsDetection);
         Assert.Equal(originalSettings.EnableInlinePortScan, deserializedSettings.EnableInlinePortScan);
         Assert.Equal(originalSettings.SelectedInterfaceName, deserializedSettings.SelectedInterfaceName);
-        Assert.Equal(originalSettings.EnablePromiscuous, deserializedSettings.EnablePromiscuous);
         Assert.Equal(originalSettings.LatencyThresholdMs, deserializedSettings.LatencyThresholdMs);
         Assert.Equal(originalSettings.PacketLossThresholdPct, deserializedSettings.PacketLossThresholdPct);
         Assert.Equal(originalSettings.EnableToastAlerts, deserializedSettings.EnableToastAlerts);

@@ -468,6 +468,17 @@ public class SupportPage : Border
         return border;
     }
 
+    private static (IBrush Background, IBrush Foreground) GetCategoryPillColors(string category) =>
+        category.ToUpperInvariant() switch
+        {
+            "ADDED" => (ThemeTokens.TertiaryContainerSubtle, ThemeTokens.Tertiary),
+            "CHANGED" => (ThemeTokens.PrimaryContainerSubtle, ThemeTokens.Primary),
+            "FIXED" => (ThemeTokens.WarningContainer, ThemeTokens.Warning),
+            "SECURITY" => (ThemeTokens.ErrorContainerSubtle, ThemeTokens.Error),
+            "REMOVED" => (ThemeTokens.ErrorContainerSubtle, ThemeTokens.Error),
+            _ => (ThemeTokens.SurfaceContainerHighest, ThemeTokens.SlateText)
+        };
+
     private static Border MakeChangelogCard(ChangelogRelease release)
     {
         var badgeText = string.IsNullOrEmpty(release.Date)
@@ -490,9 +501,54 @@ public class SupportPage : Border
             }
         };
 
-        var contentPanel = new StackPanel { Spacing = 4, Children = { badge } };
+        var contentPanel = new StackPanel { Spacing = 6, Children = { badge } };
 
-        if (release.Highlights != null && release.Highlights.Count > 0)
+        if (release.Items != null && release.Items.Count > 0)
+        {
+            foreach (var item in release.Items.Take(3))
+            {
+                var (pillBg, pillFg) = GetCategoryPillColors(item.Category);
+                var categoryPill = new Border
+                {
+                    Background = pillBg,
+                    CornerRadius = new CornerRadius(3),
+                    Padding = new Thickness(6, 1),
+                    Margin = new Thickness(0, 2, 8, 0),
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Child = new TextBlock
+                    {
+                        Text = item.Category.ToUpperInvariant(),
+                        FontSize = 10,
+                        FontWeight = FontWeight.Bold,
+                        Foreground = pillFg,
+                        FontFamily = ThemeTokens.DefaultFont
+                    }
+                };
+
+                var itemText = new TextBlock
+                {
+                    Text = item.Text,
+                    FontSize = 13,
+                    Foreground = ThemeTokens.OnSurfaceVariant,
+                    FontFamily = ThemeTokens.DefaultFont,
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+
+                var itemRow = new DockPanel
+                {
+                    Margin = new Thickness(4, 2, 0, 0),
+                    Children =
+                    {
+                        categoryPill,
+                        itemText
+                    }
+                };
+                DockPanel.SetDock(categoryPill, Dock.Left);
+                contentPanel.Children.Add(itemRow);
+            }
+        }
+        else if (release.Highlights != null && release.Highlights.Count > 0)
         {
             foreach (var highlight in release.Highlights.Take(3))
             {
@@ -516,22 +572,6 @@ public class SupportPage : Border
             Child = contentPanel
         };
     }
-
-    private static Border MakeChangelogItem(string version, string description) => new()
-    {
-        Background = ThemeTokens.SurfaceContainerLowest,
-        CornerRadius = new CornerRadius(8),
-        Padding = new Thickness(14, 10),
-        Child = new StackPanel
-        {
-            Spacing = 4,
-            Children =
-            {
-                new Border { Background = ThemeTokens.PrimaryContainerSubtle, CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 3), HorizontalAlignment = HorizontalAlignment.Left, Child = new TextBlock { Text = version, FontSize = 13, Foreground = ThemeTokens.Primary, FontFamily = ThemeTokens.DefaultFont, FontWeight = FontWeight.SemiBold } },
-                new TextBlock { Text = description, FontSize = 14, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0) }
-            }
-        }
-    };
 
     public static string BuildSecurityAuditReport(List<NetworkNode> devices, List<AlertEvent> alerts)
     {

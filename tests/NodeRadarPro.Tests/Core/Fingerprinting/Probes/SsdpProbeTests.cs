@@ -163,12 +163,13 @@ public class SsdpProbeTests : IDisposable
     [Fact]
     public async Task StartSweepAsync_WithSimulatedMulticastSocket_PopulatesCache()
     {
+        SsdpProbe.ClearCacheForTesting();
         using var cts = new CancellationTokenSource(2000);
 
         string ssdpPacket = "HTTP/1.1 200 OK\r\n" +
                             "SERVER: TP-Link Router OS 1.0\r\n\r\n";
         byte[] packet = System.Text.Encoding.UTF8.GetBytes(ssdpPacket);
-        var remoteEp = new IPEndPoint(IPAddress.Parse("192.168.1.1"), 1900);
+        var remoteEp = new IPEndPoint(IPAddress.Parse("192.168.1.251"), 1900);
         var receiveResult = new UdpReceiveResult(packet, remoteEp);
 
         var mockSocket = new Mock<IMulticastSocket>();
@@ -190,7 +191,7 @@ public class SsdpProbeTests : IDisposable
         await SsdpProbe.StartSweepAsync(cts.Token, () => mockSocket.Object);
 
         var probe = new SsdpProbe();
-        var node = new NetworkNode { IpAddress = "192.168.1.1" };
+        var node = new NetworkNode { IpAddress = "192.168.1.251" };
         var result = await probe.ProbeAsync(node, CancellationToken.None);
 
         Assert.NotNull(result);

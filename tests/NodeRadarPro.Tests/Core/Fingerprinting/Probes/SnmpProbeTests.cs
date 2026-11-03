@@ -27,7 +27,6 @@ public class SnmpProbeTests
         Assert.Equal(0x30, request[0]);
 
         // Community string should be embedded in request
-        byte[] communityBytes = Encoding.ASCII.GetBytes(community);
         string requestString = Encoding.ASCII.GetString(request);
         Assert.Contains(community, requestString);
 

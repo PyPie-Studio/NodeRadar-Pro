@@ -30,7 +30,7 @@ public class LocalDatabaseTests : IDisposable
     public void MergeWithHistory_NewDevice_IsInserted()
     {
         var node = new NetworkNode { MacAddress = "AA:BB:CC:DD:EE:FF", IpAddress = "192.168.1.10" };
-        var (resultNode, isNew) = _db.MergeWithHistory(node);
+        var (_, isNew) = _db.MergeWithHistory(node);
 
         Assert.True(isNew);
         var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
@@ -47,7 +47,7 @@ public class LocalDatabaseTests : IDisposable
 
         // Update device
         var updatedNode = new NetworkNode { MacAddress = "11:22:33:44:55:66", IpAddress = "10.0.0.2" };
-        var (resultNode, isNew) = _db.MergeWithHistory(updatedNode);
+        var (_, isNew) = _db.MergeWithHistory(updatedNode);
 
         Assert.False(isNew);
         var devices = _liteDb.GetCollection<NetworkNode>("devices").FindAll().ToList();
@@ -985,7 +985,7 @@ public class LocalDatabaseTests : IDisposable
                 var devices = db.GetAllDevices();
                 Assert.Empty(devices);
 
-                var (node, isNew) = db.MergeWithHistory(new NetworkNode { MacAddress = "AA:BB:CC:11:22:33", IpAddress = "10.0.0.99" });
+                var (_, isNew) = db.MergeWithHistory(new NetworkNode { MacAddress = "AA:BB:CC:11:22:33", IpAddress = "10.0.0.99" });
                 Assert.True(isNew);
                 Assert.Single(db.GetAllDevices());
             }

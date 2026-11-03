@@ -102,9 +102,8 @@ public class NbnsProbe : IFingerprintProbe
         // Skip Type (2) + Class (2) + TTL (4) = 8 bytes of RR metadata
         offset += 8;
 
-        // Read RDLENGTH (2 bytes, big-endian)
+        // Skip RDLENGTH (2 bytes)
         if (offset + 2 > buf.Length) return;
-        int rdataLength = (buf[offset] << 8) | buf[offset + 1];
         offset += 2;
 
         if (offset >= buf.Length) return;

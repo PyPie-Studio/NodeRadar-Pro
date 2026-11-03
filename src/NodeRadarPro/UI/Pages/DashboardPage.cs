@@ -267,6 +267,5 @@ public class DashboardPage : Border
     internal TextBlock HealthStatusText => _healthStatusText;
     internal Border HealthGauge => _healthGauge;
     internal StackPanel PingsList => _pingsList;
-    internal RadarCanvas Radar => _radar;
     internal void SetNodes(List<NetworkNode> nodes) { _nodes = nodes; RefreshData(); }
 }

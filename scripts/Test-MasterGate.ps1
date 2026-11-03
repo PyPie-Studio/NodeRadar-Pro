@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 <#
 .SYNOPSIS
     Local master-branch quality gate for NodeRadar Pro agents and developers.
@@ -15,6 +15,7 @@ param(
     [switch]$SkipBuild,
     [switch]$WithTests,
     [switch]$CheckCoverage,
+    [switch]$SkipCoverage,
     [string]$TestResultsDirectory = ""
 )
 
@@ -22,6 +23,12 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
 $fail = $false
+$evaluatedCoverage = $null
+$thresholdVal = $null
+
+if ($WithTests -and -not $SkipCoverage) {
+    $CheckCoverage = $true
+}
 
 if ($CheckCoverage) {
     $WithTests = $true
@@ -140,6 +147,8 @@ if ($CheckCoverage) {
             $rateOutput = (& powershell -NoProfile -ExecutionPolicy Bypass -File $coverageScript -Path $coverageDir 2>&1 | Out-String).Trim()
             if ($LASTEXITCODE -eq 0 -and $rateOutput -match '\b(\d+(\.\d+)?)\b') {
                 $rateNum = [double]$matches[1]
+                $evaluatedCoverage = $rateNum
+                $thresholdVal = $threshold
                 Write-Host "[$step/$totalSteps] Coverage: ${rateNum}% (threshold: ${threshold}%)" -ForegroundColor Cyan
                 if ($rateNum -lt $threshold) {
                     $fail = $true
@@ -189,9 +198,10 @@ try {
 }
 
 $sw.Stop()
+$coverageSummary = if ($evaluatedCoverage) { " | Coverage: ${evaluatedCoverage}% (threshold: ${thresholdVal}%)" } else { "" }
 if ($fail) {
-    Write-Host "== GATE BLOCKED ($([math]::Round($sw.Elapsed.TotalSeconds, 1))s) - fix the findings above before pushing ==" -ForegroundColor Red
+    Write-Host "== GATE BLOCKED ($([math]::Round($sw.Elapsed.TotalSeconds, 1))s)$coverageSummary - fix the findings above before pushing ==" -ForegroundColor Red
     exit 1
 }
-Write-Host "== GATE PASSED ($([math]::Round($sw.Elapsed.TotalSeconds, 1))s) - safe to push ==" -ForegroundColor Green
+Write-Host "== GATE PASSED ($([math]::Round($sw.Elapsed.TotalSeconds, 1))s)$coverageSummary - safe to push ==" -ForegroundColor Green
 exit 0

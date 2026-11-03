@@ -77,7 +77,7 @@ public class BannerGrabProbeTests
             IpAddress = "127.0.0.1",
             OpenPorts = new List<int> { 22, 23 }
         };
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel();
 
         var result = await probe.ProbeAsync(node, cts.Token);

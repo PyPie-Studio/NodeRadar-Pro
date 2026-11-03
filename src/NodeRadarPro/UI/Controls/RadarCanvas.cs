@@ -34,7 +34,6 @@ public class RadarCanvas : Control
 
     // Kinetic Observatory palette
     private static readonly Color CyanGlow = Color.Parse("#4CD7F6");
-    private static readonly Color CyanContainer = Color.Parse("#005362");
     private static readonly Color WarningGlow = Color.Parse("#FFCE50");
     private static readonly Color ErrorGlow = Color.Parse("#FFB4AB");
     private static readonly Color PrimaryPurple = Color.Parse("#DFB7FF");

@@ -21,12 +21,12 @@ namespace NodeRadarPro
             {
                 // Inject our PyPie Studio Dark Theme instead of the XAML MainWindow
                 desktop.MainWindow = MainWindowShell.BuildMainWindow();
-                MainWindowShell.OnStartup(desktop.MainWindow);
+                MainWindowShell.OnStartup();
             }
 
             try
             {
-                var db = LocalDatabase.Instance;
+                _ = LocalDatabase.Instance;
             }
             catch (Exception ex)
             {

@@ -24,7 +24,6 @@ public class InventoryGridControl : ScrollViewer
     internal StackPanel DeviceListContainer => _deviceListContainer;
     internal HashSet<string> SelectedMacs => _selectedMacs;
     internal bool IsSelectionMode => _isSelectionMode;
-    internal string? SelectedMac => _selectedMac;
 
     public InventoryGridControl()
     {

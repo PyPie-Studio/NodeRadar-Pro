@@ -42,11 +42,7 @@ public class InventoryDetailsFlyout : Border
     private readonly TextBox _exactModelInput;
     private readonly TextBox _locationInput;
     private readonly TextBox _notesInput;
-    private readonly Button _saveBtn;
     private readonly Button _deleteBtn;
-    private readonly Button _pingBtn;
-    private readonly Button _wakeBtn;
-    private readonly Button _portScanBtn;
     private readonly TextBlock _pingResult;
     private readonly TextBlock _portResult;
     private readonly Border _deviceIconBox;
@@ -191,7 +187,7 @@ public class InventoryDetailsFlyout : Border
             Children = { _detailIpPill, _detailIpInput, _detailMacPill }
         };
 
-        _portScanBtn = new Button
+        var portScanBtn = new Button
         {
             Content = new StackPanel
             {
@@ -213,7 +209,7 @@ public class InventoryDetailsFlyout : Border
             VerticalContentAlignment = VerticalAlignment.Center,
             Cursor = ThemeTokens.HandCursor
         };
-        _portScanBtn.Click += (s, e) => { if (_currentNode != null) PortScanRequested?.Invoke(_currentNode); };
+        portScanBtn.Click += (s, e) => { if (_currentNode != null) PortScanRequested?.Invoke(_currentNode); };
 
         var headerTextCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { nameStatusRow, _detailSubtitle, pillRow } };
 
@@ -227,10 +223,10 @@ public class InventoryDetailsFlyout : Border
         headerGrid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
         headerGrid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Auto));
         Grid.SetColumn(headerLeftGroup, 0);
-        Grid.SetColumn(_portScanBtn, 1);
-        _portScanBtn.VerticalAlignment = VerticalAlignment.Top;
+        Grid.SetColumn(portScanBtn, 1);
+        portScanBtn.VerticalAlignment = VerticalAlignment.Top;
         headerGrid.Children.Add(headerLeftGroup);
-        headerGrid.Children.Add(_portScanBtn);
+        headerGrid.Children.Add(portScanBtn);
 
         var glassHeader = ThemeTokens.GlassCard(headerGrid, 24);
 
@@ -382,17 +378,17 @@ public class InventoryDetailsFlyout : Border
         _notesInput.TextWrapping = TextWrapping.Wrap;
         ThemeTokens.SetToolTip(_notesInput, "Additional technical details or administrative notes.");
 
-        _saveBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgSave, "Save & Register");
-        ThemeTokens.SetToolTip(_saveBtn, "Commit these changes and permanently register this device in the database.");
-        _saveBtn.Click += (s, e) => { if (_currentNode != null) SaveRequested?.Invoke(_currentNode); };
+        var saveBtn = ThemeTokens.PrimaryButton(ThemeTokens.SvgSave, "Save & Register");
+        ThemeTokens.SetToolTip(saveBtn, "Commit these changes and permanently register this device in the database.");
+        saveBtn.Click += (s, e) => { if (_currentNode != null) SaveRequested?.Invoke(_currentNode); };
 
-        _pingBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgRadar, "Ping Device");
-        ThemeTokens.SetToolTip(_pingBtn, "Send a live ICMP ping to check device responsiveness.");
-        _pingBtn.Click += (s, e) => { if (_currentNode != null) PingRequested?.Invoke(_currentNode); };
+        var pingBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgRadar, "Ping Device");
+        ThemeTokens.SetToolTip(pingBtn, "Send a live ICMP ping to check device responsiveness.");
+        pingBtn.Click += (s, e) => { if (_currentNode != null) PingRequested?.Invoke(_currentNode); };
 
-        _wakeBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgBolt, "Wake Device");
-        ThemeTokens.SetToolTip(_wakeBtn, "Send a Wake-on-LAN Magic Packet to power on this device remotely.");
-        _wakeBtn.Click += (s, e) => { if (_currentNode != null) WakeRequested?.Invoke(_currentNode); };
+        var wakeBtn = ThemeTokens.SecondaryButton(ThemeTokens.SvgBolt, "Wake Device");
+        ThemeTokens.SetToolTip(wakeBtn, "Send a Wake-on-LAN Magic Packet to power on this device remotely.");
+        wakeBtn.Click += (s, e) => { if (_currentNode != null) WakeRequested?.Invoke(_currentNode); };
 
         _deleteBtn = ThemeTokens.DangerButton(ThemeTokens.SvgTrash, "Delete Device");
         ThemeTokens.SetToolTip(_deleteBtn, "Remove this device permanently from the database.");
@@ -429,11 +425,11 @@ public class InventoryDetailsFlyout : Border
                 MakeFieldLabel("Location"), _locationInput,
                 MakeFieldLabel("Notes"), _notesInput,
                 new Panel { Height = 6 },
-                _saveBtn,
+                saveBtn,
                 diagLabel,
                 webBtn,
-                _pingBtn,
-                _wakeBtn,
+                pingBtn,
+                wakeBtn,
                 _pingResult,
                 _portResult,
                 new Panel { Height = 6 },

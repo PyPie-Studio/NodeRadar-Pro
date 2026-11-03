@@ -85,7 +85,7 @@ public class PortScannerTests
     public async Task ScanPortsAsync_ShouldCancel_WhenCancellationRequested()
     {
         // Arrange
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.Cancel(); // Cancel immediately
 
         // Act

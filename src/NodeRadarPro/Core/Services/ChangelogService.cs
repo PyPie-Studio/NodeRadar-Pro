@@ -9,7 +9,22 @@ namespace NodeRadarPro.Core.Services;
 /// <summary>
 /// Represents a structured release version entry parsed from CHANGELOG.md.
 /// </summary>
-public record ChangelogRelease(string Version, string Date, IReadOnlyList<string> Highlights);
+public record ChangelogItem(string Category, string Text);
+
+/// <summary>
+/// Represents a structured release version entry parsed from CHANGELOG.md.
+/// </summary>
+public record ChangelogRelease(
+    string Version,
+    string Date,
+    IReadOnlyList<string> Highlights,
+    IReadOnlyList<ChangelogItem> Items)
+{
+    public ChangelogRelease(string version, string date, IReadOnlyList<string> highlights)
+        : this(version, date, highlights, highlights.Select(h => new ChangelogItem("Changed", h)).ToArray())
+    {
+    }
+}
 
 /// <summary>
 /// Loads and parses application release notes from embedded resources or local changelog files.
@@ -17,6 +32,7 @@ public record ChangelogRelease(string Version, string Date, IReadOnlyList<string
 public static partial class ChangelogService
 {
     private static readonly Regex ReleaseHeaderRegex = MyReleaseHeaderRegex();
+    private static readonly Regex CategoryHeaderRegex = MyCategoryHeaderRegex();
     private static readonly Regex BulletPointRegex = MyBulletPointRegex();
 
     private static List<ChangelogRelease>? _cachedReleases;
@@ -59,7 +75,9 @@ public static partial class ChangelogService
 
         string? currentVersion = null;
         string? currentDate = null;
+        string currentCategory = "Changed";
         var currentHighlights = new List<string>();
+        var currentItems = new List<ChangelogItem>();
 
         string? line;
         while ((line = reader.ReadLine()) != null)
@@ -69,17 +87,26 @@ public static partial class ChangelogService
             {
                 if (!string.IsNullOrEmpty(currentVersion))
                 {
-                    releases.Add(new ChangelogRelease(currentVersion, currentDate ?? "", currentHighlights.ToArray()));
+                    releases.Add(new ChangelogRelease(currentVersion, currentDate ?? "", currentHighlights.ToArray(), currentItems.ToArray()));
+                    currentItems.Clear();
                     currentHighlights.Clear();
                 }
 
                 currentVersion = headerMatch.Groups[1].Value;
                 currentDate = headerMatch.Groups[2].Success ? headerMatch.Groups[2].Value : (headerMatch.Groups[3].Success ? headerMatch.Groups[3].Value : "");
+                currentCategory = "Changed";
                 continue;
             }
 
             if (string.IsNullOrEmpty(currentVersion))
                 continue;
+
+            var categoryMatch = CategoryHeaderRegex.Match(line);
+            if (categoryMatch.Success)
+            {
+                currentCategory = categoryMatch.Groups[1].Value;
+                continue;
+            }
 
             var bulletMatch = BulletPointRegex.Match(line);
             if (bulletMatch.Success)
@@ -87,14 +114,16 @@ public static partial class ChangelogService
                 string text = bulletMatch.Groups[1].Value.Trim();
                 if (!string.IsNullOrWhiteSpace(text))
                 {
-                    currentHighlights.Add(CleanMarkdownText(text));
+                    string cleaned = CleanMarkdownText(text);
+                    currentHighlights.Add(cleaned);
+                    currentItems.Add(new ChangelogItem(currentCategory, cleaned));
                 }
             }
         }
 
         if (!string.IsNullOrEmpty(currentVersion))
         {
-            releases.Add(new ChangelogRelease(currentVersion, currentDate ?? "", currentHighlights.ToArray()));
+            releases.Add(new ChangelogRelease(currentVersion, currentDate ?? "", currentHighlights.ToArray(), currentItems.ToArray()));
         }
 
         return releases;
@@ -141,7 +170,7 @@ public static partial class ChangelogService
         return null;
     }
 
-    private static List<ChangelogRelease> GetFallbackReleases() =>
+    internal static List<ChangelogRelease> GetFallbackReleases() =>
     [
         new(
             "2.0.3",
@@ -193,4 +222,7 @@ public static partial class ChangelogService
 
     [GeneratedRegex(@"^[\s]*[-*]\s+(.*)$")]
     private static partial Regex MyBulletPointRegex();
+
+    [GeneratedRegex(@"^###\s+([A-Za-z]+)")]
+    private static partial Regex MyCategoryHeaderRegex();
 }

@@ -60,8 +60,8 @@ public class InventoryPage : Border
         _detailsFlyout = new InventoryDetailsFlyout();
 
         // Wire filter bar events
-        _filterBar.FilterChanged += f => RefreshDeviceList();
-        _filterBar.SearchDebounced += s => RefreshDeviceList();
+        _filterBar.FilterChanged += _ => RefreshDeviceList();
+        _filterBar.SearchDebounced += _ => RefreshDeviceList();
         _filterBar.SelectModeToggled += ToggleSelectionMode;
         _filterBar.SelectAllToggled += ToggleSelectAll;
         _filterBar.AddDeviceClicked += OnAddDevice;
@@ -71,15 +71,15 @@ public class InventoryPage : Border
         _gridControl.SelectionChanged += UpdateBulkView;
 
         // Wire details flyout events
-        _detailsFlyout.SaveRequested += node => SaveCurrentNode();
-        _detailsFlyout.DeleteRequested += node => OnDeleteClicked();
+        _detailsFlyout.SaveRequested += _ => SaveCurrentNode();
+        _detailsFlyout.DeleteRequested += _ => OnDeleteClicked();
         _detailsFlyout.BulkDeleteRequested += OnBulkDeleteClicked;
         _detailsFlyout.ExitBulkRequested += ToggleSelectionMode;
         _detailsFlyout.PingRequested += OnPingClicked;
         _detailsFlyout.WakeRequested += OnWakeClicked;
         _detailsFlyout.PortScanRequested += OnPortScanClicked;
         _detailsFlyout.ViewLogsRequested += mac => ViewLogsRequested?.Invoke(mac);
-        _detailsFlyout.UptimeHoursChanged += h => RefreshUptimeChart();
+        _detailsFlyout.UptimeHoursChanged += _ => RefreshUptimeChart();
 
         // Subscribe to node updates
         EventAggregator.Instance.Subscribe<NodesUpdatedMessage>(msg =>
@@ -426,7 +426,7 @@ public class InventoryPage : Border
     {
         _detailsFlyout.SetPingResult("Pinging...", ThemeTokens.OnSurfaceVariant);
 
-        var (success, mac, latency) = await SubnetScanner.QuickProbeAsync(node.IpAddress);
+        var (success, _, latency) = await SubnetScanner.QuickProbeAsync(node.IpAddress);
         bool statusChanged = node.IsOnline != success;
         node.IsOnline = success;
         node.PingLatencyMs = latency;
@@ -443,8 +443,7 @@ public class InventoryPage : Border
                 {
                     try
                     {
-                        var fingerprint = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, CancellationToken.None);
-                        var res = fingerprint;
+                        var res = await DeepFingerprintEngine.Instance.FingerprintNodeAsync(node, CancellationToken.None);
                         if (!string.IsNullOrEmpty(res.Vendor) && res.Vendor != "Unknown Vendor")
                         {
                             node.Vendor = res.Vendor;

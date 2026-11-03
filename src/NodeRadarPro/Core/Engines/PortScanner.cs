@@ -148,13 +148,10 @@ public static class PortScanner
         bool has5353 = openPorts.Contains(5353);
 
         if (has62078) return "iOS / iPadOS";
-        if (has548 && has5353 && has22) return "macOS";
         if (has548 && has5353) return "macOS";
-        if (has3389 && has445 && has135) return "Windows";
         if (has3389 && has445) return "Windows";
         if (has3389) return "Windows (RDP)";
         if (has445 && has135) return "Windows";
-        if (has22 && !has445) return "Linux / Unix";
         if (has22) return "Linux / Unix";
         if (openPorts.Contains(80) && openPorts.Contains(443) && openPorts.Count <= 4) return "Network Device";
 

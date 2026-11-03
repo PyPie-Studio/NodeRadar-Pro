@@ -23,7 +23,6 @@ public static class ThemeTokens
     private const string HexOutlineVariant = "#4C4452";
 
     public static readonly Color ColorTertiary = Color.Parse("#4CD7F6");
-    public static readonly Color ColorPrimary = Color.Parse("#DFB7FF");
     public static readonly Color ColorPrimaryPurple = Color.Parse("#7C3AED");
     public static readonly Color ColorPrimaryContainer = Color.Parse(HexPrimaryContainer);
     public static readonly Color ColorError = Color.Parse(HexError);
@@ -36,11 +35,8 @@ public static class ThemeTokens
     public static readonly IBrush SurfaceDim = SolidColorBrush.Parse("#0C1322");
     public static readonly IBrush SurfaceContainerLowest = SolidColorBrush.Parse("#070E1D");
     public static readonly IBrush SurfaceContainerLow = SolidColorBrush.Parse("#141B2B");
-    public static readonly IBrush SurfaceContainer = SolidColorBrush.Parse("#191F2F");
     public static readonly IBrush SurfaceContainerHigh = SolidColorBrush.Parse("#232A3A");
     public static readonly IBrush SurfaceContainerHighest = SolidColorBrush.Parse("#2E3545");
-    public static readonly IBrush SurfaceVariant = SolidColorBrush.Parse("#2E3545");
-    public static readonly IBrush SurfaceBright = SolidColorBrush.Parse("#323949");
 
     // ═══════════════════════════════════════════
     // ██  PRIMARY (Purple)
@@ -49,21 +45,11 @@ public static class ThemeTokens
     public static readonly IBrush PrimaryContainer = new SolidColorBrush(ColorPrimaryContainer);
     public static readonly IBrush OnPrimary = SolidColorBrush.Parse("#4A007F");
     public static readonly IBrush OnPrimaryContainer = SolidColorBrush.Parse("#D7A8FF");
-    public static readonly IBrush InversePrimary = SolidColorBrush.Parse("#803ABD");
-
-    // ═══════════════════════════════════════════
-    // ██  SECONDARY (Lavender)
-    // ═══════════════════════════════════════════
-    public static readonly IBrush Secondary = SolidColorBrush.Parse("#D3BBFF");
-    public static readonly IBrush SecondaryContainer = SolidColorBrush.Parse("#592DA2");
-    public static readonly IBrush OnSecondaryContainer = SolidColorBrush.Parse("#C8AAFF");
 
     // ═══════════════════════════════════════════
     // ██  TERTIARY (Cyan — "Healthy" accent)
     // ═══════════════════════════════════════════
     public static readonly IBrush Tertiary = SolidColorBrush.Parse("#4CD7F6");
-    public static readonly IBrush TertiaryContainer = SolidColorBrush.Parse("#005362");
-    public static readonly IBrush OnTertiaryContainer = SolidColorBrush.Parse("#3CCCEA");
 
     // ═══════════════════════════════════════════
     // ██  ERROR (Soft red — "Offline" accent)
@@ -98,7 +84,6 @@ public static class ThemeTokens
     public static readonly IBrush OnSurface = SolidColorBrush.Parse("#DCE2F7");
     public static readonly IBrush OnSurfaceVariant = SolidColorBrush.Parse("#CFC2D4");
     public static readonly IBrush Outline = SolidColorBrush.Parse("#988D9E");
-    public static readonly IBrush OutlineVariant = new SolidColorBrush(ColorOutlineVariant);
 
     // ═══════════════════════════════════════════
     // ██  TYPOGRAPHY
@@ -130,7 +115,6 @@ public static class ThemeTokens
     public const double SidebarWidth = 256;
     public const double TopBarHeight = 56;
     public const double CardRadius = 12;
-    public const double ButtonRadius = 6;
     public const double InputRadius = 8;
 
     public static readonly string AppVersion = typeof(ThemeTokens).Assembly.GetName().Version is { } v
@@ -172,7 +156,6 @@ public static class ThemeTokens
     public const string SvgGlobe = "M17.9,17.39C17.64,16.59 16.7,16 15.5,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39M11,19.93C7.05,19.45 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2Z";
     public const string SvgRadar = "M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 1,1 4,12A8,8 0 0,1 12,4M12,9A3,3 0 1,0 15,12A3,3 0 0,0 12,9Z";
     public const string SvgGear = "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z";
-    public const string SvgRefresh = "M17.65,6.35C16.2,4.9 14.21,4 12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20C15.73,20 18.84,17.45 19.73,14H17.65C16.83,16.33 14.61,18 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6C13.66,6 15.14,6.69 16.22,7.78L13,11H20V4L17.65,6.35Z";
     public const string SvgTraceroute = "M22,12L18,8V11H10V5H13L9,1L5,5H8V13H18V16L22,12Z";
     public const string SvgInventory = "M17,1H7C5.89,1 5,1.89 5,3V21C5,22.1 5.89,23 7,23H17C18.1,23 19,22.1 19,21V3C19,1.89 18.1,1 17,1M12,19A2,2 0 1,1 14,17A2,2 0 0,1 12,19M15,8H9V7H15V8Z";
     public const string SvgPortScans = "M12,2L4.5,20.29L5.21,21L12,18L18.79,21L19.5,20.29L12,2Z";

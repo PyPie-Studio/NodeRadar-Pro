@@ -35,7 +35,7 @@ public static class MainWindowShell
 
     private static DispatcherTimer? _autoBackupTimer;
 
-    public static void OnStartup(Window mainWindow)
+    public static void OnStartup()
     {
         var db = LocalDatabase.Instance;
         var settings = db.LoadSettings();
@@ -569,7 +569,7 @@ public static class MainWindowShell
         AlertsPage alertsPage,
         Action syncGlobalStats)
     {
-        monitor.AlertTriggered += (alert) =>
+        monitor.AlertTriggered += _ =>
         {
             Dispatcher.UIThread.Post(() =>
             {

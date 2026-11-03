@@ -13,10 +13,6 @@ public class AppSettings
     // ── Monitor ──
     public int MonitorIntervalSeconds { get; set; } = 60;
 
-    // ── Offline Device Visibility ──
-    public bool EnableOfflineFadeOut { get; set; } = false;
-    public int FadeOutSeconds { get; set; } = 300;
-
     // ── Scan Parameters ──
     public int SweepFrequencySeconds { get; set; } = 30;
     public int ResponseTimeoutMs { get; set; } = 1500;
@@ -28,7 +24,6 @@ public class AppSettings
 
     // ── Network Interface ──
     public string SelectedInterfaceName { get; set; } = "";
-    public bool EnablePromiscuous { get; set; } = false;
 
     // ── Alert Thresholds ──
     public int LatencyThresholdMs { get; set; } = 200;

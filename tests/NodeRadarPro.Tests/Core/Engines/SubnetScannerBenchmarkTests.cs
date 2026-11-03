@@ -174,7 +174,7 @@ public class SubnetScannerBenchmarkTests
     private static long RunBaseline((string Ip, string Mac)[] arpTable, string baseIp, int startIp, int endIp)
     {
         long matchCount = 0;
-        foreach (var (ip, mac) in arpTable)
+        foreach (var (ip, _) in arpTable)
         {
             string[] parts = ip.Split('.');
             if (parts.Length != 4) continue;
@@ -189,7 +189,7 @@ public class SubnetScannerBenchmarkTests
     private static long RunWithHelper((string Ip, string Mac)[] arpTable, string baseIp, int startIp, int endIp)
     {
         long matchCount = 0;
-        foreach (var (ip, mac) in arpTable)
+        foreach (var (ip, _) in arpTable)
         {
             if (SubnetScanner.IsIpInSubnetAndRange(ip.AsSpan(), baseIp, startIp, endIp))
             {
@@ -205,10 +205,7 @@ public class SubnetScannerBenchmarkTests
         const int concurrentTasks = 10;
         string nonResponsiveIp = "192.0.2.1"; // TEST-NET-1
 
-        using var cts = new CancellationTokenSource(200);
-
         // Baseline: Task.Run wrapping synchronous TryResolveNetBiosName
-        long baselineAllocBefore = GC.GetAllocatedBytesForCurrentThread();
         var sw = Stopwatch.StartNew();
         var baselineTasks = Enumerable.Range(0, concurrentTasks)
             .Select(_ => Task.Run(() => ArpResolver.TryResolveNetBiosName(nonResponsiveIp)))
@@ -222,18 +219,15 @@ public class SubnetScannerBenchmarkTests
             /* Baseline timeout or cancellation expected */
         }
         sw.Stop();
-        long baselineAllocated = GC.GetAllocatedBytesForCurrentThread() - baselineAllocBefore;
 
         // Optimized: Native async TryResolveNetBiosNameAsync with UdpClient.ReceiveAsync
-        using var cts2 = new CancellationTokenSource(200);
-        long optAllocBefore = GC.GetAllocatedBytesForCurrentThread();
+        using var cts = new CancellationTokenSource(200);
         sw.Restart();
         var optTasks = Enumerable.Range(0, concurrentTasks)
-            .Select(_ => ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp, cancellationToken: cts2.Token))
+            .Select(_ => ArpResolver.TryResolveNetBiosNameAsync(nonResponsiveIp, cancellationToken: cts.Token))
             .ToArray();
         await Task.WhenAll(optTasks);
         sw.Stop();
-        long optAllocated = GC.GetAllocatedBytesForCurrentThread() - optAllocBefore;
 
         // Assert that all async tasks return empty strings without throwing
         Assert.All(optTasks, t => Assert.Equal(string.Empty, t.Result));

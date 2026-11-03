@@ -41,7 +41,6 @@
     <PackageReference Include="AvaloniaUI.DiagnosticsSupport" />
     <PackageReference Include="LiteDB" />
     <PackageReference Include="MailKit" />
-    <PackageReference Include="System.Management" />
     <PackageReference Include="System.Windows.Extensions" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" />

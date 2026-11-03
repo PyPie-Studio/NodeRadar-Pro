@@ -21,7 +21,6 @@ public class SettingsPage : Border
 
     // General
     private readonly ComboBox _interfaceSelector;
-    private readonly CheckBox _promiscuousToggle;
 
     // Scan Parameters
     private readonly Slider _sweepFrequency;
@@ -93,9 +92,6 @@ public class SettingsPage : Border
         };
         ThemeTokens.SetToolTip(_interfaceSelector, "Choose the physical or virtual network adapter to use for scanning and monitoring.");
         PopulateNetworkInterfaces();
-
-        _promiscuousToggle = new CheckBox { IsChecked = false };
-        ThemeTokens.SetToolTip(_promiscuousToggle, "Attempt to listen to all packets on the network segment, not just those addressed to this host.");
 
         _sweepFrequency = new Slider { Minimum = 5, Maximum = 120, Value = 30 };
         ThemeTokens.SetToolTip(_sweepFrequency, "Set how often the background monitor probes each registered device.");
@@ -260,9 +256,7 @@ public class SettingsPage : Border
         var interfaceLabel = new TextBlock { Text = "Primary Network Interface", FontSize = 14, FontWeight = FontWeight.Medium, Foreground = ThemeTokens.OnSurface, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 0, 0, 4) };
         var interfaceDesc = new TextBlock { Text = "Select the interface for primary radar sweeps.", FontSize = 12, Foreground = ThemeTokens.OnSurfaceVariant, FontFamily = ThemeTokens.DefaultFont, Margin = new Thickness(0, 0, 0, 10) };
 
-        var promiscRow = MakeToggleCard("Promiscuous Mode", "Capture all traffic on the segment.", _promiscuousToggle);
-
-        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector, new Panel { Height = 20 }, promiscRow } };
+        var generalContent = new StackPanel { Children = { generalHeader, interfaceLabel, interfaceDesc, _interfaceSelector } };
         return ThemeTokens.Card(generalContent, ThemeTokens.SurfaceContainerLow, 32);
     }
 
@@ -415,7 +409,6 @@ public class SettingsPage : Border
         _packetLossThresholdValue.Text = $"{_settings.PacketLossThresholdPct:F1}%";
         _synScanToggle.IsChecked = _settings.EnableSynScan;
         _dnsResolveToggle.IsChecked = _settings.EnableDnsResolve;
-        _promiscuousToggle.IsChecked = _settings.EnablePromiscuous;
         _toastToggle.IsChecked = _settings.EnableToastAlerts;
         _soundToggle.IsChecked = _settings.EnableSoundAlerts;
         _emailToggle.IsChecked = _settings.EnableEmailAlerts;
@@ -450,7 +443,6 @@ public class SettingsPage : Border
         _settings.ResponseTimeoutMs = (int)_responseTimeout.Value;
         _settings.EnableSynScan = _synScanToggle.IsChecked == true;
         _settings.EnableDnsResolve = _dnsResolveToggle.IsChecked == true;
-        _settings.EnablePromiscuous = _promiscuousToggle.IsChecked == true;
         _settings.EnableToastAlerts = _toastToggle.IsChecked == true;
         _settings.EnableSoundAlerts = _soundToggle.IsChecked == true;
         _settings.EnableEmailAlerts = _emailToggle.IsChecked == true;
@@ -802,7 +794,6 @@ public class SettingsPage : Border
 
     // ── Headless Test Accessors ──
     internal ComboBox InterfaceSelector => _interfaceSelector;
-    internal CheckBox PromiscuousToggle => _promiscuousToggle;
     internal Slider SweepFrequencySlider => _sweepFrequency;
     internal TextBlock SweepFrequencyValue => _sweepFreqValue;
     internal Slider ResponseTimeoutSlider => _responseTimeout;

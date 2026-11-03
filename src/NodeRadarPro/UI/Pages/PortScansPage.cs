@@ -255,7 +255,7 @@ public class PortScansPage : Border
                         Dispatcher.UIThread.Post(() =>
                         {
                             _openCount.Text = $"OPEN PORTS: {currentFound}";
-                            _resultsBody.Children.Add(MakeResultRow(port, ip, currentFound % 2 == 0));
+                            _resultsBody.Children.Add(MakeResultRow(port, currentFound % 2 == 0));
                         });
                     }
                 }
@@ -341,7 +341,7 @@ public class PortScansPage : Border
         return new Border { Background = ThemeTokens.SurfaceTableRow, Padding = new Thickness(0, 14), Child = grid };
     }
 
-    private static Border MakeResultRow(int port, string ip, bool alt)
+    private static Border MakeResultRow(int port, bool alt)
     {
         var grid = new Grid();
         grid.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(100)));

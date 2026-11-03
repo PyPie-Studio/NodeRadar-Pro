@@ -16,7 +16,6 @@ public class InventoryFilterBar : StackPanel
     private readonly TextBlock _deviceCountText;
     private readonly Button _selectModeBtn;
     private readonly CheckBox _selectAllCheckbox;
-    private readonly Button _addBtn;
     private readonly WrapPanel _chipPanel;
     private readonly DispatcherTimer _searchDebounceTimer;
     private string _activeFilter = "all";
@@ -141,7 +140,7 @@ public class InventoryFilterBar : StackPanel
             }
         };
 
-        _addBtn = new Button
+        var addBtn = new Button
         {
             Content = "+",
             Background = Brushes.Transparent,
@@ -152,8 +151,8 @@ public class InventoryFilterBar : StackPanel
             VerticalContentAlignment = VerticalAlignment.Center,
             Padding = new Thickness(0)
         };
-        _addBtn.Click += (s, e) => AddDeviceClicked?.Invoke();
-        ThemeTokens.SetToolTip(_addBtn, "Manually register a new static device in the database.");
+        addBtn.Click += (s, e) => AddDeviceClicked?.Invoke();
+        ThemeTokens.SetToolTip(addBtn, "Manually register a new static device in the database.");
 
         var listHeader = new Grid { Margin = new Thickness(16, 8, 16, 8) };
         listHeader.ColumnDefinitions.Add(new ColumnDefinition(new GridLength(1, GridUnitType.Star)));
@@ -162,11 +161,11 @@ public class InventoryFilterBar : StackPanel
 
         Grid.SetColumn(listTitleRow, 0);
         Grid.SetColumn(_selectModeBtn, 1);
-        Grid.SetColumn(_addBtn, 2);
+        Grid.SetColumn(addBtn, 2);
 
         listHeader.Children.Add(listTitleRow);
         listHeader.Children.Add(_selectModeBtn);
-        listHeader.Children.Add(_addBtn);
+        listHeader.Children.Add(addBtn);
 
         Children.Add(searchWrap);
         Children.Add(_chipPanel);
