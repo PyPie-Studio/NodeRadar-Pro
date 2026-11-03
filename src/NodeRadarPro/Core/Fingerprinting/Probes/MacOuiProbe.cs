@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using NodeRadarPro.Data;
+using NodeRadarPro.Data.Generated;
 
 namespace NodeRadarPro.Core.Fingerprinting.Probes;
 

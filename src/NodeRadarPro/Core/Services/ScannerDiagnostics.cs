@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
-using NodeRadarPro.Data;
+using NodeRadarPro.Data.Generated;
 using NodeRadarPro.Core.Fingerprinting;
 using NodeRadarPro.Core.Fingerprinting.Probes;
 

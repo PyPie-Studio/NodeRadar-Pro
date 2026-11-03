@@ -1,4 +1,4 @@
-﻿#requires -Version 5.1
+#requires -Version 5.1
 <#
 .SYNOPSIS
     Downloads the official IEEE / Wireshark MAC manufacturer registry and updates the VendorLookup database.
@@ -181,7 +181,7 @@ $sb = [System.Text.StringBuilder]::new()
 $null = $sb.AppendLine("using System;")
 $null = $sb.AppendLine("using System.Collections.Generic;")
 $null = $sb.AppendLine()
-$null = $sb.AppendLine("namespace NodeRadarPro.Data;")
+$null = $sb.AppendLine("namespace NodeRadarPro.Data.Generated;")
 $null = $sb.AppendLine()
 $null = $sb.AppendLine("/// <summary>")
 $null = $sb.AppendLine("/// Maps MAC address prefixes (OUI) to hardware manufacturers.")

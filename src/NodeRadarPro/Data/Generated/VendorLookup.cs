@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace NodeRadarPro.Data;
+namespace NodeRadarPro.Data.Generated;
 
 /// <summary>
 /// Maps MAC address prefixes (OUI) to hardware manufacturers.

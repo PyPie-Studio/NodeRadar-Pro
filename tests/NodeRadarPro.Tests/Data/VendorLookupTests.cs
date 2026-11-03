@@ -1,4 +1,4 @@
-using NodeRadarPro.Data;
+using NodeRadarPro.Data.Generated;
 
 namespace NodeRadarPro.Tests.Data;
 

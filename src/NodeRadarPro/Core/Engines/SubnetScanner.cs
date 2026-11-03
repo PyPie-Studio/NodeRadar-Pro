@@ -674,7 +674,7 @@ public class SubnetScanner
         }
         else if (!token.IsCancellationRequested)
         {
-            node.Vendor = NodeRadarPro.Data.VendorLookup.GetVendor(node.MacAddress);
+            node.Vendor = NodeRadarPro.Data.Generated.VendorLookup.GetVendor(node.MacAddress);
             node.DeviceType = "Unknown";
             node.OsGuess = "";
             node.IconPath = "default_device";

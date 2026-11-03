@@ -14,7 +14,7 @@ public class PortScansPageHeadlessTests
         var page = new PortScansPage();
 
         Assert.NotNull(page.TargetIpInput);
-        Assert.Equal("192.168.1.1", page.TargetIpInput.Text);
+        Assert.Equal($"{NodeRadarPro.Core.Engines.SubnetScanner.GetLocalBaseIp()}.1", page.TargetIpInput.Text);
         Assert.Equal("1", page.StartPortInput.Text);
         Assert.Equal("1024", page.EndPortInput.Text);
         Assert.True(page.ScanButton.IsEnabled);
