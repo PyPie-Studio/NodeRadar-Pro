@@ -3,7 +3,7 @@
 # NodeRadar Pro
 
 Desktop network observability, host discovery and latency monitoring for Windows.  
-Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter and alerts on unregistered MAC addresses — local-only, zero kernel drivers.
+Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter and alerts on unregistered MAC addresses. local-only, zero kernel drivers.
 
 [![GitHub release](https://img.shields.io/github/v/release/PyPie-Studio/NodeRadar-Pro?style=for-the-badge&logo=github&color=6B21A8)](https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/PyPie-Studio/NodeRadar-Pro/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/PyPie-Studio/NodeRadar-Pro/actions)
