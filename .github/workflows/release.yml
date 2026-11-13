@@ -110,7 +110,7 @@ jobs:
 
       - name: Cache Inno Setup
         id: cache-inno
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             C:\Program Files\Inno Setup 7
