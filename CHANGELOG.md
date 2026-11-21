@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] - 2026-11-13
+
+### Changed
+- **GitHub Actions Cache Action Upgrade (`.github/workflows/release.yml`)**: Bumped `actions/cache` from v4 to v6 in release packaging workflow to maintain CI runner compatibility and security.
+- **Central Package Management Dependency Upgrades (`Directory.Packages.props`, `src/NodeRadarPro/NodeRadarPro.csproj`, `tests/NodeRadarPro.Tests/NodeRadarPro.Tests.csproj`)**: Updated `MailKit` (4.18.2 to 5.0.0), `Avalonia` UI suite (`Avalonia`, `Avalonia.Desktop`, `Avalonia.Themes.Fluent`, `Avalonia.Fonts.Inter` 12.1.5 to 12.1.6), `SonarAnalyzer.CSharp` (10.35.0.4138 to 10.36.0.15337), `System.Windows.Extensions`, `System.Security.Cryptography.ProtectedData`, `System.Security.Cryptography.Pkcs` (10.0.14 to 10.0.15), `Microsoft.NET.Test.Sdk` (18.11.0 to 18.12.0) and `xunit.v3` core/assert (4.0.2 to 4.0.3).
+- **MailKit 5.0 Request Model Migration (`EmailService.cs`, `EmailServiceTests.cs`)**: Migrated SMTP delivery to `ISendRequest` and `SmtpSendRequest`, aligning `EmailService.SendAlertAsync` and Moq test setups with the MailKit 5.0 request object model.
+- **Cognitive Complexity Decomposition (`EmailService.cs`, `Logger.cs`)**: Refactored `SendAlertAsync` and `ProcessQueue` into modular static helpers, reducing cognitive complexity below Sonar rule S3776 threshold.
+
+### Fixed
+- **System.Threading.Lock Synchronization (`Logger.cs`, `ArpResolver.cs`, `AvaloniaTestApp.cs`)**: Replaced object lock monitors with C# 13 `System.Threading.Lock`, resolving Sonar rule S9422 across rolling file logging, ARP table cache and Avalonia headless test app initialization.
+
 ## [2.2.0] - 2026-11-03
 
 ### Added
@@ -301,7 +312,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Integrity Self-Audit**: Hardened startup assembly integrity checking with constant-time cryptographic hash verification.
 - **Command Injection Neutralization**: Fixed command injection vulnerabilities in URL opening and external process invocations.
 
-[Unreleased]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.2.1...HEAD
+[2.2.1]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.2.0...v2.2.1
 [2.2.0]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.0.8...v2.1.0
 [2.0.8]: https://github.com/PyPie-Studio/NodeRadar-Pro/compare/v2.0.7...v2.0.8

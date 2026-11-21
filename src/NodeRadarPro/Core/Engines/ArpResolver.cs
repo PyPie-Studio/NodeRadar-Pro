@@ -49,7 +49,7 @@ public static partial class ArpResolver
     private static List<(string Ip, string Mac)> _cachedArpTable = new();
     private static Dictionary<string, string> _cachedArpDictionary = new(StringComparer.OrdinalIgnoreCase);
     private static DateTime _lastArpTableUpdate = DateTime.MinValue;
-    private static readonly object _arpTableLock = new();
+    private static readonly Lock _arpTableLock = new();
 
     /// <summary>
     /// Reads the full ARP table from the OS to discover ALL devices that have

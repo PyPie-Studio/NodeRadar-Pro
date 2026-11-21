@@ -38,6 +38,9 @@
     <PackageReference Update="Roslynator.Analyzers">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Update="SonarAnalyzer.CSharp">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
   </ItemGroup>
   <ItemGroup>
     <Using Include="NodeRadarPro.Core.Engines" />

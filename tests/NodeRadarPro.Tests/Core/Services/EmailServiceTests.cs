@@ -1,7 +1,7 @@
 using LiteDB;
+using MailKit;
 using MailKit.Net.Smtp;
 using MailKit.Security;
-using MimeKit;
 using Moq;
 using NodeRadarPro.Data;
 
@@ -84,7 +84,7 @@ public class EmailServiceTests : IDisposable
         var mockClient = new Mock<ISmtpClient>();
         mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default))
                   .Returns(Task.CompletedTask);
-        mockClient.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null))
+        mockClient.Setup(c => c.SendAsync(It.IsAny<ISendRequest>(), It.IsAny<CancellationToken>()))
                   .ThrowsAsync(new SmtpCommandException(SmtpErrorCode.MessageNotAccepted, SmtpStatusCode.TransactionFailed, "Message refused"));
 
         await EmailService.SendAlertAsync(settings, "Test Subject", "Test Body", _db, mockClient.Object);
@@ -174,8 +174,8 @@ public class EmailServiceTests : IDisposable
                   .Returns(Task.CompletedTask);
         mockClient.Setup(c => c.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, default))
                   .Returns(Task.CompletedTask);
-        mockClient.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null))
-                  .ReturnsAsync("OK");
+        mockClient.Setup(c => c.SendAsync(It.IsAny<ISendRequest>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(new SendResult("OK", [], []));
         mockClient.Setup(c => c.DisconnectAsync(true, default))
                   .Returns(Task.CompletedTask);
 
@@ -186,7 +186,7 @@ public class EmailServiceTests : IDisposable
 
         mockClient.Verify(c => c.ConnectAsync(settings.SmtpHost, settings.SmtpPort, SecureSocketOptions.StartTls, default), Times.Once);
         mockClient.Verify(c => c.AuthenticateAsync(settings.SmtpUser, settings.SmtpPassword, default), Times.Once);
-        mockClient.Verify(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null), Times.Once);
+        mockClient.Verify(c => c.SendAsync(It.IsAny<ISendRequest>(), It.IsAny<CancellationToken>()), Times.Once);
         mockClient.Verify(c => c.DisconnectAsync(true, default), Times.Once);
     }
 
@@ -238,8 +238,8 @@ public class EmailServiceTests : IDisposable
         var mockClient = new Mock<ISmtpClient>();
         mockClient.Setup(c => c.ConnectAsync(settings.SmtpHost, 465, SecureSocketOptions.SslOnConnect, default))
                   .Returns(Task.CompletedTask);
-        mockClient.Setup(c => c.SendAsync(It.IsAny<MimeMessage>(), default, null))
-                  .ReturnsAsync("OK");
+        mockClient.Setup(c => c.SendAsync(It.IsAny<ISendRequest>(), It.IsAny<CancellationToken>()))
+                  .ReturnsAsync(new SendResult("OK", [], []));
         mockClient.Setup(c => c.DisconnectAsync(true, default))
                   .Returns(Task.CompletedTask);
 

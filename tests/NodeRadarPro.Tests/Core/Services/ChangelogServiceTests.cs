@@ -102,7 +102,7 @@ public class ChangelogServiceTests
 
         Assert.NotEmpty(releases);
         Assert.True(releases.Count <= 3);
-        Assert.Equal("2.2.0", releases[0].Version);
+        Assert.Equal("2.2.1", releases[0].Version);
         Assert.NotEmpty(releases[0].Highlights);
         Assert.NotEmpty(releases[0].Items);
         Assert.True(releases[0].Items.Count >= releases[0].Highlights.Count);

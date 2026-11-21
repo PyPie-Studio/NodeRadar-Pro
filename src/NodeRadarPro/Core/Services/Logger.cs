@@ -16,7 +16,7 @@ public static class Logger
 {
     private static readonly string _defaultLogDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "PyPie Studio", "NodeRadar Pro", "Logs");
     private static string? _customLogDir;
-    private static readonly object _fileLock = new();
+    private static readonly Lock _fileLock = new();
     private static readonly ConcurrentQueue<string> _logQueue = new();
     private static bool _isProcessing = false;
     private static readonly ManualResetEventSlim _flushEvent = new(true);
@@ -63,43 +63,58 @@ public static class Logger
             _flushEvent.Reset();
         }
 
-        Task.Run(() =>
+        Task.Run(ProcessQueueWorker);
+    }
+
+    private static void ProcessQueueWorker()
+    {
+        try
         {
-            try
+            var batch = new List<string>(32);
+            while (_logQueue.TryDequeue(out string? line))
             {
-                var batch = new List<string>(32);
-                while (_logQueue.TryDequeue(out string? line))
+                batch.Add(line);
+                if (batch.Count >= 64 || _logQueue.IsEmpty)
                 {
-                    batch.Add(line);
-                    if (batch.Count >= 64 || _logQueue.IsEmpty)
-                    {
-                        lock (_fileLock)
-                        {
-                            if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
-                            CheckRotation();
-                            File.AppendAllLines(CurrentLogFile, batch);
-                        }
-                        batch.Clear();
-                    }
+                    FlushBatch(batch);
+                    batch.Clear();
                 }
             }
-            catch { }
-            finally
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Logger queue worker encountered error: {ex.Message}");
+        }
+        finally
+        {
+            CompleteProcessingCycle();
+        }
+    }
+
+    private static void FlushBatch(List<string> batch)
+    {
+        lock (_fileLock)
+        {
+            if (!Directory.Exists(LogDir)) Directory.CreateDirectory(LogDir);
+            CheckRotation();
+            File.AppendAllLines(CurrentLogFile, batch);
+        }
+    }
+
+    private static void CompleteProcessingCycle()
+    {
+        lock (_fileLock)
+        {
+            _isProcessing = false;
+            if (!_logQueue.IsEmpty)
             {
-                lock (_fileLock)
-                {
-                    _isProcessing = false;
-                    if (!_logQueue.IsEmpty)
-                    {
-                        ProcessQueue();
-                    }
-                    else
-                    {
-                        _flushEvent.Set();
-                    }
-                }
+                ProcessQueue();
             }
-        });
+            else
+            {
+                _flushEvent.Set();
+            }
+        }
     }
 
     private static void CheckRotation()
@@ -114,7 +129,10 @@ public static class Logger
                 CleanupOldLogs();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Logger rotation check encountered error: {ex.Message}");
+        }
     }
 
     private static void CleanupOldLogs()
@@ -133,7 +151,10 @@ public static class Logger
                 file.Delete();
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Logger cleanup encountered error: {ex.Message}");
+        }
     }
 
     public static string GetLogDirectory() => LogDir;

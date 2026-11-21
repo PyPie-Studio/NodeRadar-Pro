@@ -4,7 +4,7 @@ namespace NodeRadarPro.Tests.UI;
 
 internal static class AvaloniaTestApp
 {
-    private static readonly object SyncRoot = new();
+    private static readonly System.Threading.Lock SyncRoot = new();
     private static bool _initialized;
 
     public static void EnsureInitialized()
