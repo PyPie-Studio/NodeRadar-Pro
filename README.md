@@ -3,7 +3,7 @@
 # NodeRadar Pro
 
 Desktop network observability, host discovery and latency monitoring for Windows.  
-Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter and alerts on unregistered MAC addresses — local-only, zero kernel drivers.
+Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter and alerts on unregistered MAC addresses. local-only, zero kernel drivers.
 
 [![GitHub release](https://img.shields.io/github/v/release/PyPie-Studio/NodeRadar-Pro?style=for-the-badge&logo=github&color=6B21A8)](https://github.com/PyPie-Studio/NodeRadar-Pro/releases/latest)
 [![CI](https://img.shields.io/github/actions/workflow/status/PyPie-Studio/NodeRadar-Pro/ci.yml?branch=main&style=for-the-badge&logo=githubactions&logoColor=white&label=CI)](https://github.com/PyPie-Studio/NodeRadar-Pro/actions)
@@ -16,13 +16,6 @@ Discovers LAN devices via multi-threaded ARP and ICMP sweeps, tracks live jitter
 </div>
 
 ---
-
-<div align="center">
-  <a href="docs/media/showcase.mp4">
-    <img width="1200" alt="NodeRadar Pro Video Showcase Demo" src="docs/media/showcase.jpg" />
-  </a>
-  <p><em>Watch the 20-second product showcase: sub-second sweeps, live 24h uptime telemetry and intrusion alerts</em></p>
-</div>
 
 <br>
 
@@ -103,7 +96,7 @@ NodeRadar Pro provides a unified console for local network monitoring and device
 
 - **Subnet Sweep and Host Discovery**: Scans IPv4 ranges using multi-threaded ICMP ping sweeps and direct Win32 `SendARP` table queries. Probing is throttled via `SemaphoreSlim` (64 in-flight sockets) to prevent ephemeral port exhaustion (`WSAENOBUFS 10055`).
 - **Service Port Scanner**: Probes common service ports (SSH, RDP, SMB, HTTP/S, databases) on target hosts. Uses parallel connection probes with short-circuit timeout cancellation so unresponsive ports complete concurrently (~200ms) rather than blocking sequentially.
-- **Intrusion Sentinel**: Background monitoring engine that compares discovered MAC addresses against your authorized device inventory. Triggers visual alerts, local audio indicators and opt-in SMTP notifications the moment an unregistered device connects to the subnet.
+- **Unknown-Device Alerts**: Background monitoring engine that compares discovered MAC addresses against your authorized device inventory. Triggers visual alerts, local audio indicators and opt-in SMTP notifications the moment an unregistered device connects to the subnet.
 - **Continuous Latency and 24h Uptime Pulse**: Tracks millisecond-level round-trip latency, jitter and packet loss over time. Displays a visual 24-hour sliding-window uptime bar for every monitored node.
 - **Heuristic Device Classification**: Identifies device models and operating systems through combined heuristics: IEEE MAC OUI manufacturer database, mDNS Bonjour records (`_http._tcp.local`, `_ipp._tcp.local`), SSDP/UPnP XML descriptors, NetBIOS Name Service (NBNS) queries and open port fingerprints.
 - **Multi-Hop Traceroute**: Interactive ICMP traceroute showing intermediate hops, per-hop round-trip times and host resolution.
@@ -113,7 +106,7 @@ NodeRadar Pro provides a unified console for local network monitoring and device
 
 ## Privacy and Local-Only Mandate
 
-NodeRadar Pro is built on strict data sovereignty rules:
+NodeRadar Pro is built on strict local-only privacy rules:
 
 | Invariant | Implementation |
 | :--- | :--- |
