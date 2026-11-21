@@ -58,7 +58,11 @@ public class SubnetScannerTests
         mockArp.Setup(a => a.GetFullArpTable())
             .Returns(new List<(string Ip, string Mac)>());
 
-        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object)
+        var mockTcp = new Mock<ITcpPortProber>();
+        mockTcp.Setup(t => t.ProbePortAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var scanner = new SubnetScanner(mockPing.Object, mockArp.Object, mockTcp.Object)
         {
             EnableDnsResolve = false,
             EnableInlinePortScan = false,
